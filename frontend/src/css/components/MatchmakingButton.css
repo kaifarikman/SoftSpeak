@@ -1,0 +1,72 @@
+.matchmaking-container {
+  padding: 20px;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.matchmaking-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.matchmaking-button.start {
+  background-color: #4CAF50;
+  color: white;
+  width: 100%;
+}
+
+.matchmaking-button.start:hover {
+  background-color: #45a049;
+}
+
+.matchmaking-button.stop {
+  background-color: #f44336;
+  color: white;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.matchmaking-button.stop:hover {
+  background-color: #da190b;
+}
+
+.matchmaking-status {
+  margin-bottom: 15px;
+}
+
+.matchmaking-status p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.queue-count {
+  font-size: 14px;
+  color: #888;
+}
+
+.queue-info {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.matchmaking-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #4CAF50;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+

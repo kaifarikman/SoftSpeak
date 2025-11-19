@@ -1,0 +1,54 @@
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  
+}
+
+.chat-area.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-chat-state {
+  text-align: center;
+}
+
+.empty-chat-state h2 {
+  font-size: var(--font-size-4xl);
+  margin-bottom: var(--space-10);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.empty-chat-state p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.reveal-button {
+  background: linear-gradient(135deg, #5e5ce6, #7f7bfa);
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.reveal-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-info-message {
+  padding: 8px 35px;
+  font-size: 14px;
+  color: #bcc4dd;
+}
+
+.chat-info-message.error {
+  color: #ff8080;
+}

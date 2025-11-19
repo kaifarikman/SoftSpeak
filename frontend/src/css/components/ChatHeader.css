@@ -1,0 +1,49 @@
+.chat-header {
+  
+  display: flex;
+  justify-content: space-between;
+  padding: 0 35px;
+  align-items: center;
+ border-bottom: 1px solid #393636; 
+  height: 85px;
+}
+
+.chat-header-info h2 {
+  font-size: 30px;
+  font-weight: 500;
+  margin: 0;
+  color: #B5BFD6;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-button {
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  cursor: pointer;
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-base);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.hamburger-icon {
+    display: inline-block;
+  width: 32px;
+  height: 32px;
+  background-image: url('../../assets/icons/menu.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.menu-button:hover {
+  background: var(--color-secondary);
+}
+
+.menu-button:focus-visible {
+  outline: var(--focus-outline);
+}

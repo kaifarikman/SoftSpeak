@@ -1,0 +1,186 @@
+.navigation {
+  width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1px solid #393636;
+  height: 100vh;
+  background: #171821;
+}
+
+.user-avatar {
+  width: 70px;
+  height: 60px;
+  border-bottom: 1px solid #393636; 
+  
+}
+
+.avatar-circle {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background-image: url("../../assets/avatar_sample.jpg");
+  background-size: cover; 
+  background-position: center; 
+  background-repeat: no-repeat;
+  border: 2px solid black;
+  margin: 7px auto;
+}
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+}
+
+.nav-item {
+  width: 100%;
+  height: 70px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-item:hover {
+  background: #262835;
+}
+
+
+.nav-icon-img {
+  width: 45px;
+  height: 45px;
+}
+
+.nav-item.active {
+  border-left: 4px solid #25D366;
+}
+
+.nav-icon-img.bot {
+    background-image: url("../../assets/icons/chatbot.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.active .nav-icon-img.bot {
+    background-image: url("../../assets/icons/chatbot_selected.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.nav-icon-img.anon {
+    background-image: url("../../assets/icons/masks.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.active .nav-icon-img.anon {
+    background-image: url("../../assets/icons/masks_selected.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.nav-icon-img.people {
+    background-image: url("../../assets/icons/people.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.active .nav-icon-img.people {
+    background-image: url("../../assets/icons/people_selected.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.nav-icon-img.settings {
+    background-image: url("../../assets/icons/settings.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+.active .nav-icon-img.settings {
+    background-image: url("../../assets/icons/settings_selected.png");
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+}
+
+/* Оверлей для закрытия меню на мобильных */
+.navigation-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.navigation-overlay.visible {
+  display: block;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .navigation {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .navigation.open {
+    transform: translateX(0);
+  }
+
+  .user-avatar {
+    width: 70px;
+    height: 60px;
+  }
+
+  .avatar-circle {
+    width: 45px;
+    height: 45px;
+  }
+
+  .nav-item {
+    height: 70px;
+  }
+
+  .nav-icon-img {
+    width: 45px;
+    height: 45px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navigation {
+    width: 70px;
+  }
+
+  .user-avatar {
+    width: 70px;
+    height: 60px;
+  }
+
+  .avatar-circle {
+    width: 45px;
+    height: 45px;
+    margin: 7px auto;
+  }
+
+  .nav-item {
+    height: 70px;
+  }
+
+  .nav-icon-img {
+    width: 45px;
+    height: 45px;
+  }
+}

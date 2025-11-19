@@ -1,0 +1,665 @@
+import { useState, useEffect } from 'react';
+import { API_URL } from '../../config';
+import '../../css/components/SettingsContent.css';
+
+const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' }); // type: 'success' | 'error'
+  const [formData, setFormData] = useState({
+    username: '',
+    bio: '',
+    avatar: '',
+    notification_anon_chats: true,
+    notification_open_chats: true,
+    media_auto_upload_photos: false,
+    media_auto_upload_videos: false,
+    old_password: '',
+    new_password: '',
+    new_password_confirm: '',
+  });
+  const [blacklist, setBlacklist] = useState([]);
+
+  // Загружаем данные пользователя при монтировании
+  useEffect(() => {
+    if (username) {
+      loadUserData();
+      if (selectedSetting?.name === 'Черный список') {
+        loadBlacklist();
+      }
+    }
+  }, [username, selectedSetting]);
+
+  const loadUserData = async () => {
+    console.log('Loading user data for username:', username);
+    try {
+      const url = `${API_URL}/settings/${username}`;
+      console.log('Fetching:', url);
+      const response = await fetch(url);
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded user data:', data);
+        setFormData(prev => ({
+          ...prev,
+          username: data.username || username,
+          bio: data.bio || '',
+          avatar: data.avatar || '',
+          notification_anon_chats: data.notification_anon_chats ?? true,
+          notification_open_chats: data.notification_open_chats ?? true,
+          media_auto_upload_photos: data.media_auto_upload_photos ?? false,
+          media_auto_upload_videos: data.media_auto_upload_videos ?? false,
+        }));
+      } else {
+        console.error('Failed to load user data:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки данных:', error);
+    }
+  };
+
+  const loadBlacklist = async () => {
+    console.log('Loading blacklist for username:', username);
+    try {
+      const url = `${API_URL}/settings/blacklist/${username}`;
+      console.log('Fetching blacklist:', url);
+      const response = await fetch(url);
+      console.log('Blacklist response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded blacklist:', data);
+        setBlacklist(data);
+      } else {
+        console.error('Failed to load blacklist:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки черного списка:', error);
+    }
+  };
+
+  const showMessage = (text, type) => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+  };
+
+  // ==================== Профиль ====================
+
+  const handleUpdateUsername = async () => {
+    if (!formData.username || formData.username.length < 3) {
+      showMessage('Никнейм должен быть не менее 3 символов', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/settings/profile/username/${username}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: formData.username }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Никнейм изменен', 'success');
+        if (data.chat_data && onChatDataUpdate) {
+          onChatDataUpdate(data.chat_data);
+        }
+        // Обновляем username в localStorage
+        localStorage.setItem('username', formData.username);
+      } else {
+        showMessage(data.message || 'Никнейм занят', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка обновления никнейма', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadAvatar = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_URL}/settings/profile/avatar/${username}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Фотография профиля изменена', 'success');
+        console.log('Avatar updated, new chat_data:', data.chat_data);
+        console.log('Avatar URL:', data.chat_data?.avatar);
+        
+        if (data.chat_data && onChatDataUpdate) {
+          onChatDataUpdate(data.chat_data);
+          // Диспатчим событие для немедленного обновления Navigation
+          window.dispatchEvent(new Event('chatDataUpdated'));
+        }
+        // Обновляем аватар в форме
+        if (data.chat_data?.avatar) {
+          setFormData(prev => ({ ...prev, avatar: data.chat_data.avatar }));
+        }
+        // Перезагружаем данные
+        loadUserData();
+      } else {
+        showMessage(data.message || 'Неправильный формат или слишком большой размер файла', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка загрузки фотографии', 'error');
+    } finally {
+      setLoading(false);
+      e.target.value = ''; // Сбрасываем input
+    }
+  };
+
+  const handleUpdateBio = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/settings/profile/bio/${username}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: formData.bio || null }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Информация изменена', 'success');
+      } else {
+        showMessage(data.message || 'Недопустимые символы или слишком большой размер текста', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка обновления информации', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== Уведомления ====================
+
+  const handleUpdateNotifications = async (field, value) => {
+    console.log('Updating notifications:', field, value);
+    setLoading(true);
+    try {
+      const url = `${API_URL}/settings/notifications/${username}`;
+      console.log('Updating notifications at:', url);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [field]: value,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Notification update response:', data);
+      if (data.success) {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        console.log('Notifications updated successfully');
+      } else {
+        console.error('Failed to update notifications:', data.message);
+      }
+    } catch (error) {
+      console.error('Ошибка обновления настроек уведомлений:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== Медиа ====================
+
+  const handleUpdateMedia = async (field, value) => {
+    console.log('Updating media settings:', field, value);
+    setLoading(true);
+    try {
+      const url = `${API_URL}/settings/media/${username}`;
+      console.log('Updating media at:', url);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [field]: value,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Media update response:', data);
+      if (data.success) {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        console.log('Media settings updated successfully');
+      } else {
+        console.error('Failed to update media settings:', data.message);
+      }
+    } catch (error) {
+      console.error('Ошибка обновления настроек медиа:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== Аккаунт ====================
+
+  const handleChangePassword = async () => {
+    if (formData.new_password !== formData.new_password_confirm) {
+      showMessage('Неправильный пароль или новые пароли не совпадают', 'error');
+      return;
+    }
+
+    if (formData.new_password.length < 8) {
+      showMessage('Новый пароль должен быть не менее 8 символов', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/settings/account/password/${username}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          old_password: formData.old_password,
+          new_password: formData.new_password,
+          new_password_confirm: formData.new_password_confirm,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Пароль изменен', 'success');
+        setFormData(prev => ({
+          ...prev,
+          old_password: '',
+          new_password: '',
+          new_password_confirm: '',
+        }));
+      } else {
+        showMessage(data.message || 'Неправильный пароль или новые пароли не совпадают', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка изменения пароля', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('chat_data');
+    window.location.href = '/signin';
+  };
+
+  // ==================== Черный список ====================
+
+  const handleAddToBlacklist = async (usernameToBlock) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/settings/blacklist/${username}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameToBlock }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Пользователь добавлен в черный список', 'success');
+        loadBlacklist(); // Перезагружаем список
+      } else {
+        showMessage(data.message || 'Ошибка добавления в черный список', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка добавления в черный список', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveFromBlacklist = async (blockedUsername) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/settings/blacklist/${username}?blocked_username=${blockedUsername}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setBlacklist(prev => prev.filter(u => u.username !== blockedUsername));
+        showMessage('Пользователь удален из черного списка', 'success');
+      } else {
+        showMessage(data.message || 'Ошибка удаления', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка удаления из черного списка', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== Рендеринг ====================
+
+  if (!selectedSetting) {
+    return (
+      <div className="settings-content">
+        <div className="empty-state">
+          <p>Выберите настройку</p>
+        </div>
+      </div>
+    );
+  }
+
+  const renderContent = () => {
+    switch (selectedSetting.name) {
+      case 'Профиль':
+        return (
+          <div className="settings-section">
+            <h2>Профиль</h2>
+            
+            {/* Никнейм */}
+            <div className="settings-field">
+              <label>Отображаемый никнейм</label>
+              <div className="settings-field-row">
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Введите никнейм"
+                />
+                <button onClick={handleUpdateUsername} disabled={loading}>
+                  Изменить
+                </button>
+              </div>
+              {message.text && message.type === 'success' && formData.username && (
+                <p className="message success">Никнейм изменен</p>
+              )}
+              {message.text && message.type === 'error' && (
+                <p className="message error">Никнейм занят</p>
+              )}
+            </div>
+
+            {/* Аватар */}
+            <div className="settings-field">
+              <label>Фотография профиля</label>
+              <div className="settings-field-row">
+                <div className="avatar-preview">
+                  {formData.avatar ? (
+                    <img 
+                      src={
+                        formData.avatar.startsWith('http') 
+                          ? formData.avatar 
+                          : formData.avatar.startsWith('/static') || formData.avatar.startsWith('/')
+                            ? formData.avatar
+                            : `/${formData.avatar}`
+                      } 
+                      alt="Avatar" 
+                      onError={(e) => {
+                        console.error('Ошибка загрузки аватара:', formData.avatar);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      <span>👤</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={handleUploadAvatar}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="avatar-upload" className="upload-button">
+                    Загрузить
+                  </label>
+                  <p className="upload-hint">Загрузите файл .jpg/.png размером не более 10 Мб</p>
+                </div>
+              </div>
+              {message.text && message.type === 'success' && message.text.includes('Фотография') && (
+                <p className="message success">Фотография профиля изменена</p>
+              )}
+              {message.text && message.type === 'error' && message.text.includes('формат') && (
+                <p className="message error">Неправильный формат или слишком большой размер файла</p>
+              )}
+            </div>
+
+            {/* Информация о себе */}
+            <div className="settings-field">
+              <label>Отображаемая информация о себе</label>
+              <div className="settings-field-row">
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Любая информация, например возраст, местоположение и т.д."
+                  rows={4}
+                />
+                <button onClick={handleUpdateBio} disabled={loading}>
+                  Изменить
+                </button>
+              </div>
+              {message.text && message.type === 'success' && message.text.includes('Информация') && (
+                <p className="message success">Информация изменена</p>
+              )}
+              {message.text && message.type === 'error' && message.text.includes('символы') && (
+                <p className="message error">Недопустимые символы или слишком большой размер текста</p>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'Уведомления':
+        return (
+          <div className="settings-section">
+            <h2>Уведомления</h2>
+            
+            <div className="settings-field">
+              <div className="toggle-field">
+                <label>Уведомления из анонимных чатов</label>
+                <div
+                  className={`toggle-switch ${formData.notification_anon_chats ? 'on' : 'off'}`}
+                  onClick={() => handleUpdateNotifications('notification_anon_chats', !formData.notification_anon_chats)}
+                >
+                  <div className="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <div className="toggle-field">
+                <label>Уведомления из открытых чатов</label>
+                <div
+                  className={`toggle-switch ${formData.notification_open_chats ? 'on' : 'off'}`}
+                  onClick={() => handleUpdateNotifications('notification_open_chats', !formData.notification_open_chats)}
+                >
+                  <div className="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'Медиа':
+        return (
+          <div className="settings-section">
+            <h2>Медиа</h2>
+            
+            <div className="settings-field">
+              <div className="toggle-field">
+                <label>Автозагрузка фото</label>
+                <div
+                  className={`toggle-switch ${formData.media_auto_upload_photos ? 'on' : 'off'}`}
+                  onClick={() => handleUpdateMedia('media_auto_upload_photos', !formData.media_auto_upload_photos)}
+                >
+                  <div className="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <div className="toggle-field">
+                <label>Автозагрузка видео</label>
+                <div
+                  className={`toggle-switch ${formData.media_auto_upload_videos ? 'on' : 'off'}`}
+                  onClick={() => handleUpdateMedia('media_auto_upload_videos', !formData.media_auto_upload_videos)}
+                >
+                  <div className="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'Аккаунт':
+        return (
+          <div className="settings-section">
+            <h2>Аккаунт</h2>
+            
+            <div className="settings-field">
+              <h3>Смена пароля</h3>
+              <div className="password-fields">
+                <input
+                  type="password"
+                  placeholder="Старый пароль"
+                  value={formData.old_password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, old_password: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Новый пароль"
+                  value={formData.new_password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, new_password: e.target.value }))}
+                />
+                <input
+                  type="password"
+                  placeholder="Новый пароль еще раз"
+                  value={formData.new_password_confirm}
+                  onChange={(e) => setFormData(prev => ({ ...prev, new_password_confirm: e.target.value }))}
+                />
+                <button onClick={handleChangePassword} disabled={loading} className="primary-button">
+                  Изменить пароль
+                </button>
+              </div>
+              {message.text && message.type === 'success' && message.text.includes('Пароль') && (
+                <p className="message success">Пароль изменен</p>
+              )}
+              {message.text && message.type === 'error' && message.text.includes('пароль') && (
+                <p className="message error">Неправильный пароль или новые пароли не совпадают</p>
+              )}
+            </div>
+
+            <div className="settings-field">
+              <button onClick={handleLogout} className="danger-button">
+                Выйти из аккаунта
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'Черный список':
+        return (
+          <div className="settings-section">
+            <h2>Черный список</h2>
+            
+            {/* Форма добавления в черный список */}
+            <div className="settings-field">
+              <label>Добавить пользователя в черный список</label>
+              <div className="settings-field-row">
+                <input
+                  type="text"
+                  id="blacklist-username-input"
+                  placeholder="Введите username пользователя"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.target;
+                      const usernameToBlock = input.value.trim();
+                      if (usernameToBlock) {
+                        handleAddToBlacklist(usernameToBlock);
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('blacklist-username-input');
+                    const usernameToBlock = input.value.trim();
+                    if (usernameToBlock) {
+                      handleAddToBlacklist(usernameToBlock);
+                      input.value = '';
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  Добавить
+                </button>
+              </div>
+            </div>
+            
+            {blacklist.length === 0 ? (
+              <div className="empty-state">
+                <p>Черный список пуст</p>
+              </div>
+            ) : (
+              <div className="blacklist-items">
+                {blacklist.map((user) => (
+                  <div key={user.id} className="blacklist-item">
+                    <div className="blacklist-user-info">
+                      <div className="blacklist-avatar">
+                        {user.avatar ? (
+                          <img 
+                            src={
+                              user.avatar.startsWith('http') 
+                                ? user.avatar 
+                                : user.avatar.startsWith('/static') || user.avatar.startsWith('/')
+                                  ? user.avatar
+                                  : `/${user.avatar}`
+                            } 
+                            alt={user.username}
+                            onError={(e) => {
+                              console.error('Ошибка загрузки аватара пользователя:', user.avatar);
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span>👤</span>
+                        )}
+                      </div>
+                      <span className="blacklist-username">{user.username}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFromBlacklist(user.username)}
+                      disabled={loading}
+                      className="remove-button"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <div className="settings-section">
+            <p>Настройка "{selectedSetting.name}" в разработке</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="settings-content">
+      {renderContent()}
+    </div>
+  );
+};
+
+export default SettingsContent;
+

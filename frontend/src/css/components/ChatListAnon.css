@@ -1,0 +1,25 @@
+.chat-list-anon {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.empty-chats {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-chats p {
+  margin: 10px 0;
+}
+
+.empty-chats .hint {
+  font-size: 14px;
+  color: #999;
+}
+
+.chat-items {
+  flex: 1;
+  overflow-y: auto;
+}
