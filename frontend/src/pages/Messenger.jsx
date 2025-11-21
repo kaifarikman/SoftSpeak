@@ -25,7 +25,7 @@ function Messenger() {
   const navigate = useNavigate();
   // Используем Context API вместо прямого доступа к localStorage
   const { chatData, updateChatData } = useChatData();
-  const [activeSection, setActiveSection] = useState(null); // bot, anon, people, settings, null = welcome
+  const [activeSection, setActiveSection] = useState('bot'); // bot, anon, people, settings, null = welcome
   const [selectedChatBot, setSelectedChatBot] = useState("SoftSpeak");
   const [selectedChatAnon, setSelectedChatAnon] = useState(null);
   const [selectedChatPeople, setSelectedChatPeople] = useState(null);

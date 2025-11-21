@@ -1,4 +1,3 @@
-"""CRUD-операции для матчинга и анонимных чатов."""
 from typing import Optional
 from datetime import datetime, timezone
 import logging
@@ -35,19 +34,14 @@ async def join_matchmaking_queue(
     session: AsyncSession,
     user_id: int,
 ) -> MatchmakingQueue:
-    """
-    Добавляет пользователя в очередь матчинга или обновляет существующую запись.
-    """
     stmt = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
     result = await session.execute(stmt)
     queue_entry = result.scalar_one_or_none()
 
     if queue_entry:
-        # Обновляем существующую запись
         queue_entry.is_searching = True
         queue_entry.joined_at = datetime.now(timezone.utc)
     else:
-        # Создаем новую запись
         queue_entry = MatchmakingQueue(
             user_id=user_id,
             is_searching=True,
@@ -64,9 +58,6 @@ async def leave_matchmaking_queue(
     session: AsyncSession,
     user_id: int,
 ) -> bool:
-    """
-    Удаляет пользователя из очереди матчинга.
-    """
     stmt = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
     result = await session.execute(stmt)
     queue_entry = result.scalar_one_or_none()
@@ -84,9 +75,6 @@ async def get_matchmaking_queue_count(
     session: AsyncSession,
     exclude_user_id: Optional[int] = None,
 ) -> int:
-    """
-    Получает количество пользователей в очереди матчинга.
-    """
     stmt = select(func.count(MatchmakingQueue.id)).where(
         MatchmakingQueue.is_searching.is_(True)
     )
@@ -102,12 +90,6 @@ async def find_match(
     session: AsyncSession,
     user_id: int,
 ) -> Optional[AnonymousChat]:
-    """
-    Ищет матч для пользователя.
-    Возвращает созданный чат или None, если матч не найден.
-    Использует SELECT FOR UPDATE для предотвращения race conditions.
-    """
-    # Получаем текущего пользователя с профилем
     user_stmt = (
         select(User)
         .options(selectinload(User.psychological_profile))
@@ -131,9 +113,6 @@ async def find_match(
 
     user_vector = user.psychological_profile.profile_vector
     logger.info(f"find_match: Начинаем поиск матча для пользователя {user_id}")
-
-    # Получаем всех пользователей в очереди, кроме текущего
-    # Используем FOR UPDATE SKIP LOCKED для предотвращения блокировок
     queue_stmt = (
         select(MatchmakingQueue)
         .where(
@@ -154,7 +133,6 @@ async def find_match(
     
     logger.info(f"find_match: Найдено {len(queue_entries)} пользователей в очереди")
 
-    # Формируем список других пользователей с их профилями
     other_users = []
     for entry in queue_entries:
         if entry.user and entry.user.psychological_profile and entry.user.messengers_enabled:
@@ -169,7 +147,6 @@ async def find_match(
 
     logger.info(f"find_match: Ищем лучший матч среди {len(other_users)} пользователей")
     
-    # Ищем лучший матч
     best_match_id = await find_best_match(
         user_vector=user_vector,
         user_id=user_id,
@@ -182,7 +159,6 @@ async def find_match(
     
     logger.info(f"find_match: Найден лучший матч для {user_id}: пользователь {best_match_id}")
 
-    # Проверяем, нет ли уже активного чата между этими пользователями
     existing_chat_stmt = select(AnonymousChat).where(
         or_(
             and_(
@@ -201,7 +177,6 @@ async def find_match(
 
     if existing_chat:
         logger.info(f"find_match: Уже существует чат {existing_chat.id} между {user_id} и {best_match_id}")
-        # Удаляем обоих пользователей из очереди (в текущей сессии)
         stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
         result1 = await session.execute(stmt1)
         entry1 = result1.scalar_one_or_none()
@@ -217,11 +192,7 @@ async def find_match(
         await session.commit()
         return existing_chat
 
-    # Создаем новый чат
-    # user1_id всегда меньше user2_id для консистентности
     user1_id_sorted, user2_id_sorted = (user_id, best_match_id) if user_id < best_match_id else (best_match_id, user_id)
-
-    # Еще раз проверяем на наличие чата (защита от race condition)
     check_stmt = select(AnonymousChat).where(
         and_(
             AnonymousChat.user1_id == user1_id_sorted,
@@ -234,9 +205,7 @@ async def find_match(
     final_check_chat = check_result.scalar_one_or_none()
     
     if final_check_chat:
-        # Чат уже создан другим пользователем (race condition предотвращена)
         logger.info(f"find_match: Чат {final_check_chat.id} уже был создан (race condition), возвращаем существующий")
-        # Удаляем из очереди
         stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
         result1 = await session.execute(stmt1)
         entry1 = result1.scalar_one_or_none()
@@ -252,7 +221,6 @@ async def find_match(
         await session.commit()
         return final_check_chat
 
-    # Создаем чат
     chat = AnonymousChat(
         user1_id=user1_id_sorted,
         user2_id=user2_id_sorted,
@@ -262,7 +230,6 @@ async def find_match(
     chat.user2_alias = await random_names.generate_random_alias(session)
     session.add(chat)
 
-    # Удаляем обоих пользователей из очереди
     stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
     result1 = await session.execute(stmt1)
     entry1 = result1.scalar_one_or_none()
@@ -286,9 +253,6 @@ async def get_user_anonymous_chats(
     session: AsyncSession,
     user_id: int,
 ) -> list[AnonymousChat]:
-    """
-    Получает все активные анонимные чаты пользователя.
-    """
     stmt = (
         select(AnonymousChat)
         .where(
@@ -317,9 +281,6 @@ async def get_anonymous_chat(
     chat_id: int,
     user_id: int,
 ) -> Optional[AnonymousChat]:
-    """
-    Получает анонимный чат по ID, если пользователь является участником.
-    """
     stmt = (
         select(AnonymousChat)
         .where(
@@ -355,10 +316,6 @@ async def create_anonymous_message(
     media_width: int | None = None,
     media_height: int | None = None,
 ) -> AnonymousMessage:
-    """
-    Создает сообщение в анонимном чате.
-    """
-    # Проверяем, что отправитель является участником чата
     chat_stmt = select(AnonymousChat).where(AnonymousChat.id == chat_id)
     chat_result = await session.execute(chat_stmt)
     chat = chat_result.scalar_one_or_none()
@@ -383,7 +340,6 @@ async def create_anonymous_message(
     )
     session.add(message)
 
-    # Обновляем updated_at чата
     chat.updated_at = datetime.now(timezone.utc)
 
     await session.commit()
@@ -395,9 +351,6 @@ async def get_user_public_chats(
     session: AsyncSession,
     user_id: int,
 ) -> list[AnonymousChat]:
-    """
-    Получает все раскрытые (публичные) чаты пользователя.
-    """
     stmt = (
         select(AnonymousChat)
         .where(
@@ -426,20 +379,13 @@ async def reveal_anonymous_chat(
     chat_id: int,
     user_id: int,
 ) -> tuple[AnonymousChat, bool]:
-    """
-    Отмечает желание пользователя раскрыться.
-    Если оба пользователя согласны, переводит чат в публичный.
-    Возвращает кортеж (chat, both_revealed), где both_revealed = True, если оба согласны.
-    """
     chat = await get_anonymous_chat(session, chat_id, user_id)
     if not chat:
         raise ValueError("Чат не найден")
 
     if chat.is_public:
-        # Чат уже публичный
         return chat, True
 
-    # Определяем, кто из пользователей хочет раскрыться
     if chat.user1_id == user_id:
         if not chat.user1_revealed:
             chat.user1_revealed = True
@@ -449,11 +395,9 @@ async def reveal_anonymous_chat(
     else:
         raise ValueError("Пользователь не является участником чата")
 
-    # Проверяем, хотят ли оба раскрыться
     both_revealed = chat.user1_revealed and chat.user2_revealed
 
     if both_revealed:
-        # Оба согласны - переводим чат в публичный
         chat.is_public = True
         chat.revealed_at = datetime.now(timezone.utc)
 

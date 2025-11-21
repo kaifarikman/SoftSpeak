@@ -1,4 +1,3 @@
-"""API эндпоинты для работы с чатами."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,13 +15,6 @@ async def get_chat_data_for_user(
     session: AsyncSession,
     username: str,
 ) -> ChatResponse:
-    """
-    Получает данные чата для пользователя.
-    Логика:
-    - Если ai_enabled = True и есть чат с сообщениями -> возвращаем массив сообщений
-    - Если ai_enabled = True и чата нет -> возвращаем True (новый чат)
-    - Если ai_enabled = False -> возвращаем False, messengers должен быть True
-    """
     user = await get_user_by_username(session, username)
     if not user:
         raise HTTPException(
@@ -30,36 +22,29 @@ async def get_chat_data_for_user(
             detail="Пользователь не найден",
         )
 
-    # Если AI недоступен, возвращаем ai=False и messengers=True
     if not user.ai_enabled:
         return ChatResponse(
             ai=False,  # type: ignore
             anonym=user.anonym,
-            messengers=True,  # Если AI недоступен, messengers должен быть доступен
+            messengers=True,
             settings=user.settings_enabled,
             avatar=user.avatar or "",
             media_auto_upload_photos=user.media_auto_upload_photos,
             media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
-    # Получаем чат с сообщениями
     chat = await get_chat_with_messages(session, user.id)
     
-    # Проверяем, есть ли сообщения от пользователя в AI чате
     has_user_messages = False
     if chat and chat.messages:
         has_user_messages = any(msg.is_from_user for msg in chat.messages)
     
-    # Проверяем, завершен ли психологический профиль
     profile_completed = await has_completed_profile(session, user.id)
     answers_count = await get_user_answers_count(session, user.id)
     
-    # Если профиль не завершен (новый пользователь или опрос в процессе)
     if not profile_completed:
-        # Если есть сообщения в AI чате, мессенджеры уже должны быть активированы
         messengers_available = user.messengers_enabled or has_user_messages
         
-        # Если есть сообщения, показываем их, иначе предлагаем начать опрос
         if has_user_messages and chat and chat.messages:
             messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
             return ChatResponse(
@@ -73,16 +58,15 @@ async def get_chat_data_for_user(
             )
         else:
             return ChatResponse(
-                ai="start_survey",  # type: ignore  # Специальный флаг для начала/продолжения опроса
+                ai="start_survey",  # type: ignore
                 anonym=user.anonym,
-                messengers=messengers_available,  # Мессенджеры доступны после первого сообщения в AI чате
+                messengers=messengers_available,
                 settings=user.settings_enabled,
                 avatar=user.avatar or "",
                 media_auto_upload_photos=user.media_auto_upload_photos,
                 media_auto_upload_videos=user.media_auto_upload_videos,
             )
     
-    # Если чат есть и есть сообщения - возвращаем массив сообщений
     if chat and chat.messages:
         messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
         return ChatResponse(
@@ -95,7 +79,6 @@ async def get_chat_data_for_user(
             media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
-    # Если чата нет или он пустой - возвращаем True (новый чат)
     return ChatResponse(
         ai=True,  # type: ignore
         anonym=user.anonym,
@@ -116,9 +99,6 @@ async def get_chat_data(
     username: str,
     session: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
-    """
-    Получает данные чата для указанного пользователя.
-    """
     return await get_chat_data_for_user(session, username)
 
 
@@ -136,10 +116,6 @@ async def send_message(
     request: SendMessageRequest,
     session: AsyncSession = Depends(get_db),
 ) -> MessageSchema:
-    """
-    Отправляет сообщение в AI чат пользователя.
-    После первого сообщения активирует мессенджеры.
-    """
     user = await get_user_by_username(session, username)
     if not user:
         raise HTTPException(
@@ -147,26 +123,20 @@ async def send_message(
             detail="Пользователь не найден",
         )
     
-    # Проверяем, доступен ли AI чат
     if not user.ai_enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="AI чат недоступен",
         )
     
-    # Получаем или создаем активный чат
     chat = await get_or_create_active_chat(session, user.id)
     
-    # Создаем сообщение от пользователя
     message = await create_message(
         session,
         chat.id,
         request.text,
         is_from_user=True,
     )
-    
-    # После создания сообщения мессенджеры должны быть активированы автоматически
-    # (это происходит в create_message)
     
     return MessageSchema.model_validate(message)
 

@@ -70,6 +70,3 @@ async def health():
 async def websocket_survey(websocket: WebSocket, username: str):
     """WebSocket эндпоинт для опроса."""
     await websocket_survey_endpoint(websocket, username)
-
-
-# WebSocket для матчинга уже подключен через router в matchmaking.py

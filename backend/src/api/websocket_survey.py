@@ -307,7 +307,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         user.id,
                         question_id,
                         answer_text,
-                        embedding=None,  # Эмбеддинг создадим позже
+                        embedding=None, 
                     )
                     await session.commit()
                     logger.info(f"Ответ сохранен для пользователя {username}, вопрос {question_id}")

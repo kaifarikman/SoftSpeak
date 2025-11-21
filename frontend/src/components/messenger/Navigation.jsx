@@ -84,7 +84,6 @@ function Navigation({ activeSection, setActiveSection, chatData, username }) {
             title={section.title}
           >
             <div className={`nav-icon-img ${section.id}`} />
-            <span>{section.title}</span>
           </button>
         ))}
       </div>

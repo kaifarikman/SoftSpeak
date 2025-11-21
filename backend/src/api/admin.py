@@ -1,4 +1,3 @@
-"""API эндпоинты для админки."""
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,14 +27,12 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def get_admin_token(authorization: str = Header(None)) -> str:
-    """Проверяет токен админа из заголовка."""
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Требуется авторизация",
         )
     
-    # Формат: "Bearer token" или просто "token"
     token = authorization.replace("Bearer ", "").strip()
     
     if not verify_admin_token(token):
@@ -49,7 +46,6 @@ def get_admin_token(authorization: str = Header(None)) -> str:
 
 @router.post("/login", response_model=AdminLoginResponse)
 async def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
-    """Вход в админку."""
     if not verify_admin(request.username, request.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -67,7 +63,6 @@ async def get_categories(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Получает все категории."""
     categories = await get_all_categories(session)
     return [CategorySchema.model_validate(cat) for cat in categories]
 
@@ -78,7 +73,6 @@ async def create_category(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Создает новую категорию."""
     category = Category(
         name=request.name,
         description=request.description,
@@ -96,7 +90,6 @@ async def get_category_questions(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Получает вопросы категории."""
     questions = await get_questions_by_category(session, category_id, only_active=False)
     return [QuestionSchema.model_validate(q) for q in questions]
 
@@ -107,8 +100,6 @@ async def create_question(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Создает новый вопрос."""
-    # Проверяем существование категории
     category = await get_category_by_id(session, request.category_id)
     if not category:
         raise HTTPException(
@@ -135,7 +126,6 @@ async def update_question(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Обновляет вопрос."""
     question = await get_question_by_id(session, question_id)
     if not question:
         raise HTTPException(
@@ -161,7 +151,6 @@ async def delete_question(
     session: AsyncSession = Depends(get_db),
     _token: str = Depends(get_admin_token),
 ):
-    """Удаляет вопрос."""
     question = await get_question_by_id(session, question_id)
     if not question:
         raise HTTPException(
@@ -172,9 +161,6 @@ async def delete_question(
     await session.delete(question)
     await session.commit()
     return {"message": "Вопрос удален"}
-
-
-# ------------------- Random aliases ------------------- #
 
 
 @router.get("/random-names/adjectives", response_model=list[RandomWordSchema])

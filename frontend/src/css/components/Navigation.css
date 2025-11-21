@@ -81,8 +81,8 @@
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #4c5bff, #7f2bff);
-  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: none;
 }
 
 .nav-icon-img.bot {

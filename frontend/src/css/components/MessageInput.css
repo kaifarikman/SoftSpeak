@@ -80,13 +80,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 10px 25px rgba(30, 190, 130, 0.3);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  box-shadow: none;
 }
 
 .send-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px rgba(30, 190, 130, 0.35);
+  box-shadow: none;
 }
 
 .send-button:focus-visible {

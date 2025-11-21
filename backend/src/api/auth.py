@@ -27,8 +27,6 @@ async def login(
     request_data: LoginRequest,
     session: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    """Базовая ручка авторизации по username/password."""
-
     user = await authenticate_user(
         session,
         request_data.username,
@@ -41,7 +39,6 @@ async def login(
             detail="Неверный логин или пароль",
         )
 
-    # Получаем данные чата для пользователя
     chat_data = await get_chat_data_for_user(session, user.username)
 
     return LoginResponse(
@@ -60,7 +57,6 @@ async def request_email_verification(
     request_data: EmailVerificationRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationResponse:
-    """Запрашивает код подтверждения email и отправляет его пользователю."""
     try:
         _, verification_code = await issue_email_verification_code(
             session,
@@ -90,8 +86,6 @@ async def confirm_email(
     request_data: EmailVerificationConfirmRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationConfirmResponse:
-    """Подтверждает код из письма и активирует пользователя."""
-
     user = await confirm_email_verification_code(
         session,
         username=request_data.username,
@@ -104,7 +98,6 @@ async def confirm_email(
             detail="Неверный или просроченный код подтверждения.",
         )
 
-    # После подтверждения email также возвращаем данные чата
     chat_data = await get_chat_data_for_user(session, user.username)
 
     return EmailVerificationConfirmResponse(

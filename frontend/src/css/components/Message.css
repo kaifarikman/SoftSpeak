@@ -30,7 +30,7 @@
 }
 
 .message.mine .message-content {
-  background: linear-gradient(135deg, #5146e5, #8b5cf6);
+  background: #292E48;
   color: #fff;
   border-top-right-radius: 4px;
 }

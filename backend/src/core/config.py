@@ -7,14 +7,11 @@ BASE_DIR = Path(__file__).resolve().parents[2]  # путь до корня пр�
 class Settings(BaseSettings):
     """Настройки приложения из переменных окружения."""
 
-    # Database
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/app"
 
-    # JWT
     jwt_secret: str = "change_me"
     jwt_access_ttl_min: int = 30
 
-    # Email
     email_from: str = "noreply@example.com"
     smtp_host: str = "localhost"
     smtp_port: int = 1025
@@ -22,17 +19,13 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_use_tls: bool = False
 
-    # App
     app_base_url: str = "http://localhost:8000"
 
-    # Verification
     verification_code_ttl_min: int = 10
     verification_code_length: int = 6
 
-    # Rate limiting
     rate_limit_email_per_hour: int = 5
 
-    # Matchmaking
     match_similarity_threshold: float = 0.65
 
     model_config = SettingsConfigDict(

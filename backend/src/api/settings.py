@@ -138,7 +138,7 @@ async def update_avatar_endpoint(
     if file_ext not in allowed_extensions:
         return SettingsResponse(
             success=False,
-            message="Неправильный формат или слишком большой размер файла",
+            message="Неправильный формат",
         )
     
     # Проверяем размер файла (10 МБ)
@@ -148,7 +148,7 @@ async def update_avatar_endpoint(
     if len(contents) > max_size:
         return SettingsResponse(
             success=False,
-            message="Неправильный формат или слишком большой размер файла",
+            message="Слишком большой размер файла",
         )
     
     # Сохраняем файл
@@ -215,8 +215,6 @@ async def update_bio_endpoint(
     )
 
 
-# ==================== Уведомления ====================
-
 @router.put("/notifications/{username}", response_model=SettingsResponse)
 async def update_notification_settings_endpoint(
     username: str,
@@ -249,8 +247,6 @@ async def update_notification_settings_endpoint(
         message="Настройки уведомлений обновлены",
     )
 
-
-# ==================== Медиа ====================
 
 @router.put("/media/{username}", response_model=SettingsResponse)
 async def update_media_settings_endpoint(
@@ -327,7 +323,6 @@ async def change_password_endpoint(
     )
 
 
-# ==================== Черный список ====================
 
 @router.get("/blacklist/{username}", response_model=list[BlacklistUserResponse])
 async def get_blacklist_endpoint(
