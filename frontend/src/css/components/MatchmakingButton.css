@@ -1,68 +1,78 @@
 .matchmaking-container {
   padding: 20px;
-  text-align: center;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.matchmaking-button {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.matchmaking-button.start {
-  background-color: #4CAF50;
-  color: white;
-  width: 100%;
-}
-
-.matchmaking-button.start:hover {
-  background-color: #45a049;
-}
-
-.matchmaking-button.stop {
-  background-color: #f44336;
-  color: white;
-  width: 100%;
-  margin-top: 10px;
-}
-
-.matchmaking-button.stop:hover {
-  background-color: #da190b;
+  border: 1px solid #2d3042;
+  border-radius: 16px;
+  background: #1f2130;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
 .matchmaking-status {
-  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #b7c0d8;
+  text-align: left;
 }
 
 .matchmaking-status p {
-  margin: 8px 0;
-  color: #666;
+  margin: 0;
 }
 
-.queue-count {
-  font-size: 14px;
-  color: #888;
-}
-
+.queue-count,
 .queue-info {
-  margin-top: 10px;
   font-size: 14px;
-  color: #666;
+  color: #9ca3af;
+}
+
+.matchmaking-button {
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.matchmaking-button.start {
+  background: linear-gradient(135deg, #25D366, #1ebe82);
+  color: #ffffff;
+  width: 100%;
+}
+
+.matchmaking-button.stop {
+  background: linear-gradient(135deg, #ef4444, #c026d3);
+  color: #ffffff;
+  width: 100%;
+}
+
+.matchmaking-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.matchmaking-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .matchmaking-spinner {
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #4CAF50;
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid #25D366;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   animation: spin 1s linear infinite;
-  margin: 0 auto 10px;
+}
+
+.matchmaking-status-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 @keyframes spin {
@@ -70,3 +80,15 @@
   100% { transform: rotate(360deg); }
 }
 
+@media (max-width: 768px) {
+  .matchmaking-container {
+    padding: 16px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .matchmaking-container {
+    margin-bottom: 12px;
+  }
+}

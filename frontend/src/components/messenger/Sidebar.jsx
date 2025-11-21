@@ -3,15 +3,13 @@ import ChatList from './ChatList';
 import ChatListAnon from './ChatListAnon';
 import SettingsList from './SettingsList';
 
-function Sidebar({ activeSection, setActiveSection, chats, selectedChat, setSelectedChat, chatData, username, onChatsUpdate, isNavOpen, onNavClose }) {
+function Sidebar({ activeSection, setActiveSection, chats, selectedChat, setSelectedChat, chatData, username, onChatsUpdate }) {
   return (
     <div className="sidebar">
       <Navigation
         activeSection={activeSection}
         setActiveSection={setActiveSection}
         chatData={chatData}
-        isOpen={isNavOpen}
-        onClose={onNavClose}
       />
       
       {activeSection === 'people' && (
@@ -20,8 +18,6 @@ function Sidebar({ activeSection, setActiveSection, chats, selectedChat, setSele
           selectedChat={selectedChat}
           setSelectedChat={setSelectedChat}
         />
-        
-        
       )}
       {activeSection === 'anon' && (
         <ChatListAnon

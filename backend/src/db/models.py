@@ -251,6 +251,8 @@ class AnonymousChat(Base):
     revealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     user1_revealed: Mapped[bool] = mapped_column(Boolean, default=False)  # user1 хочет раскрыться
     user2_revealed: Mapped[bool] = mapped_column(Boolean, default=False)  # user2 хочет раскрыться
+    user1_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
+    user2_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
 
     user1: Mapped["User"] = relationship("User", foreign_keys=[user1_id], back_populates="anonymous_chats_as_user1")
     user2: Mapped["User"] = relationship("User", foreign_keys=[user2_id], back_populates="anonymous_chats_as_user2")
@@ -275,7 +277,14 @@ class AnonymousMessage(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
     )
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    media_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    media_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    media_preview_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    media_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    media_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    media_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    media_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -329,3 +338,27 @@ class Blacklist(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'blocked_user_id', name='uq_blacklist_user_blocked'),
     )
+
+
+class RandomNameAdjective(Base):
+    """Список прилагательных для генерации псевдонимов."""
+
+    __tablename__ = "random_name_adjectives"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    text: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class RandomNameNoun(Base):
+    """Список существительных для генерации псевдонимов."""
+
+    __tablename__ = "random_name_nouns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    text: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

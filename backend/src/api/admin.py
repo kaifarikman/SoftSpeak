@@ -10,6 +10,7 @@ from src.db.crud.psychological import (
     get_questions_by_category,
     get_question_by_id,
 )
+from src.db.crud import random_names as random_names_crud
 from src.db.models import Question, Category
 from src.schemas.admin import (
     AdminLoginRequest,
@@ -17,6 +18,9 @@ from src.schemas.admin import (
     QuestionCreateRequest,
     QuestionUpdateRequest,
     CategoryCreateRequest,
+    RandomWordSchema,
+    RandomWordCreateRequest,
+    RandomWordUpdateRequest,
 )
 from src.schemas.psychological import QuestionSchema, CategorySchema
 
@@ -168,4 +172,121 @@ async def delete_question(
     await session.delete(question)
     await session.commit()
     return {"message": "Вопрос удален"}
+
+
+# ------------------- Random aliases ------------------- #
+
+
+@router.get("/random-names/adjectives", response_model=list[RandomWordSchema])
+async def list_random_adjectives(
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    words = await random_names_crud.list_adjectives(session)
+    return [RandomWordSchema.model_validate(word) for word in words]
+
+
+@router.post("/random-names/adjectives", response_model=RandomWordSchema)
+async def create_random_adjective(
+    request: RandomWordCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    try:
+        word = await random_names_crud.create_adjective(session, request.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return RandomWordSchema.model_validate(word)
+
+
+@router.put("/random-names/adjectives/{word_id}", response_model=RandomWordSchema)
+async def update_random_adjective(
+    word_id: int,
+    request: RandomWordUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    word = await random_names_crud.get_adjective(session, word_id)
+    if not word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено")
+    try:
+        updated = await random_names_crud.update_adjective(
+            session,
+            word,
+            text=request.text,
+            is_active=request.is_active,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return RandomWordSchema.model_validate(updated)
+
+
+@router.delete("/random-names/adjectives/{word_id}")
+async def delete_random_adjective(
+    word_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    word = await random_names_crud.get_adjective(session, word_id)
+    if not word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено")
+    await random_names_crud.delete_adjective(session, word)
+    return {"message": "Прилагательное удалено"}
+
+
+@router.get("/random-names/nouns", response_model=list[RandomWordSchema])
+async def list_random_nouns(
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    words = await random_names_crud.list_nouns(session)
+    return [RandomWordSchema.model_validate(word) for word in words]
+
+
+@router.post("/random-names/nouns", response_model=RandomWordSchema)
+async def create_random_noun(
+    request: RandomWordCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    try:
+        word = await random_names_crud.create_noun(session, request.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return RandomWordSchema.model_validate(word)
+
+
+@router.put("/random-names/nouns/{word_id}", response_model=RandomWordSchema)
+async def update_random_noun(
+    word_id: int,
+    request: RandomWordUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    word = await random_names_crud.get_noun(session, word_id)
+    if not word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено")
+    try:
+        updated = await random_names_crud.update_noun(
+            session,
+            word,
+            text=request.text,
+            is_active=request.is_active,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return RandomWordSchema.model_validate(updated)
+
+
+@router.delete("/random-names/nouns/{word_id}")
+async def delete_random_noun(
+    word_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    word = await random_names_crud.get_noun(session, word_id)
+    if not word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено")
+    await random_names_crud.delete_noun(session, word)
+    return {"message": "Существительное удалено"}
 

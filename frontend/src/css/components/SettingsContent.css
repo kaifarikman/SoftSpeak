@@ -1,76 +1,86 @@
 .settings-content {
-  padding: 20px;
+  padding: 24px 32px;
   height: 100%;
   overflow-y: auto;
   background-color: #171821;
   color: #ffffff;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .settings-section {
-  max-width: 600px;
+  max-width: 720px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .settings-section h2 {
-  margin-bottom: 30px;
-  font-size: 24px;
+  margin-bottom: 8px;
+  font-size: 28px;
   color: #ffffff;
 }
 
 .settings-section h3 {
-  margin-bottom: 15px;
-  font-size: 18px;
+  margin-bottom: 12px;
+  font-size: 20px;
   color: #ffffff;
 }
 
 .settings-field {
-  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .settings-field label {
   display: block;
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #b0b0b0;
+  font-size: 15px;
+  color: #c1c5d6;
 }
 
 .settings-field-row {
   display: flex;
-  gap: 15px;
-  align-items: flex-start;
+  gap: 16px;
+  align-items: stretch;
+  flex-wrap: wrap;
 }
 
 .settings-field-row input[type="text"],
 .settings-field-row textarea {
   flex: 1;
-  padding: 10px 15px;
+  padding: 12px 16px;
   background-color: #252634;
   border: 1px solid #393636;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
+  transition: border 0.2s ease;
 }
 
 .settings-field-row input[type="text"]:focus,
 .settings-field-row textarea:focus {
   outline: none;
-  border-color: #6366f1;
+  border-color: #7f83ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
 }
 
 .settings-field-row textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 110px;
 }
 
 .settings-field-row button {
-  padding: 10px 20px;
+  padding: 12px 24px;
   background-color: #6366f1;
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
   transition: background-color 0.2s;
 }
@@ -86,8 +96,8 @@
 
 /* Аватар */
 .avatar-preview {
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   overflow: hidden;
   background-color: #252634;
@@ -95,6 +105,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 2px solid #2c3148;
 }
 
 .avatar-placeholder {
@@ -106,21 +117,15 @@
   font-size: 40px;
 }
 
-.avatar-placeholder img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .upload-button {
   display: inline-block;
-  padding: 10px 20px;
+  padding: 12px 22px;
   background-color: #6366f1;
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   transition: background-color 0.2s;
 }
 
@@ -128,10 +133,11 @@
   background-color: #4f46e5;
 }
 
-.upload-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #888;
+.upload-hint,
+.field-hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 /* Toggle Switch */
@@ -139,14 +145,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 0;
+  padding: 16px 0;
 }
 
 .toggle-switch {
-  width: 50px;
-  height: 26px;
+  width: 56px;
+  height: 28px;
   background-color: #393636;
-  border-radius: 13px;
+  border-radius: 14px;
   position: relative;
   cursor: pointer;
   transition: background-color 0.3s;
@@ -157,8 +163,8 @@
 }
 
 .toggle-slider {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background-color: #ffffff;
   border-radius: 50%;
   position: absolute;
@@ -168,25 +174,27 @@
 }
 
 .toggle-switch.on .toggle-slider {
-  transform: translateX(24px);
+  transform: translateX(28px);
 }
 
 /* Сообщения */
-.message {
-  margin-top: 8px;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-radius: 6px;
+.settings-alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  border: 1px solid transparent;
 }
 
-.message.success {
+.settings-alert.success {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
   color: #10b981;
-  background-color: rgba(16, 185, 129, 0.1);
 }
 
-.message.error {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
+.settings-alert.error {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
 }
 
 /* Пароль */
@@ -197,29 +205,30 @@
 }
 
 .password-fields input {
-  padding: 10px 15px;
+  padding: 12px 16px;
   background-color: #252634;
   border: 1px solid #393636;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
 }
 
 .password-fields input:focus {
   outline: none;
   border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
 }
 
 .primary-button {
-  padding: 12px 24px;
+  padding: 14px 28px;
   background-color: #6366f1;
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   transition: background-color 0.2s;
 }
 
@@ -228,14 +237,14 @@
 }
 
 .danger-button {
-  padding: 12px 24px;
+  padding: 14px 28px;
   background-color: #dc2626;
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   transition: background-color 0.2s;
 }
 
@@ -247,34 +256,38 @@
 .blacklist-items {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .blacklist-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  background-color: #252634;
-  border-radius: 8px;
-  border: 1px solid #393636;
+  padding: 16px;
+  background-color: #1f2130;
+  border-radius: 12px;
+  border: 1px solid #2d3042;
+  gap: 16px;
 }
 
 .blacklist-user-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .blacklist-avatar {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background-color: #393636;
+  background-color: #2c2f3f;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  color: #fff;
+  font-weight: 600;
 }
 
 .blacklist-avatar img {
@@ -283,24 +296,35 @@
   object-fit: cover;
 }
 
-.blacklist-avatar span {
-  font-size: 20px;
+.blacklist-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .blacklist-username {
-  font-size: 14px;
+  font-size: 15px;
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blacklist-status {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .remove-button {
-  padding: 8px 16px;
+  padding: 10px 18px;
   background-color: #dc2626;
   color: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 600;
   transition: background-color 0.2s;
 }
 
@@ -313,13 +337,112 @@
   cursor: not-allowed;
 }
 
-.empty-state {
-  text-align: center;
+.blacklist-input-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.blacklist-input-group input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #393636;
+  background: #252634;
+  color: #fff;
+  font-size: 16px;
+}
+
+.blacklist-input-group button {
+  padding: 12px 20px;
+  background: #6366f1;
+  border-radius: 10px;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.settings-content-empty {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 40px 20px;
-  color: #888;
 }
 
-.empty-state p {
-  font-size: 14px;
+.settings-content-empty .empty-state {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(23, 24, 33, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 55px rgba(5, 8, 20, 0.55);
+  font-size: 22px;
+  font-weight: 500;
+  color: #ffffff;
+  opacity: 0.7;
+  letter-spacing: 0.01em;
+  animation: settings-empty-fade 0.8s ease forwards;
+  position: relative;
 }
 
+.settings-content-empty .empty-state::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.settings-content-empty .empty-state p {
+  margin: 0;
+}
+
+@keyframes settings-empty-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-content {
+    padding: 20px;
+  }
+
+  .settings-field-row {
+    flex-direction: column;
+  }
+
+  .settings-field-row button,
+  .blacklist-input-group button {
+    width: 100%;
+  }
+
+  .settings-section h2 {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-content {
+    padding: 16px;
+  }
+
+  .settings-section h2 {
+    font-size: 22px;
+  }
+
+  .settings-field label {
+    font-size: 14px;
+  }
+}

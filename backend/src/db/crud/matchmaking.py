@@ -14,9 +14,21 @@ from src.db.models import (
     User,
     PsychologicalProfile,
 )
+from src.db.crud import random_names
 from src.services.vector_utils import find_best_match
 
 logger = logging.getLogger(__name__)
+
+
+def summarize_message_text(message: AnonymousMessage) -> str:
+    if message.media_type == "photo":
+        return "📷 Фото"
+    if message.media_type == "video":
+        return "🎬 Видео"
+    content = (message.content or "").strip()
+    if not content:
+        return "Сообщение"
+    return content[:50]
 
 
 async def join_matchmaking_queue(
@@ -246,6 +258,8 @@ async def find_match(
         user2_id=user2_id_sorted,
         is_active=True,
     )
+    chat.user1_alias = await random_names.generate_random_alias(session)
+    chat.user2_alias = await random_names.generate_random_alias(session)
     session.add(chat)
 
     # Удаляем обоих пользователей из очереди
@@ -331,7 +345,15 @@ async def create_anonymous_message(
     session: AsyncSession,
     chat_id: int,
     sender_id: int,
-    content: str,
+    content: str | None = None,
+    *,
+    media_type: str | None = None,
+    media_url: str | None = None,
+    media_preview_url: str | None = None,
+    media_size: int | None = None,
+    media_duration: float | None = None,
+    media_width: int | None = None,
+    media_height: int | None = None,
 ) -> AnonymousMessage:
     """
     Создает сообщение в анонимном чате.
@@ -350,7 +372,14 @@ async def create_anonymous_message(
     message = AnonymousMessage(
         chat_id=chat_id,
         sender_id=sender_id,
-        content=content,
+        content=(content or ""),
+        media_type=media_type,
+        media_url=media_url,
+        media_preview_url=media_preview_url,
+        media_size=media_size,
+        media_duration=media_duration,
+        media_width=media_width,
+        media_height=media_height,
     )
     session.add(message)
 

@@ -33,8 +33,8 @@ function SettingsList({settings, selectedChat, setSelectedChat }) {
             />
           ))
         ) : (
-          <div className="empty-state">
-            <p>Нет чатов</p>
+          <div className="empty-state empty-state-card">
+            <p>Выберите чат, чтобы начать общение</p>
           </div>
         )}
       </div>

@@ -1,14 +1,25 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SettingsContent from './SettingsContent';
 import { API_URL, WS_URL } from '../../config';
+import { resolveStaticUrl } from '../../utils/url';
 
-const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChatDataUpdate, onChatRevealed }) => {
+const ChatArea = memo(({
+  selectedChat,
+  activeSection,
+  chatData,
+  username,
+  onChatDataUpdate,
+  onChatRevealed,
+  isStandalone = false,
+  onAnonChatExit,
+}) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
+  const [isMediaUploading, setIsMediaUploading] = useState(false);
   const [isSurveyActive, setIsSurveyActive] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
@@ -19,6 +30,8 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
   const anonChatIdRef = useRef(null); // ID текущего анонимного чата
+
+  // helper functions defined above
 
   // WebSocket для опроса
   useEffect(() => {
@@ -101,22 +114,9 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
         if (data.type === 'connected') {
           // Connected to chat successfully
         } else if (data.type === 'new_message') {
-          // Добавляем новое сообщение в список только если мы все еще в этом чате
           if (anonChatIdRef.current === chatId) {
-            const newMessage = {
-              id: data.message.id,
-              text: data.message.content,
-              timestamp: data.message.created_at,
-              isMine: false, // Полученное сообщение всегда не мое
-            };
-            setMessages(prev => {
-              // Проверяем, что сообщение еще не добавлено
-              const messageExists = prev.some(msg => msg.id === newMessage.id);
-              if (!messageExists) {
-                return [...prev, newMessage];
-              }
-              return prev;
-            });
+            const formatted = mapIncomingMessage(data.message);
+            upsertMessage(formatted);
           }
         } else if (data.type === 'reveal_request') {
           // Собеседник хочет раскрыться
@@ -268,6 +268,51 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
     };
   };
 
+  const mapIncomingMessage = useCallback((payload) => {
+    const normalizedMedia = payload?.media && payload.media.url
+      ? {
+          ...payload.media,
+          url: resolveStaticUrl(payload.media.url),
+          previewUrl: payload.media.preview_url ? resolveStaticUrl(payload.media.preview_url) : null,
+        }
+      : null;
+
+    return {
+      id: payload.id,
+      text: payload.content || '',
+      timestamp: payload.created_at,
+      isMine: typeof payload.is_mine === 'boolean' ? payload.is_mine : false,
+      media: normalizedMedia,
+    };
+  }, []);
+
+  const upsertMessage = useCallback((incoming) => {
+    setMessages((prev) => {
+      const exists = prev.some((msg) => msg.id === incoming.id);
+      if (exists) {
+        return prev.map((msg) => (msg.id === incoming.id ? incoming : msg));
+      }
+      return [...prev, incoming];
+    });
+  }, []);
+
+  const loadConversationMessages = useCallback(async (chatId) => {
+    if (!username) return;
+
+    try {
+      const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${username}`);
+      if (response.ok) {
+        const data = await response.json();
+        const formattedMessages = data.messages.map(mapIncomingMessage);
+        setMessages(formattedMessages);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      setMessages([]);
+    }
+  }, [username, mapIncomingMessage]);
+
   // Загрузка сообщений при выборе чата или смене секции
   useEffect(() => {
     // Если это опрос, не загружаем сообщения из БД
@@ -311,29 +356,9 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
     } else {
       setMessages([]);
     }
-  }, [selectedChat, activeSection, chatData?.ai, username]);
+  }, [selectedChat, activeSection, chatData?.ai, username, loadConversationMessages]);
 
-  const loadConversationMessages = async (chatId) => {
-    if (!username) return;
-
-    try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${username}`);
-      if (response.ok) {
-        const data = await response.json();
-        const formattedMessages = data.messages.map(msg => ({
-          id: msg.id,
-          text: msg.content,
-          timestamp: msg.created_at,
-          isMine: msg.is_mine,
-        }));
-        setMessages(formattedMessages);
-      } else {
-        setMessages([]);
-      }
-    } catch (error) {
-      setMessages([]);
-    }
-  };
+  // loadConversationMessages moved above with useCallback
 
   const handleSendMessage = async (text) => {
     // Если это опрос, отправляем ответ через WebSocket
@@ -371,6 +396,7 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
       text: text,
       timestamp: new Date().toISOString(),
       isMine: true,
+      media: null,
     };
     setMessages(prev => [...prev, newMessage]);
 
@@ -420,10 +446,10 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
           
           if (response.ok) {
             const savedMessage = await response.json();
-            // Обновляем временное сообщение на постоянное
+            const formatted = mapIncomingMessage(savedMessage);
             setMessages(prev => prev.map(msg => 
               msg.id === newMessage.id 
-                ? { ...msg, id: savedMessage.id, timestamp: savedMessage.created_at }
+                ? formatted
                 : msg
             ));
           } else {
@@ -433,6 +459,32 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
       } catch (error) {
         setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
       }
+    }
+  };
+
+  const handleSendMedia = async (type, file) => {
+    if (!selectedChat || !username) return;
+
+    setIsMediaUploading(true);
+    const formData = new FormData();
+    formData.append('media_type', type);
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/media/${username}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        throw new Error(data?.detail || 'Не удалось отправить файл');
+      }
+      const formatted = mapIncomingMessage(data);
+      upsertMessage(formatted);
+    } catch (error) {
+      console.error('Ошибка отправки медиа', error);
+    } finally {
+      setIsMediaUploading(false);
     }
   };
 
@@ -536,8 +588,12 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
   const isSurveyCompleted = chatData && Array.isArray(chatData.ai) && chatData.ai.length > 0;
   
   // Use a special header for anonymous chats
+  const anonDisplayName = activeSection === 'anon'
+    ? (selectedChat?.name || 'Собеседник')
+    : null;
+
   const chatHeader = activeSection === 'anon'
-    ? { name: 'Собеседник' } 
+    ? { name: anonDisplayName }
     : selectedChat;
 
   const headerActions = activeSection === 'anon' ? (
@@ -549,10 +605,20 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
       {isRevealing ? 'Раскрываем...' : 'Раскрыться'}
     </button>
   ) : null;
+
+  const showAnonBackButton = activeSection === 'anon' && typeof onAnonChatExit === 'function' && isStandalone;
+  const chatAreaClass = `chat-area ${isStandalone ? 'chat-area-standalone' : ''}`;
+  const mediaButtonsEnabled = activeSection === 'anon' || activeSection === 'people';
+  const allowPhotoUploads = mediaButtonsEnabled && Boolean(chatData?.media_auto_upload_photos);
+  const allowVideoUploads = mediaButtonsEnabled && Boolean(chatData?.media_auto_upload_videos);
   
   return (
-    <div className="chat-area">
-      <ChatHeader chat={chatHeader} actions={headerActions} />
+    <div className={chatAreaClass}>
+      <ChatHeader
+        chat={chatHeader}
+        actions={headerActions}
+        onBack={showAnonBackButton ? onAnonChatExit : undefined}
+      />
       {revealError && activeSection === 'anon' && (
         <div className="chat-info-message error">
           {revealError}
@@ -561,10 +627,14 @@ const ChatArea = memo(({ selectedChat, activeSection, chatData, username, onChat
       <MessageList messages={messages} />
       <MessageInput 
         onSend={handleSendMessage} 
+        onSendMedia={mediaButtonsEnabled ? handleSendMedia : undefined}
         disabled={
           (activeSection === 'bot' && chatData && chatData.ai === false) ||
           (activeSection === 'bot' && isSurveyCompleted)  // Disable input after survey completion
         }
+        allowPhotos={allowPhotoUploads}
+        allowVideos={allowVideoUploads}
+        isMediaUploading={isMediaUploading}
         placeholder={activeSection === 'bot' && isSurveyCompleted ? "Опрос завершен. Чат доступен только для просмотра." : undefined}
       />
     </div>

@@ -33,7 +33,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
         // Форматируем чаты для отображения
         const formattedChats = data.map(chat => ({
           id: chat.id,
-          name: 'Собеседник',
+          name: chat.name || 'Собеседник',
           lastMessage: chat.last_message || '',
           lastMessageTime: chat.last_message_time ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
           unreadCount: chat.unread_count || 0,
@@ -58,7 +58,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
         const data = await response.json();
         const formattedChats = data.map(chat => ({
           id: chat.id,
-          name: 'Собеседник',
+          name: chat.name || 'Собеседник',
           lastMessage: chat.last_message || '',
           lastMessageTime: chat.last_message_time ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
           unreadCount: chat.unread_count || 0,
@@ -83,13 +83,13 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
             const retryResponse = await fetch(`${API_URL}/matchmaking/chats/${username}`);
             if (retryResponse.ok) {
               const retryData = await retryResponse.json();
-              const retryFormattedChats = retryData.map(chat => ({
-                id: chat.id,
-                name: 'Собеседник',
-                lastMessage: chat.last_message || '',
-                lastMessageTime: chat.last_message_time ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
-                unreadCount: chat.unread_count || 0,
-              }));
+            const retryFormattedChats = retryData.map(chat => ({
+              id: chat.id,
+              name: chat.name || 'Собеседник',
+              lastMessage: chat.last_message || '',
+              lastMessageTime: chat.last_message_time ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
+              unreadCount: chat.unread_count || 0,
+            }));
               
               setLocalChats(retryFormattedChats);
               if (onChatsUpdate) {
@@ -117,9 +117,8 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
         onMatchFound={handleMatchFound}
       />
       {localChats.length === 0 ? (
-        <div className="empty-chats">
-          <p>У вас пока нет анонимных чатов</p>
-          <p className="hint">Нажмите "Сматчиться" чтобы найти собеседника</p>
+        <div className="empty-state empty-state-card">
+          <p>Выберите чат, чтобы начать общение</p>
         </div>
       ) : (
         <div className="chat-items">

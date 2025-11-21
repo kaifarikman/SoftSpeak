@@ -6,6 +6,7 @@ import SignIn from './pages/SignIn';
 import VerifyCode from './pages/VerifyCode';
 
 import Messenger from './pages/Messenger';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Route path="/signin" element={<SignIn />} />
       <Route path="/verify" element={<VerifyCode />} />
       <Route path="/home" element={<Messenger />} />
+      <Route path="/admin" element={<Admin />} />
 
     </Routes>
   );

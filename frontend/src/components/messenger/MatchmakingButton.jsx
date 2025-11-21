@@ -192,11 +192,33 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
       
       if (response.ok) {
         const data = await response.json();
-        setIsSearching(true);
-        setQueueCount(data.queue_count || 0);
         setError(null);
-        // Подключаемся к WebSocket для отслеживания статуса
-        connectWebSocket();
+
+        // Если сервер сразу нашел матч, не запускаем поиск и возвращаем чат
+        if (data.chat_id) {
+          console.log('REST: мгновенный матч найден, чат', data.chat_id);
+          setIsSearching(false);
+          setQueueCount(data.queue_count || 0);
+
+          // Закрываем активный WS если он вдруг есть
+          if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+
+          if (onMatchFound) {
+            onMatchFound(data.chat_id);
+          }
+          return;
+        }
+
+        // В противном случае продолжаем поиск через WebSocket
+        setIsSearching(data.is_searching ?? true);
+        setQueueCount(data.queue_count || 0);
+
+        if (data.is_searching) {
+          connectWebSocket();
+        }
       } else {
         const errorData = await response.json().catch(() => ({ detail: 'Неизвестная ошибка' }));
         setError(errorData.detail || 'Ошибка начала поиска');
@@ -246,8 +268,10 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     return (
       <div className="matchmaking-container">
         <div className="matchmaking-status">
-          <div className="matchmaking-spinner"></div>
-          <p>Ищем собеседника...</p>
+          <div className="matchmaking-status-line">
+            <div className="matchmaking-spinner"></div>
+            <p>Ищем собеседника...</p>
+          </div>
           <p className="queue-count">
             {queueCount > 0 
               ? `В очереди: ${queueCount} ${queueCount === 1 ? 'человек' : queueCount < 5 ? 'человека' : 'человек'}`
@@ -276,7 +300,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         onClick={handleStartMatchmaking}
         disabled={!username}
       >
-        Найти собеседника
+        Смэтчиться
       </button>
       {error && (
         <p className="error-message" style={{ color: '#f44336', fontSize: '12px', marginTop: '10px' }}>

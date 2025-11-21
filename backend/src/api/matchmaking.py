@@ -1,10 +1,23 @@
 """API эндпоинты для матчинга и анонимных чатов."""
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+    UploadFile,
+    File,
+    Form,
+)
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict
+from typing import Dict, Literal
 import json
 import logging
 import asyncio
+from pathlib import Path
+import uuid
 
 from src.db.session import get_db, AsyncSessionLocal
 from src.db.crud.auth import get_user_by_username
@@ -18,8 +31,10 @@ from src.db.crud.matchmaking import (
     get_anonymous_chat,
     create_anonymous_message,
     reveal_anonymous_chat,
+    summarize_message_text,
 )
 from src.db.crud.psychological import has_completed_profile
+from src.db.models import User
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -66,6 +81,47 @@ class SendAnonymousMessageRequest(BaseModel):
     text: str
 
 
+STATIC_DIR = Path(__file__).parent.parent.parent / "static"
+CHAT_MEDIA_ROOT = STATIC_DIR / "uploads" / "chat_media"
+MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
+PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
+VIDEO_EXTENSIONS = {'.mp4', '.mov', '.m4v', '.webm'}
+
+CHAT_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def build_message_payload(message, *, current_user_id: int | None = None, is_mine_override: bool | None = None):
+    payload = {
+        "id": message.id,
+        "content": message.content,
+        "sender_id": message.sender_id,
+        "created_at": message.created_at.isoformat(),
+    }
+    if is_mine_override is not None:
+        payload["is_mine"] = is_mine_override
+    elif current_user_id is not None:
+        payload["is_mine"] = message.sender_id == current_user_id
+    else:
+        payload["is_mine"] = False
+
+    if message.media_type and message.media_url:
+        payload["media"] = {
+            "type": message.media_type,
+            "url": message.media_url,
+            "preview_url": message.media_preview_url,
+            "size": message.media_size,
+            "duration": message.media_duration,
+            "width": message.media_width,
+            "height": message.media_height,
+        }
+    else:
+        payload["media"] = None
+
+    return payload
+
+
+# WebSocket менеджер для матчинга
 # WebSocket менеджер для матчинга
 class MatchmakingConnectionManager:
     """Менеджер WebSocket соединений для матчинга."""
@@ -194,11 +250,43 @@ async def start_matchmaking(
             detail="Психологический профиль не завершен. Пройдите опрос.",
         )
 
-    # Добавляем в очередь
+    # Добавляем в очередь (или обновляем запись)
     await join_matchmaking_queue(session, user.id)
 
-    # Получаем количество людей в очереди
+    chat_found = None
+    try:
+        chat_found = await find_match(session, user.id)
+    except Exception as match_error:
+        logger.error(f"Ошибка мгновенного матчинга для {username}: {match_error}", exc_info=True)
+
+    # После попытки матчинга снова считаем очередь (учитывая изменения)
     queue_count = await get_matchmaking_queue_count(session, exclude_user_id=user.id)
+
+    if chat_found:
+        logger.info(f"Мгновенный матч найден в REST для {username}: чат {chat_found.id}")
+        other_user_id = chat_found.user2_id if chat_found.user1_id == user.id else chat_found.user1_id
+
+        other_user_stmt = select(User).where(User.id == other_user_id)
+        other_user_result = await session.execute(other_user_stmt)
+        other_user = other_user_result.scalar_one_or_none()
+
+        payload = {
+            "type": "match_found",
+            "chat_id": chat_found.id,
+        }
+
+        # Уведомляем текущего пользователя (если WebSocket уже открыт)
+        await matchmaking_manager.send_personal_message(payload, username)
+
+        # Уведомляем второго пользователя, если он онлайн
+        if other_user:
+            await matchmaking_manager.send_personal_message(payload, other_user.username)
+
+        return MatchmakingStatusResponse(
+            is_searching=False,
+            queue_count=queue_count,
+            chat_id=chat_found.id,
+        )
 
     return MatchmakingStatusResponse(
         is_searching=True,
@@ -559,6 +647,8 @@ async def get_anonymous_chats(
     for chat in chats:
         # Определяем собеседника
         other_user = chat.user2 if chat.user1_id == user.id else chat.user1
+        other_alias = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
+        other_alias = other_alias or "Собеседник"
 
         # Получаем последнее сообщение
         last_message = None
@@ -566,7 +656,7 @@ async def get_anonymous_chats(
         unread_count = 0
         if chat.messages:
             last_msg = chat.messages[-1]
-            last_message = last_msg.content[:50]  # Первые 50 символов
+            last_message = summarize_message_text(last_msg)
             last_message_time = last_msg.created_at.isoformat()
             # Считаем непрочитанные (сообщения не от пользователя)
             unread_count = sum(1 for msg in chat.messages if msg.sender_id != user.id and not msg.is_read)
@@ -583,6 +673,7 @@ async def get_anonymous_chats(
             "user1_revealed": chat.user1_revealed,
             "user2_revealed": chat.user2_revealed,
             "other_user_revealed": chat.user2_revealed if chat.user1_id == user.id else chat.user1_revealed,
+            "name": other_alias,
         })
 
     return result
@@ -614,7 +705,7 @@ async def get_public_chats(
         unread_count = 0
         if chat.messages:
             last_msg = chat.messages[-1]
-            last_message = last_msg.content[:50]
+            last_message = summarize_message_text(last_msg)
             last_message_time = last_msg.created_at.isoformat()
             unread_count = sum(1 for msg in chat.messages if msg.sender_id != user.id and not msg.is_read)
 
@@ -657,15 +748,10 @@ async def get_anonymous_chat_messages(
         )
 
     # Формируем сообщения
-    messages = []
-    for msg in chat.messages:
-        messages.append({
-            "id": msg.id,
-            "content": msg.content,
-            "sender_id": msg.sender_id,
-            "is_mine": msg.sender_id == user.id,
-            "created_at": msg.created_at.isoformat(),
-        })
+    messages = [
+        build_message_payload(msg, current_user_id=user.id)
+        for msg in chat.messages
+    ]
 
     # Определяем собеседника
     other_user = chat.user2 if chat.user1_id == user.id else chat.user1
@@ -707,29 +793,120 @@ async def send_anonymous_message(
             chat_id,
             {
                 "type": "new_message",
-                "message": {
-                    "id": message.id,
-                    "content": message.content,
-                    "sender_id": message.sender_id,
-                    "is_mine": False,  # Для получателя это не его сообщение
-                    "created_at": message.created_at.isoformat(),
-                }
+                "message": build_message_payload(message, is_mine_override=False),
             },
             exclude_username=username  # Не отправляем отправителю
         )
 
-        return {
-            "id": message.id,
-            "content": message.content,
-            "sender_id": message.sender_id,
-            "is_mine": True,
-            "created_at": message.created_at.isoformat(),
-        }
+        return build_message_payload(message, current_user_id=user.id, is_mine_override=True)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.post("/chat/{chat_id}/media/{username}")
+async def send_anonymous_media(
+    chat_id: int,
+    username: str,
+    media_type: Literal["photo", "video"] = Form(...),
+    file: UploadFile = File(...),
+    caption: str | None = Form(None),
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Загружает фото или видео в анонимный чат с учетом пользовательских настроек.
+    """
+    user = await get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+
+    if media_type == "photo" and not user.media_auto_upload_photos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Отправка фотографий отключена в настройках.",
+        )
+
+    if media_type == "video" and not user.media_auto_upload_videos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Отправка видео отключена в настройках.",
+        )
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл не указан",
+        )
+
+    ext = Path(file.filename).suffix.lower()
+    if media_type == "photo" and ext not in PHOTO_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недопустимый формат изображения",
+        )
+    if media_type == "video" and ext not in VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недопустимый формат видео",
+        )
+
+    contents = await file.read()
+    size = len(contents)
+    if size == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пустой файл",
+        )
+
+    max_size = MAX_PHOTO_SIZE if media_type == "photo" else MAX_VIDEO_SIZE
+    if size > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл превышает допустимый размер",
+        )
+
+    chat_dir = CHAT_MEDIA_ROOT / str(chat_id)
+    chat_dir.mkdir(parents=True, exist_ok=True)
+    file_id = uuid.uuid4().hex
+    stored_path = chat_dir / f"{file_id}{ext}"
+    with open(stored_path, "wb") as buffer:
+        buffer.write(contents)
+
+    media_url = f"/static/uploads/chat_media/{chat_id}/{stored_path.name}"
+    preview_url = media_url if media_type == "photo" else None
+
+    try:
+        message = await create_anonymous_message(
+            session,
+            chat_id,
+            user.id,
+            caption,
+            media_type=media_type,
+            media_url=media_url,
+            media_preview_url=preview_url,
+            media_size=size,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    await chat_manager.broadcast_to_chat(
+        chat_id,
+        {
+            "type": "new_message",
+            "message": build_message_payload(message, is_mine_override=False),
+        },
+        exclude_username=username,
+    )
+
+    return build_message_payload(message, current_user_id=user.id, is_mine_override=True)
 
 
 @router.post("/chat/{chat_id}/reveal/{username}")
@@ -766,7 +943,7 @@ async def reveal_chat(
         last_message_time = None
         if chat.messages:
             last_msg = chat.messages[-1]
-            last_message = last_msg.content[:50]
+            last_message = summarize_message_text(last_msg)
             last_message_time = last_msg.created_at.isoformat()
 
         # Формируем данные для обоих пользователей

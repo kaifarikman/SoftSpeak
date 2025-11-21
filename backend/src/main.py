@@ -66,16 +66,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/admin")
-async def admin_redirect():
-    """Редирект на админ-панель."""
-    from fastapi.responses import FileResponse
-    admin_file = Path(__file__).parent.parent / "static" / "admin.html"
-    if admin_file.exists():
-        return FileResponse(admin_file)
-    return {"message": "Админ-панель не найдена"}
-
-
 @app.websocket("/ws/survey/{username}")
 async def websocket_survey(websocket: WebSocket, username: str):
     """WebSocket эндпоинт для опроса."""

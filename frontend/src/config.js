@@ -8,6 +8,25 @@ const getApiUrl = () => {
   return '/api';
 };
 
+const getStaticOrigin = () => {
+  if (import.meta.env.VITE_STATIC_ORIGIN) {
+    return import.meta.env.VITE_STATIC_ORIGIN;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    try {
+      const url = new URL(import.meta.env.VITE_API_URL);
+      return url.origin;
+    } catch {
+      // ignore parse errors
+    }
+  }
+  // В режиме разработки по умолчанию используем backend:8000
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8000';
+  }
+  return '';
+};
+
 const getWsUrl = () => {
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
@@ -19,5 +38,6 @@ const getWsUrl = () => {
 };
 
 export const API_URL = getApiUrl();
+export const STATIC_ORIGIN = getStaticOrigin();
 export const WS_URL = getWsUrl();
 

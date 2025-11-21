@@ -295,10 +295,47 @@ select.form-control {
 
 .messenger-container {
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #0e0f16;
+  color: #fff;
 }
 
+.messenger-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  margin-top: -12px; /* aligns top edge with nav padding */
+}
+
+.messenger-list {
+  width: 420px;
+  min-width: 420px;
+  background: #141522;
+  border-right: 1px solid #2b2d3c;
+  overflow-y: auto;
+  padding-top: 12px; /* matches navigation padding */
+}
+
+.messenger-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .messenger-body {
+    flex-direction: column;
+  }
+
+  .messenger-list {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #2b2d3c;
+  }
+}
 
 
 
@@ -355,48 +392,6 @@ select.form-control {
 
 /* Mobile Responsive - 480px breakpoint */
 @media (max-width: 480px) {
-  .messenger-container {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .navigation {
-    width: 100%;
-    height: 60px;
-    flex-direction: row;
-    padding: 0 var(--space-16);
-    gap: var(--space-16);
-  }
-
-  .user-avatar {
-    margin-bottom: 0;
-    width: 40px;
-    height: 40px;
-  }
-
-  .avatar-circle {
-    width: 40px;
-    height: 40px;
-  }
-
-  .nav-items {
-    flex-direction: row;
-    gap: var(--space-12);
-    width: auto;
-  }
-
-  .nav-item {
-    width: 40px;
-    height: 40px;
-    font-size: var(--font-size-xl);
-  }
-
   .chat-list {
     max-height: 40vh;
     min-height: 200px;
@@ -430,7 +425,7 @@ select.form-control {
   }
 
   .chat-area {
-    height: calc(60vh - 60px);
+    min-height: 60vh;
   }
 
   .chat-header {

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/messenger/Sidebar';
+import Navigation from '../components/messenger/Navigation';
 import ChatArea from '../components/messenger/ChatArea';
 import WelcomeScreen from '../components/messenger/WelcomeScreen';
-import HamburgerMenu from '../components/messenger/HamburgerMenu';
+import ChatList from '../components/messenger/ChatList';
+import ChatListAnon from '../components/messenger/ChatListAnon';
+import SettingsList from '../components/messenger/SettingsList';
 import { useChatData } from '../context/ChatDataContext';
 import { API_URL } from '../config';
 import '../css/Messenger.css';
@@ -16,10 +18,8 @@ import '../css/components/Message.css';
 import '../css/components/MessageInput.css';
 import '../css/components/MessageList.css';
 import '../css/components/Navigation.css';
-import '../css/components/Sidebar.css';
 import '../css/components/SettingsContent.css';
 import '../css/components/WelcomeScreen.css';
-import '../css/components/HamburgerMenu.css';
 
 function Messenger() {
   const navigate = useNavigate();
@@ -30,7 +30,6 @@ function Messenger() {
   const [selectedChatAnon, setSelectedChatAnon] = useState(null);
   const [selectedChatPeople, setSelectedChatPeople] = useState(null);
   const [selectedChatSettings, setSelectedChatSettings] = useState(null);
-  const [isNavOpen, setIsNavOpen] = useState(false);
 
   // Принудительно синхронизируем chatData при монтировании
   useEffect(() => {
@@ -143,7 +142,6 @@ function Messenger() {
     }
     
     setActiveSection(newSection);
-    setIsNavOpen(false); // Закрываем меню на мобильных после выбора
     
     // Сброс выбранного чата при смене секции
     if (newSection === 'bot') {
@@ -155,10 +153,6 @@ function Messenger() {
     } else if (newSection === 'settings') {
       setSelectedChatSettings(null);
     }
-  };
-
-  const toggleNav = () => {
-    setIsNavOpen(!isNavOpen);
   };
 
 const getActiveChatData = () => {
@@ -197,47 +191,96 @@ const getActiveChatData = () => {
   };
 
   const activeChatData = getActiveChatData();
+  const isAnonChatFocused = activeSection === 'anon' && selectedChatAnon;
   
   // Показываем WelcomeScreen если не выбрана секция
   const showWelcomeScreen = !activeSection;
 
+  const renderListPanel = () => {
+    if (!activeSection) return null;
+
+    if (activeSection === 'people') {
+      return (
+        <ChatList
+          chats={activeChatData.chats}
+          selectedChat={activeChatData.selectedChat}
+          setSelectedChat={activeChatData.setSelectedChat}
+        />
+      );
+    }
+
+    if (activeSection === 'anon') {
+      return (
+        <ChatListAnon
+          chats={activeChatData.chats}
+          selectedChat={activeChatData.selectedChat}
+          setSelectedChat={activeChatData.setSelectedChat}
+          username={username}
+          onChatsUpdate={setChatsAnon}
+        />
+      );
+    }
+
+    if (activeSection === 'settings') {
+      return (
+        <SettingsList
+          settings={activeChatData.chats}
+          selectedChat={activeChatData.selectedChat}
+          setSelectedChat={activeChatData.setSelectedChat}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  const shouldHideList =
+    showWelcomeScreen ||
+    activeSection === 'bot' ||
+    (activeSection === 'anon' && Boolean(selectedChatAnon));
+
   return (
     <div className="messenger-container">
-      <HamburgerMenu isOpen={isNavOpen} toggleMenu={toggleNav} />
-      
-      <Sidebar
+      <Navigation
         activeSection={activeSection}
         setActiveSection={handleSectionChange}
-        chats={activeChatData.chats}
-        selectedChat={activeChatData.selectedChat}
-        setSelectedChat={activeChatData.setSelectedChat}
         chatData={chatData}
         username={username}
-        onChatsUpdate={setChatsAnon}
-        isNavOpen={isNavOpen}
-        onNavClose={() => setIsNavOpen(false)}
       />
-      {showWelcomeScreen ? (
-        <WelcomeScreen username={username} />
-      ) : (
-        <ChatArea
-          selectedChat={activeChatData.selectedChat}
-          activeSection={activeSection}
-          chatData={chatData}
-          username={username}
-          onChatDataUpdate={updateChatData}
-          onChatRevealed={(publicChat) => {
-            setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
-            setChatsPeople(prev => {
-              const filtered = prev.filter(chat => chat.id !== publicChat.id);
-              return [publicChat, ...filtered];
-            });
-            setSelectedChatAnon(null);
-            setSelectedChatPeople(publicChat);
-            setActiveSection('people');
-          }}
-        />
-      )}
+      <div className="messenger-body">
+        {!shouldHideList && (
+          <div className="messenger-list">
+            {renderListPanel()}
+          </div>
+        )}
+        <div className="messenger-chat">
+          {showWelcomeScreen ? (
+            <WelcomeScreen username={username} onSelectSection={handleSectionChange} />
+          ) : (
+            <ChatArea
+              selectedChat={activeChatData.selectedChat}
+              activeSection={activeSection}
+              chatData={chatData}
+              username={username}
+              onChatDataUpdate={updateChatData}
+              isStandalone={activeSection === 'anon' && Boolean(selectedChatAnon)}
+              onAnonChatExit={() => {
+                setSelectedChatAnon(null);
+              }}
+              onChatRevealed={(publicChat) => {
+                setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
+                setChatsPeople(prev => {
+                  const filtered = prev.filter(chat => chat.id !== publicChat.id);
+                  return [publicChat, ...filtered];
+                });
+                setSelectedChatAnon(null);
+                setSelectedChatPeople(publicChat);
+                setActiveSection('people');
+              }}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

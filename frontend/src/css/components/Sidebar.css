@@ -1,6 +1,16 @@
 .sidebar {
   display: flex;
-  min-width:fit-content;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  min-width: 430px;
+  background: #141522;
+  border-right: 1px solid #393636;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+    flex-direction: column;
+    border-right: none;
+    border-bottom: 1px solid #2a2d3f;
+  }
 }

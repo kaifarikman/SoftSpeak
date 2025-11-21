@@ -40,3 +40,27 @@ class CategoryCreateRequest(BaseModel):
     description: str | None = None
     order: int = 0
 
+
+class RandomWordSchema(BaseModel):
+    """Схема случайного слова (прилагательное/существительное)."""
+
+    id: int
+    text: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class RandomWordCreateRequest(BaseModel):
+    """Создание нового слова."""
+
+    text: str
+
+
+class RandomWordUpdateRequest(BaseModel):
+    """Обновление слова."""
+
+    text: str | None = None
+    is_active: bool | None = None
+

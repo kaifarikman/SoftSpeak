@@ -38,6 +38,8 @@ async def get_chat_data_for_user(
             messengers=True,  # Если AI недоступен, messengers должен быть доступен
             settings=user.settings_enabled,
             avatar=user.avatar or "",
+            media_auto_upload_photos=user.media_auto_upload_photos,
+            media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
     # Получаем чат с сообщениями
@@ -66,6 +68,8 @@ async def get_chat_data_for_user(
                 messengers=messengers_available,
                 settings=user.settings_enabled,
                 avatar=user.avatar or "",
+                media_auto_upload_photos=user.media_auto_upload_photos,
+                media_auto_upload_videos=user.media_auto_upload_videos,
             )
         else:
             return ChatResponse(
@@ -74,6 +78,8 @@ async def get_chat_data_for_user(
                 messengers=messengers_available,  # Мессенджеры доступны после первого сообщения в AI чате
                 settings=user.settings_enabled,
                 avatar=user.avatar or "",
+                media_auto_upload_photos=user.media_auto_upload_photos,
+                media_auto_upload_videos=user.media_auto_upload_videos,
             )
     
     # Если чат есть и есть сообщения - возвращаем массив сообщений
@@ -85,6 +91,8 @@ async def get_chat_data_for_user(
             messengers=user.messengers_enabled,
             settings=user.settings_enabled,
             avatar=user.avatar or "",
+            media_auto_upload_photos=user.media_auto_upload_photos,
+            media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
     # Если чата нет или он пустой - возвращаем True (новый чат)
@@ -94,6 +102,8 @@ async def get_chat_data_for_user(
         messengers=user.messengers_enabled,
         settings=user.settings_enabled,
         avatar=user.avatar or "",
+        media_auto_upload_photos=user.media_auto_upload_photos,
+        media_auto_upload_videos=user.media_auto_upload_videos,
     )
 
 

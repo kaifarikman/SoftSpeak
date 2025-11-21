@@ -1,6 +1,19 @@
 import '../../css/components/WelcomeScreen.css';
 
-function WelcomeScreen({ username }) {
+function WelcomeScreen({ username, onSelectSection }) {
+  const features = [
+    { id: 'bot', emoji: '🤖', title: 'AI Чат-бот', description: 'Умный ассистент для психологической поддержки' },
+    { id: 'anon', emoji: '🎭', title: 'Анонимные чаты', description: 'Найдите собеседника и общайтесь инкогнито' },
+    { id: 'people', emoji: '👥', title: 'Публичные чаты', description: 'Раскройте личность и продолжите общение' },
+    { id: 'settings', emoji: '⚙️', title: 'Настройки', description: 'Персонализируйте профиль и предпочтения' },
+  ];
+
+  const handleFeatureClick = (sectionId) => {
+    if (typeof onSelectSection === 'function') {
+      onSelectSection(sectionId);
+    }
+  };
+
   return (
     <div className="welcome-screen">
       <div className="welcome-content">
@@ -14,39 +27,30 @@ function WelcomeScreen({ username }) {
 
         {username && (
           <div className="welcome-greeting">
-            <p className="greeting-text">Добро пожаловать, <span className="username-highlight">{username}</span>!</p>
+            <p className="greeting-text">
+              Добро пожаловать, <span className="username-highlight">{username}</span>!
+            </p>
           </div>
         )}
 
         <div className="welcome-features">
-          <div className="feature-item">
-            <div className="feature-emoji">🤖</div>
-            <h3>AI Чат-бот</h3>
-            <p>Умный ассистент для психологической поддержки</p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-emoji">🎭</div>
-            <h3>Анонимные чаты</h3>
-            <p>Найдите собеседника и общайтесь инкогнито</p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-emoji">👥</div>
-            <h3>Публичные чаты</h3>
-            <p>Раскройте свою личность и продолжите общение</p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-emoji">⚙️</div>
-            <h3>Настройки</h3>
-            <p>Персонализируйте свой профиль и предпочтения</p>
-          </div>
+          {features.map((feature) => (
+            <button
+              key={feature.id}
+              type="button"
+              className="feature-item"
+              onClick={() => handleFeatureClick(feature.id)}
+            >
+              <div className="feature-emoji">{feature.emoji}</div>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </button>
+          ))}
         </div>
 
         <div className="welcome-instruction">
           <p className="instruction-text">
-            👈 Выберите раздел в меню слева, чтобы начать
+            Нажмите на любой из разделов, чтобы перейти к нужной функции
           </p>
         </div>
       </div>

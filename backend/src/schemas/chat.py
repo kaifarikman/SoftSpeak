@@ -32,6 +32,8 @@ class ChatResponse(BaseModel):
     messengers: bool = Field(..., description="Доступность вкладки мессенджеров")
     settings: bool = Field(..., description="Доступность настроек")
     avatar: str = Field(default="", description="URL аватара пользователя")
+    media_auto_upload_photos: bool = Field(default=False)
+    media_auto_upload_videos: bool = Field(default=False)
 
     class Config:
         from_attributes = True

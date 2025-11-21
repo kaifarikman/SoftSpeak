@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
+import { resolveStaticUrl } from '../../utils/url';
 import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
@@ -18,6 +19,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     new_password_confirm: '',
   });
   const [blacklist, setBlacklist] = useState([]);
+  const [blacklistInput, setBlacklistInput] = useState('');
 
   // Загружаем данные пользователя при монтировании
   useEffect(() => {
@@ -82,6 +84,14 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 5000);
   };
+
+  const renderAlert = () => (
+    message.text ? (
+      <div className={`settings-alert ${message.type}`}>
+        {message.text}
+      </div>
+    ) : null
+  );
 
   // ==================== Профиль ====================
 
@@ -246,8 +256,13 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   // ==================== Аккаунт ====================
 
   const handleChangePassword = async () => {
+    if (!formData.old_password || !formData.new_password || !formData.new_password_confirm) {
+      showMessage('Заполните все поля', 'error');
+      return;
+    }
+
     if (formData.new_password !== formData.new_password_confirm) {
-      showMessage('Неправильный пароль или новые пароли не совпадают', 'error');
+      showMessage('Новый пароль и подтверждение не совпадают', 'error');
       return;
     }
 
@@ -269,8 +284,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       });
 
       const data = await response.json();
-      if (data.success) {
-        showMessage('Пароль изменен', 'success');
+      if (response.ok && data.success) {
+        showMessage('Пароль изменён. Войдите снова для продолжения.', 'success');
         setFormData(prev => ({
           ...prev,
           old_password: '',
@@ -278,7 +293,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
           new_password_confirm: '',
         }));
       } else {
-        showMessage(data.message || 'Неправильный пароль или новые пароли не совпадают', 'error');
+        showMessage(data.message || 'Не удалось изменить пароль', 'error');
       }
     } catch (error) {
       showMessage('Ошибка изменения пароля', 'error');
@@ -295,7 +310,18 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
   // ==================== Черный список ====================
 
-  const handleAddToBlacklist = async (usernameToBlock) => {
+  const handleAddToBlacklist = async () => {
+    const usernameToBlock = blacklistInput.trim();
+
+    if (!usernameToBlock) {
+      showMessage('Введите username пользователя', 'error');
+      return;
+    }
+    if (usernameToBlock === username) {
+      showMessage('Нельзя заблокировать свой аккаунт', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/settings/blacklist/${username}`, {
@@ -307,7 +333,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       const data = await response.json();
       if (data.success) {
         showMessage('Пользователь добавлен в черный список', 'success');
-        loadBlacklist(); // Перезагружаем список
+        setBlacklistInput('');
+        loadBlacklist();
       } else {
         showMessage(data.message || 'Ошибка добавления в черный список', 'error');
       }
@@ -343,7 +370,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
   if (!selectedSetting) {
     return (
-      <div className="settings-content">
+      <div className="settings-content settings-content-empty">
         <div className="empty-state">
           <p>Выберите настройку</p>
         </div>
@@ -356,6 +383,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       case 'Профиль':
         return (
           <div className="settings-section">
+            {renderAlert()}
             <h2>Профиль</h2>
             
             {/* Никнейм */}
@@ -372,12 +400,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                   Изменить
                 </button>
               </div>
-              {message.text && message.type === 'success' && formData.username && (
-                <p className="message success">Никнейм изменен</p>
-              )}
-              {message.text && message.type === 'error' && (
-                <p className="message error">Никнейм занят</p>
-              )}
             </div>
 
             {/* Аватар */}
@@ -386,15 +408,9 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
               <div className="settings-field-row">
                 <div className="avatar-preview">
                   {formData.avatar ? (
-                    <img 
-                      src={
-                        formData.avatar.startsWith('http') 
-                          ? formData.avatar 
-                          : formData.avatar.startsWith('/static') || formData.avatar.startsWith('/')
-                            ? formData.avatar
-                            : `/${formData.avatar}`
-                      } 
-                      alt="Avatar" 
+                    <img
+                      src={resolveStaticUrl(formData.avatar)}
+                      alt="Avatar"
                       onError={(e) => {
                         console.error('Ошибка загрузки аватара:', formData.avatar);
                         e.target.style.display = 'none';
@@ -420,12 +436,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                   <p className="upload-hint">Загрузите файл .jpg/.png размером не более 10 Мб</p>
                 </div>
               </div>
-              {message.text && message.type === 'success' && message.text.includes('Фотография') && (
-                <p className="message success">Фотография профиля изменена</p>
-              )}
-              {message.text && message.type === 'error' && message.text.includes('формат') && (
-                <p className="message error">Неправильный формат или слишком большой размер файла</p>
-              )}
             </div>
 
             {/* Информация о себе */}
@@ -442,12 +452,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                   Изменить
                 </button>
               </div>
-              {message.text && message.type === 'success' && message.text.includes('Информация') && (
-                <p className="message success">Информация изменена</p>
-              )}
-              {message.text && message.type === 'error' && message.text.includes('символы') && (
-                <p className="message error">Недопустимые символы или слишком большой размер текста</p>
-              )}
             </div>
           </div>
         );
@@ -455,6 +459,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       case 'Уведомления':
         return (
           <div className="settings-section">
+            {renderAlert()}
             <h2>Уведомления</h2>
             
             <div className="settings-field">
@@ -486,6 +491,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       case 'Медиа':
         return (
           <div className="settings-section">
+            {renderAlert()}
             <h2>Медиа</h2>
             
             <div className="settings-field">
@@ -517,6 +523,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       case 'Аккаунт':
         return (
           <div className="settings-section">
+            {renderAlert()}
             <h2>Аккаунт</h2>
             
             <div className="settings-field">
@@ -544,12 +551,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                   Изменить пароль
                 </button>
               </div>
-              {message.text && message.type === 'success' && message.text.includes('Пароль') && (
-                <p className="message success">Пароль изменен</p>
-              )}
-              {message.text && message.type === 'error' && message.text.includes('пароль') && (
-                <p className="message error">Неправильный пароль или новые пароли не совпадают</p>
-              )}
             </div>
 
             <div className="settings-field">
@@ -563,62 +564,40 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       case 'Черный список':
         return (
           <div className="settings-section">
+            {renderAlert()}
             <h2>Черный список</h2>
             
-            {/* Форма добавления в черный список */}
             <div className="settings-field">
               <label>Добавить пользователя в черный список</label>
-              <div className="settings-field-row">
+              <div className="blacklist-input-group">
                 <input
                   type="text"
-                  id="blacklist-username-input"
-                  placeholder="Введите username пользователя"
-                  onKeyPress={(e) => {
+                  value={blacklistInput}
+                  onChange={(e) => setBlacklistInput(e.target.value)}
+                  placeholder="@username"
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      const input = e.target;
-                      const usernameToBlock = input.value.trim();
-                      if (usernameToBlock) {
-                        handleAddToBlacklist(usernameToBlock);
-                        input.value = '';
-                      }
+                      e.preventDefault();
+                      handleAddToBlacklist();
                     }
                   }}
                 />
-                <button
-                  onClick={() => {
-                    const input = document.getElementById('blacklist-username-input');
-                    const usernameToBlock = input.value.trim();
-                    if (usernameToBlock) {
-                      handleAddToBlacklist(usernameToBlock);
-                      input.value = '';
-                    }
-                  }}
-                  disabled={loading}
-                >
+                <button onClick={handleAddToBlacklist} disabled={loading}>
                   Добавить
                 </button>
               </div>
+              <p className="field-hint">Пользователь не сможет отправлять вам сообщения и видеть вас в поиске.</p>
             </div>
             
-            {blacklist.length === 0 ? (
-              <div className="empty-state">
-                <p>Черный список пуст</p>
-              </div>
-            ) : (
+            {blacklist.length === 0 ? null : (
               <div className="blacklist-items">
                 {blacklist.map((user) => (
                   <div key={user.id} className="blacklist-item">
-                    <div className="blacklist-user-info">
-                      <div className="blacklist-avatar">
+                    <div className="blacklist-user-info" title={user.username}>
+                      <div className={`blacklist-avatar ${user.avatar ? '' : 'placeholder'}`}>
                         {user.avatar ? (
-                          <img 
-                            src={
-                              user.avatar.startsWith('http') 
-                                ? user.avatar 
-                                : user.avatar.startsWith('/static') || user.avatar.startsWith('/')
-                                  ? user.avatar
-                                  : `/${user.avatar}`
-                            } 
+                          <img
+                            src={resolveStaticUrl(user.avatar)}
                             alt={user.username}
                             onError={(e) => {
                               console.error('Ошибка загрузки аватара пользователя:', user.avatar);
@@ -626,17 +605,22 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                             }}
                           />
                         ) : (
-                          <span>👤</span>
+                          <span>{user.username?.charAt(0)?.toUpperCase()}</span>
                         )}
                       </div>
-                      <span className="blacklist-username">{user.username}</span>
+                      <div className="blacklist-text">
+                        <span className="blacklist-username">
+                          {user.username.length > 24 ? `${user.username.slice(0, 24)}…` : user.username}
+                        </span>
+                        <span className="blacklist-status">Заблокирован</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleRemoveFromBlacklist(user.username)}
                       disabled={loading}
                       className="remove-button"
                     >
-                      Удалить
+                      Разблокировать
                     </button>
                   </div>
                 ))}
