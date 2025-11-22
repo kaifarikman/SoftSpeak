@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
   db:
     image: postgres:16-alpine
     container_name: softspeak_db
@@ -22,7 +21,6 @@ services:
     networks:
       - softspeak-network
 
-  # MailHog for email testing
   mailhog:
     image: mailhog/mailhog:latest
     container_name: softspeak_mailhog
@@ -33,7 +31,6 @@ services:
     networks:
       - softspeak-network
 
-  # Backend API
   backend:
     build:
       context: ./backend
@@ -43,17 +40,13 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-softspeak_user}:${POSTGRES_PASSWORD:-softspeak_pass}@db:5432/${POSTGRES_DB:-softspeak_db}
       
-      # ML Service
       ML_SERVICE_URL: http://ml-service:8001
       
-      # JWT
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-use-secure-key}
       JWT_ACCESS_TTL_MIN: ${JWT_ACCESS_TTL_MIN:-30}
       
-      # Email
       EMAIL_FROM: ${EMAIL_FROM:-noreply@softspeak.com}
       SMTP_HOST: ${SMTP_HOST:-mailhog}
       SMTP_PORT: ${SMTP_PORT:-1025}
@@ -61,17 +54,13 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
       
-      # App
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
       
-      # Verification
       VERIFICATION_CODE_TTL_MIN: ${VERIFICATION_CODE_TTL_MIN:-10}
       VERIFICATION_CODE_LENGTH: ${VERIFICATION_CODE_LENGTH:-6}
       
-      # Rate limiting
       RATE_LIMIT_EMAIL_PER_HOUR: ${RATE_LIMIT_EMAIL_PER_HOUR:-5}
       
-      # Matchmaking
       MATCH_SIMILARITY_THRESHOLD: ${MATCH_SIMILARITY_THRESHOLD:-0.65}
     depends_on:
       db:
@@ -79,11 +68,8 @@ services:
       ml-service:
         condition: service_healthy
     volumes:
-      # Монтируем код для разработки с hot-reload
       - ./backend/src:/app/src
-      # Монтируем статические файлы
       - ./backend/static:/app/static
-      # Монтируем директорию для загрузки аватаров
       - ./backend/static/uploads:/app/static/uploads
     networks:
       - softspeak-network
@@ -99,7 +85,6 @@ services:
              cd .. && 
              uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
 
-  # Frontend
   frontend:
     build:
       context: ./frontend
@@ -114,7 +99,6 @@ services:
     networks:
       - softspeak-network
   
-  # ML Service (постоянно работающий)
   ml-service:
     build:
       context: ./ml
@@ -129,16 +113,14 @@ services:
       TRANSFORMERS_CACHE: /app/.cache/huggingface
       HF_HOME: /app/.cache/huggingface
     volumes:
-      # Постоянное хранилище для кэша модели
       - ml_cache:/app/.cache/huggingface
-      # Монтируем код для разработки (можно закомментировать в продакшене)
       - ./ml:/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, json; r = urllib.request.urlopen('http://localhost:8001/health'); data = json.loads(r.read()); exit(0 if data.get('model_status') == 'loaded' else 1)"]
       interval: 15s
       timeout: 10s
       retries: 30
-      start_period: 600s  # 10 минут на первую загрузку модели
+      start_period: 600s  
     networks:
       - softspeak-network
 
