@@ -124,6 +124,60 @@ function Messenger() {
 
 
 
+  const handleNotificationClick = useCallback(async (notification) => {
+    if (!username) return;
+
+    try {
+      const response = await fetch(`${API_URL}/matchmaking/chat/${notification.chat_id}/read/${username}`, {
+        method: 'PUT',
+      });
+      
+      if (response.ok) {
+        if (notification.chat_type === 'anon') {
+          const chatsResponse = await fetch(`${API_URL}/matchmaking/chats/${username}`);
+          if (chatsResponse.ok) {
+            const chatsData = await chatsResponse.json();
+            const chat = chatsData.find(c => c.id === notification.chat_id);
+            if (chat) {
+              setChatsAnon(prev => {
+                const filtered = prev.filter(c => c.id !== notification.chat_id);
+                return [chat, ...filtered];
+              });
+              setSelectedChatAnon(chat);
+              setActiveSection('anon');
+            }
+          }
+        } else if (notification.chat_type === 'people') {
+          const chatsResponse = await fetch(`${API_URL}/matchmaking/public-chats/${username}`);
+          if (chatsResponse.ok) {
+            const chatsData = await chatsResponse.json();
+            const chat = chatsData.find(c => c.id === notification.chat_id);
+            if (chat) {
+              const formattedChat = {
+                id: chat.id,
+                name: chat.name,
+                avatar: chat.avatar || '',
+                lastMessage: chat.last_message || '',
+                lastMessageTime: chat.last_message_time
+                  ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                  : '',
+                unreadCount: 0,
+              };
+              setChatsPeople(prev => {
+                const filtered = prev.filter(c => c.id !== notification.chat_id);
+                return [formattedChat, ...filtered];
+              });
+              setSelectedChatPeople(formattedChat);
+              setActiveSection('people');
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logError(err, 'Messenger handleNotificationClick');
+    }
+  }, [username]);
+
   const handleSectionChange = (newSection) => {
 
     if (chatData) {
@@ -246,6 +300,7 @@ const getActiveChatData = () => {
         setActiveSection={handleSectionChange}
         chatData={chatData}
         username={username}
+        onNotificationClick={handleNotificationClick}
       />
       <div className="messenger-body">
         {!shouldHideList && (

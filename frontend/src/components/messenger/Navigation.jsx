@@ -3,6 +3,7 @@ import botIcon from '../../assets/icons/chatbot.png';
 import anonIcon from '../../assets/icons/masks.png';
 import peopleIcon from '../../assets/icons/people.png';
 import settingsIcon from '../../assets/icons/settings.png';
+import NotificationIcon from './NotificationIcon';
 
 const NAV_SECTIONS = [
   { id: 'bot', icon: botIcon, title: 'Бот' },
@@ -11,7 +12,7 @@ const NAV_SECTIONS = [
   { id: 'settings', icon: settingsIcon, title: 'Настройки' }
 ];
 
-function Navigation({ activeSection, setActiveSection, chatData, username }) {
+function Navigation({ activeSection, setActiveSection, chatData, username, onNotificationClick }) {
   const availableSections = useMemo(() => {
     return NAV_SECTIONS.filter(section => {
       if (!chatData) return true;
@@ -46,9 +47,17 @@ function Navigation({ activeSection, setActiveSection, chatData, username }) {
           </button>
         ))}
       </div>
-      <div className="user-avatar" title={username || 'Профиль'}>
-        <div className="avatar-circle">
-          <span className="avatar-placeholder">{userInitial}</span>
+      <div className="nav-right">
+        {username && (
+          <NotificationIcon
+            username={username}
+            onNotificationClick={onNotificationClick}
+          />
+        )}
+        <div className="user-avatar" title={username || 'Профиль'}>
+          <div className="avatar-circle">
+            <span className="avatar-placeholder">{userInitial}</span>
+          </div>
         </div>
       </div>
     </div>

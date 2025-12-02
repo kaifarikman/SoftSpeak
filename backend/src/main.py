@@ -13,6 +13,7 @@ from src.api.websocket_survey import websocket_survey_endpoint
 from src.api.matchmaking import router as matchmaking_router
 from src.api.settings import router as settings_router
 from src.api.reports import router as reports_router
+from src.api.notifications import router as notifications_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ app.include_router(psychological_router)
 app.include_router(matchmaking_router)
 app.include_router(settings_router)
 app.include_router(reports_router)
+app.include_router(notifications_router)
 
 
 @app.get("/")

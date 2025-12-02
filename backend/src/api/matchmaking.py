@@ -114,6 +114,13 @@ class MatchmakingConnectionManager:
                 logger.error(f"Ошибка отправки сообщения через WebSocket для пользователя {username}: {e}")
                 self.disconnect(username)
 
+    async def send_notification(self, username: str, notification_data: dict):
+        notification_message = {
+            "type": "notification",
+            **notification_data
+        }
+        await self.send_personal_message(notification_message, username)
+
 
 matchmaking_manager = MatchmakingConnectionManager()
 
@@ -774,6 +781,38 @@ async def send_anonymous_message(
             },
             exclude_username=username
         )
+
+        other_user = chat.user2 if chat.user1_id == user.id else chat.user1
+        if other_user:
+            should_notify = False
+            chat_type = "people" if chat.is_public else "anon"
+            
+            if chat_type == "anon" and other_user.notification_anon_chats:
+                should_notify = True
+            elif chat_type == "people" and other_user.notification_open_chats:
+                should_notify = True
+            
+            if should_notify:
+                unread_count = sum(
+                    1 for msg in chat.messages
+                    if msg.sender_id != other_user.id and not msg.is_read
+                )
+                
+                if chat.is_public:
+                    chat_name = user.username
+                else:
+                    chat_name = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
+                    chat_name = chat_name or "Собеседник"
+                
+                notification_data = {
+                    "chat_id": chat.id,
+                    "chat_name": chat_name,
+                    "chat_type": chat_type,
+                    "unread_count": unread_count,
+                    "last_message": summarize_message_text(message),
+                }
+                
+                await matchmaking_manager.send_notification(other_user.username, notification_data)
 
         return build_message_payload(message, current_user_id=user.id, is_mine_override=True)
     except ValueError as e:

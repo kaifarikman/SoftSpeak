@@ -15,7 +15,7 @@ const getWsUrl = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
 
-  return `${protocol}
+  return `${protocol}//${host}/api/ws`;
 };
 
 export const API_URL = getApiUrl();

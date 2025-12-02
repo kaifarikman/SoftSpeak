@@ -389,6 +389,9 @@ const ChatArea = memo(({
           await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
             method: 'PUT',
           });
+          if (window.notificationUpdateCallback) {
+            window.notificationUpdateCallback();
+          }
         } catch (readError) {
           logError(readError, 'ChatArea mark messages as read');
         }

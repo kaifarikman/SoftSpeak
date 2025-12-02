@@ -20,8 +20,15 @@
   margin-right: 16px;
 }
 
-.user-avatar {
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-left: auto;
+  flex-shrink: 0;
+}
+
+.user-avatar {
   flex-shrink: 0;
 }
 
@@ -155,8 +162,12 @@
     min-width: 0;
   }
 
-  .user-avatar {
+  .nav-right {
     align-self: flex-end;
+    margin-left: 0;
+  }
+
+  .user-avatar {
     margin-left: 0;
   }
 
