@@ -318,7 +318,7 @@ select.form-control {
   overflow-x: hidden;
   padding-top: 0;
   height: calc(100vh - 80px);
-  position: relative;
+  position: fixed;
 }
 
 .messenger-chat {
@@ -329,6 +329,7 @@ select.form-control {
   height: calc(100vh - 80px);
   overflow: hidden;
   background: #0f1117;
+  margin-left: 380px;
 }
 
 
