@@ -58,6 +58,15 @@
   text-overflow: ellipsis;
 }
 
+.chat-header-name-clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.chat-header-name-clickable:hover {
+  color: #3b82f6;
+}
+
 .chat-header-status {
   margin: 4px 0 0;
   font-size: 13px;

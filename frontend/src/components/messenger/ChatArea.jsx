@@ -4,6 +4,7 @@ import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SettingsContent from './SettingsContent';
+import UserProfileModal from './UserProfileModal';
 import { API_URL, WS_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 
@@ -25,6 +26,8 @@ const ChatArea = memo(({
   const [isRevealing, setIsRevealing] = useState(false);
   const [revealError, setRevealError] = useState('');
   const [chatInfo, setChatInfo] = useState(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [profileUsername, setProfileUsername] = useState(null);
   const wsRef = useRef(null);
   const anonChatWsRef = useRef(null); // WebSocket для анонимного чата
   const reconnectTimeoutRef = useRef(null);
@@ -603,6 +606,18 @@ const ChatArea = memo(({
     }
   };
 
+  const handleOpenProfile = useCallback(() => {
+    if (activeSection === 'people' && selectedChat?.name) {
+      setProfileUsername(selectedChat.name);
+      setShowUserProfile(true);
+    }
+  }, [activeSection, selectedChat]);
+
+  const handleCloseProfile = useCallback(() => {
+    setShowUserProfile(false);
+    setProfileUsername(null);
+  }, []);
+
   // Special handling for settings section
   if (activeSection === 'settings') {
     return (
@@ -661,6 +676,7 @@ const ChatArea = memo(({
 
   const showAnonBackButton = activeSection === 'anon' && typeof onAnonChatExit === 'function' && isStandalone;
   const chatAreaClass = `chat-area ${isStandalone ? 'chat-area-standalone' : ''}`;
+  const isPublicChat = activeSection === 'people';
   
   return (
     <div className={chatAreaClass}>
@@ -668,6 +684,7 @@ const ChatArea = memo(({
         chat={chatHeader}
         actions={headerActions}
         onBack={showAnonBackButton ? onAnonChatExit : undefined}
+        onNameClick={isPublicChat ? handleOpenProfile : undefined}
       />
       {revealError && activeSection === 'anon' && (
         <div className="chat-info-message error">
@@ -682,6 +699,11 @@ const ChatArea = memo(({
           (activeSection === 'bot' && isSurveyCompleted)
         }
         placeholder={activeSection === 'bot' && isSurveyCompleted ? "Опрос завершен. Чат доступен только для просмотра." : undefined}
+      />
+      <UserProfileModal
+        username={profileUsername}
+        isOpen={showUserProfile}
+        onClose={handleCloseProfile}
       />
     </div>
   );

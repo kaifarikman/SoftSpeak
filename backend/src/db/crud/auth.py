@@ -112,7 +112,6 @@ async def issue_email_verification_code(
             messengers_enabled=False,  # Мессенджеры недоступны до прохождения диалога с AI
             settings_enabled=True,
             anonym=True,
-            avatar="",
         )
         session.add(user)
         await session.flush()  # получаем user.id

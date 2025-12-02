@@ -228,32 +228,32 @@ function Admin() {
     return (
       <div className="admin-layout">
         <div className="admin-login-container">
-          <form className="admin-card admin-login" onSubmit={handleLogin}>
-            <h1>Админка SoftSpeak</h1>
-            <p>Введите данные, выданные разработчиками.</p>
-            {loginStatus.message && (
-              <div className={`admin-alert ${loginStatus.type}`}>{loginStatus.message}</div>
-            )}
-            <label>
-              Имя
-              <input
-                type="text"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm((prev) => ({ ...prev, username: e.target.value }))}
-              />
-            </label>
-            <label>
-              Пароль
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
-              />
-            </label>
-            <button type="submit" className="admin-btn primary" disabled={loading}>
-              {loading ? 'Входим...' : 'Войти'}
-            </button>
-          </form>
+        <form className="admin-card admin-login" onSubmit={handleLogin}>
+          <h1>Админка SoftSpeak</h1>
+          <p>Введите данные, выданные разработчиками.</p>
+          {loginStatus.message && (
+            <div className={`admin-alert ${loginStatus.type}`}>{loginStatus.message}</div>
+          )}
+          <label>
+            Имя
+            <input
+              type="text"
+              value={loginForm.username}
+              onChange={(e) => setLoginForm((prev) => ({ ...prev, username: e.target.value }))}
+            />
+          </label>
+          <label>
+            Пароль
+            <input
+              type="password"
+              value={loginForm.password}
+              onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
+            />
+          </label>
+          <button type="submit" className="admin-btn primary" disabled={loading}>
+            {loading ? 'Входим...' : 'Войти'}
+          </button>
+        </form>
         </div>
       </div>
     );
@@ -262,7 +262,7 @@ function Admin() {
   return (
     <div className="admin-layout">
       <nav className="admin-navigation">
-        <h1>Админ-панель SoftSpeak</h1>
+          <h1>Админ-панель SoftSpeak</h1>
         <div className="admin-navigation-actions">
           <button className="admin-btn ghost" onClick={loadAllData} disabled={loading}>
             ⟳ Обновить
@@ -274,9 +274,9 @@ function Admin() {
       </nav>
 
       <div className="admin-content">
-        {panelMessage.message && (
-          <div className={`admin-alert ${panelMessage.type}`}>{panelMessage.message}</div>
-        )}
+      {panelMessage.message && (
+        <div className={`admin-alert ${panelMessage.type}`}>{panelMessage.message}</div>
+      )}
 
       <section className="admin-section stats-grid">
         <div className="stat-card">

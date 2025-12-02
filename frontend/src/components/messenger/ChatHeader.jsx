@@ -1,4 +1,4 @@
-function ChatHeader({ chat = {}, actions, onBack }) {
+function ChatHeader({ chat = {}, actions, onBack, onNameClick }) {
   const fullName = chat.name || 'Диалог';
   const displayName =
     fullName.length > 20 ? `${fullName.slice(0, 20)}…` : fullName;
@@ -16,7 +16,12 @@ function ChatHeader({ chat = {}, actions, onBack }) {
           <span>{initials}</span>
         </div>
         <div className="chat-header-text">
-          <h2>{displayName}</h2>
+          <h2 
+            className={onNameClick ? 'chat-header-name-clickable' : ''}
+            onClick={onNameClick}
+          >
+            {displayName}
+          </h2>
           {chat.statusText && (
             <p className="chat-header-status">{chat.statusText}</p>
           )}
