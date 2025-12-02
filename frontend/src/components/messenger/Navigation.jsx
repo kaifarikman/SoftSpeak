@@ -48,12 +48,10 @@ function Navigation({ activeSection, setActiveSection, chatData, username, onNot
         ))}
       </div>
       <div className="nav-right">
-        {username && (
-          <NotificationIcon
-            username={username}
-            onNotificationClick={onNotificationClick}
-          />
-        )}
+        <NotificationIcon
+          username={username}
+          onNotificationClick={onNotificationClick}
+        />
         <div className="user-avatar" title={username || 'Профиль'}>
           <div className="avatar-circle">
             <span className="avatar-placeholder">{userInitial}</span>

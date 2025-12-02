@@ -99,8 +99,8 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}
-    
+    const wsUrl = protocol + '//' + host + '/api/matchmaking/ws/' + username;
+
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -220,7 +220,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         }
 
 
-        setIsSearching(data.is_searching ?? true);
+        setIsSearching(data.is_searching ?? false);
         setQueueCount(data.queue_count || 0);
 
         if (data.is_searching) {

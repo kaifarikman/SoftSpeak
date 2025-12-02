@@ -11,27 +11,40 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
   const dropdownRef = useRef(null);
 
   const loadNotifications = useCallback(async () => {
-    if (!username) return;
+    if (!username) {
+      console.log('NotificationIcon: username не передан');
+      return;
+    }
 
     try {
+      console.log('NotificationIcon: Загрузка уведомлений для', username);
       const response = await fetch(`${API_URL}/notifications/${username}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('NotificationIcon: Получены уведомления', data);
         setNotifications(data);
         const total = data.reduce((sum, notif) => sum + notif.unread_count, 0);
         setUnreadCount(total);
+        console.log('NotificationIcon: Общее количество непрочитанных', total);
+      } else {
+        console.error('NotificationIcon: Ошибка ответа', response.status, response.statusText);
       }
     } catch (err) {
-      console.error('Ошибка загрузки уведомлений:', err);
+      console.error('NotificationIcon: Ошибка загрузки уведомлений:', err);
     }
   }, [username]);
 
   useEffect(() => {
+    console.log('NotificationIcon: useEffect запущен, username:', username);
+    
+    if (!username) {
+      console.log('NotificationIcon: username отсутствует, пропускаем инициализацию');
+      return;
+    }
+
     loadNotifications();
 
     window.notificationUpdateCallback = loadNotifications;
-
-    if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -39,7 +52,12 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log('WebSocket для уведомлений подключен');
+      console.log('NotificationIcon: WebSocket для уведомлений подключен для', username);
+      loadNotifications();
+    };
+
+    wsRef.current.onerror = (error) => {
+      console.error('NotificationIcon: WebSocket ошибка:', error);
     };
 
     wsRef.current.onmessage = (event) => {
@@ -47,6 +65,7 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
         const data = JSON.parse(event.data);
         
         if (data.type === 'notification') {
+          console.log('NotificationIcon: Получено уведомление через WebSocket:', data);
           setNotifications(prev => {
             const existingIndex = prev.findIndex(n => n.chat_id === data.chat_id);
             let updated;
@@ -75,6 +94,8 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
             updated.sort((a, b) => new Date(b.last_message_time) - new Date(a.last_message_time));
             return updated;
           });
+          
+          setTimeout(() => loadNotifications(), 200);
         }
       } catch (err) {
         console.error('Ошибка обработки WebSocket сообщения:', err);
@@ -82,26 +103,79 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     };
 
     wsRef.current.onerror = (error) => {
-      console.error('WebSocket ошибка:', error);
+      console.error('NotificationIcon: WebSocket ошибка:', error);
     };
 
-    wsRef.current.onclose = () => {
-      console.log('WebSocket для уведомлений отключен');
+    wsRef.current.onclose = (event) => {
+      console.log('NotificationIcon: WebSocket для уведомлений отключен. Код:', event.code, 'Причина:', event.reason);
       setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.CLOSED) {
+        if (wsRef.current?.readyState === WebSocket.CLOSED && username) {
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           const host = window.location.host;
           const wsUrl = `${protocol}//${host}/api/matchmaking/ws/${username}`;
+          console.log('NotificationIcon: Переподключение WebSocket...');
           wsRef.current = new WebSocket(wsUrl);
+          
+          wsRef.current.onopen = () => {
+            console.log('NotificationIcon: WebSocket переподключен для', username);
+            loadNotifications();
+          };
+          
+          wsRef.current.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'notification') {
+                console.log('NotificationIcon: Получено уведомление через WebSocket:', data);
+                setNotifications(prev => {
+                  const existingIndex = prev.findIndex(n => n.chat_id === data.chat_id);
+                  let updated;
+                  
+                  if (existingIndex >= 0) {
+                    updated = [...prev];
+                    updated[existingIndex] = {
+                      chat_id: data.chat_id,
+                      chat_name: data.chat_name,
+                      chat_type: data.chat_type,
+                      unread_count: data.unread_count,
+                      last_message: data.last_message,
+                      last_message_time: new Date().toISOString(),
+                    };
+                  } else {
+                    updated = [{
+                      chat_id: data.chat_id,
+                      chat_name: data.chat_name,
+                      chat_type: data.chat_type,
+                      unread_count: data.unread_count,
+                      last_message: data.last_message,
+                      last_message_time: new Date().toISOString(),
+                    }, ...prev];
+                  }
+                  
+                  updated.sort((a, b) => new Date(b.last_message_time) - new Date(a.last_message_time));
+                  return updated;
+                });
+                setTimeout(() => loadNotifications(), 200);
+              }
+            } catch (err) {
+              console.error('Ошибка обработки WebSocket сообщения:', err);
+            }
+          };
         }
-      }, 3000);
+      }, 1000);
     };
+
+    const interval = setInterval(() => {
+      if (username) {
+        loadNotifications();
+      }
+    }, 5000);
 
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
       }
       window.notificationUpdateCallback = null;
+      clearInterval(interval);
     };
   }, [username, loadNotifications]);
 
@@ -143,12 +217,15 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     loadNotifications();
   };
 
+  console.log('NotificationIcon: Рендеринг компонента, username =', username);
+
   return (
-    <div className="notification-container">
+    <div className="notification-container" data-testid="notification-container">
       <button
         className="notification-icon"
         onClick={handleToggle}
         title="Уведомления"
+        data-testid="notification-button"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path

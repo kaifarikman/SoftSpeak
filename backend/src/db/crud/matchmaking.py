@@ -86,6 +86,7 @@ async def get_matchmaking_queue_count(
 async def find_match(
     session: AsyncSession,
     user_id: int,
+    threshold: float = None,
 ) -> Optional[AnonymousChat]:
     user_stmt = (
         select(User)
@@ -162,12 +163,13 @@ async def find_match(
         logger.info(f"find_match: Нет подходящих пользователей с профилями для {user_id}")
         return None
 
-    logger.info(f"find_match: Ищем лучший матч среди {len(other_users)} пользователей")
+    logger.info(f"find_match: Ищем лучший матч среди {len(other_users)} пользователей (threshold: {threshold})")
     
     best_match_id = await find_best_match(
         user_vector=user_vector,
         user_id=user_id,
         other_users=other_users,
+        threshold=threshold,
     )
 
     if not best_match_id:

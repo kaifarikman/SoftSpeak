@@ -1,8 +1,11 @@
 """Поиск лучшего совпадения пользователей по психологическому профилю."""
 from typing import List, Optional, Union
 import numpy as np
+import logging
 
 from .cosine_distance_func import cosine_distance
+
+logger = logging.getLogger(__name__)
 
 
 def find_best_match(
@@ -33,7 +36,9 @@ def find_best_match(
     user_vector = np.array(user_vector)
     min_distance = float('inf')
     best_match_id = None
-
+    best_similarity = -1
+    candidates_passed = []
+    
     for other_user in other_users:
         if other_user.get('id') == user_id:
             continue
@@ -45,22 +50,31 @@ def find_best_match(
         other_vector = np.array(other_vector)
         distance = cosine_distance(user_vector, other_vector)
         
-        # cosine_distance возвращает массив, берем первое значение
         if isinstance(distance, np.ndarray):
             distance = distance.item() if distance.size == 1 else distance[0, 0]
         
-        # Проверяем порог similarity
-        # Cosine distance: 0 = идентичны, 2 = противоположны
-        # Similarity = 1 - distance/2 (приводим к шкале 0-1)
         similarity = 1 - distance / 2
         
-        # Пропускаем пользователей с низкой совместимостью
         if similarity < threshold:
             continue
         
+        candidates_passed.append({
+            'id': other_user['id'],
+            'distance': distance,
+            'similarity': similarity
+        })
+        
         if distance < min_distance:
             min_distance = distance
+            best_similarity = similarity
             best_match_id = other_user['id']
+    
+    if best_match_id:
+        logger.info(f"Найден лучший матч: пользователь {best_match_id} (similarity: {best_similarity:.3f}, distance: {min_distance:.3f})")
+        if len(candidates_passed) > 1:
+            logger.info(f"Всего кандидатов, прошедших порог {threshold}: {len(candidates_passed)}")
+            for cand in sorted(candidates_passed, key=lambda x: x['distance'])[:3]:
+                logger.info(f"  - Пользователь {cand['id']}: similarity={cand['similarity']:.3f}, distance={cand['distance']:.3f}")
 
     return best_match_id
 

@@ -1,6 +1,9 @@
 .notification-container {
   position: relative;
   margin-left: 16px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .notification-icon {
@@ -12,11 +15,13 @@
   border: 1px solid #2a2d3a;
   border-radius: 12px;
   cursor: pointer;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   color: #94a3b8;
   transition: all 0.2s ease;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .notification-icon:hover {

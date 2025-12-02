@@ -40,8 +40,10 @@ async def get_unread_notifications(
         anon_chats = anon_chats_result.scalars().all()
         
         for chat in anon_chats:
-            other_user = chat.user2 if chat.user1_id == user_id else chat.user1
-            other_alias = chat.user2_alias if chat.user1_id == user_id else chat.user1_alias
+            if chat.user1_id == user_id:
+                other_alias = chat.user2_alias
+            else:
+                other_alias = chat.user1_alias
             chat_name = other_alias or "Собеседник"
             
             unread_messages = [
@@ -64,7 +66,14 @@ async def get_unread_notifications(
     
     if user.notification_open_chats:
         public_chats_stmt = (
-            select(AnonymousChat)
+            select(AnonymousChat, User)
+            .join(
+                User,
+                or_(
+                    and_(AnonymousChat.user1_id == user_id, User.id == AnonymousChat.user2_id),
+                    and_(AnonymousChat.user2_id == user_id, User.id == AnonymousChat.user1_id),
+                )
+            )
             .where(
                 and_(
                     or_(
@@ -75,13 +84,12 @@ async def get_unread_notifications(
                     AnonymousChat.is_public.is_(True),
                 )
             )
-            .options(selectinload(AnonymousChat.user1), selectinload(AnonymousChat.user2), selectinload(AnonymousChat.messages))
+            .options(selectinload(AnonymousChat.messages))
         )
         public_chats_result = await session.execute(public_chats_stmt)
-        public_chats = public_chats_result.scalars().all()
+        public_chats_data = public_chats_result.all()
         
-        for chat in public_chats:
-            other_user = chat.user2 if chat.user1_id == user_id else chat.user1
+        for chat, other_user in public_chats_data:
             chat_name = other_user.username if other_user else "Собеседник"
             
             unread_messages = [

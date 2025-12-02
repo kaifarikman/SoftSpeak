@@ -117,7 +117,7 @@ const ChatArea = memo(({
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}
+    const wsUrl = protocol + '//' + host + '/api/matchmaking/chat/' + chatId + '/ws/' + username;
 
     const ws = new WebSocket(wsUrl);
     anonChatWsRef.current = ws;
@@ -138,9 +138,8 @@ const ChatArea = memo(({
             upsertMessage(formatted);
           }
         } else if (data.type === 'reveal_request') {
-
           const systemMessage = {
-            id: `system-reveal-${Date.now()}`,
+            id: 'system-reveal-' + Date.now(),
             text: '⚠️ ' + data.message,
             timestamp: new Date().toISOString(),
             isMine: false,
@@ -185,7 +184,7 @@ const ChatArea = memo(({
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}
+    const wsUrl = protocol + '//' + host + '/api/matchmaking/ws/' + username;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -602,7 +601,7 @@ const ChatArea = memo(({
       } else if (data.status === 'pending') {
 
         const systemMessage = {
-          id: `system-pending-${Date.now()}`,
+          id: 'system-pending-' + Date.now(),
           text: '✓ ' + data.message,
           timestamp: new Date().toISOString(),
           isMine: false,
