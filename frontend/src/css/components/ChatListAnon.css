@@ -9,15 +9,15 @@
 .chat-items {
   flex: 1;
   overflow-y: auto;
-  background: #141522;
-  border: 1px solid #2d3042;
-  border-radius: 16px;
+  background: #1a1d29;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
 }
 
 .empty-chats {
   padding: 40px 20px;
   text-align: center;
-  color: #8b92ab;
+  color: #94a3b8;
 }
 
 .empty-chats p {
@@ -26,5 +26,5 @@
 
 .empty-chats .hint {
   font-size: 14px;
-  color: #a3abc8;
+  color: #64748b;
 }

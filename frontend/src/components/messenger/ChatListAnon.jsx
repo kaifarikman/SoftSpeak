@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import ChatItem from './ChatItem';
 import MatchmakingButton from './MatchmakingButton';
 import { API_URL } from '../../config';
+import { logError, handleApiError } from '../../utils/errorHandler';
 import '../../css/components/ChatListAnon.css';
 import '../../css/components/MatchmakingButton.css';
 
@@ -44,7 +45,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
         }
       }
         } catch (error) {
-          // Silent error handling
+          logError(error, 'ChatListAnon loadChats');
         }
   };
 
@@ -106,7 +107,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
         }
       }
     } catch (error) {
-      console.error('Error loading chats after match:', error);
+      logError(error, 'ChatListAnon handleMatchFound');
     }
   };
 

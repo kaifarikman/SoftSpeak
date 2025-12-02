@@ -12,6 +12,7 @@ from src.db.models import (
     AnonymousMessage,
     User,
     PsychologicalProfile,
+    Blacklist,
 )
 from src.db.crud import random_names
 from src.services.vector_utils import find_best_match
@@ -20,10 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 def summarize_message_text(message: AnonymousMessage) -> str:
-    if message.media_type == "photo":
-        return "📷 Фото"
-    if message.media_type == "video":
-        return "🎬 Видео"
     content = (message.content or "").strip()
     if not content:
         return "Сообщение"
@@ -105,8 +102,7 @@ async def find_match(
     if not user.messengers_enabled:
         logger.warning(f"find_match: У пользователя {user_id} отключены мессенджеры")
         return None
-
-    # Получаем профиль пользователя
+    
     if not user.psychological_profile:
         logger.warning(f"find_match: У пользователя {user_id} нет психологического профиля")
         return None
@@ -133,8 +129,29 @@ async def find_match(
     
     logger.info(f"find_match: Найдено {len(queue_entries)} пользователей в очереди")
 
+    blocked_by_user_stmt = select(Blacklist.blocked_user_id).where(
+        Blacklist.user_id == user_id
+    )
+    blocked_by_user_result = await session.execute(blocked_by_user_stmt)
+    blocked_by_user_ids = {row[0] for row in blocked_by_user_result.all()}
+    
+    blocked_user_stmt = select(Blacklist.user_id).where(
+        Blacklist.blocked_user_id == user_id
+    )
+    blocked_user_result = await session.execute(blocked_user_stmt)
+    blocked_user_ids = {row[0] for row in blocked_user_result.all()}
+    
+    all_blocked_ids = blocked_by_user_ids | blocked_user_ids
+    
+    if all_blocked_ids:
+        logger.info(f"find_match: Исключаем {len(all_blocked_ids)} заблокированных пользователей для {user_id}")
+
     other_users = []
     for entry in queue_entries:
+        if entry.user.id in all_blocked_ids:
+            logger.debug(f"find_match: Пропускаем пользователя {entry.user.id} - он в черном списке")
+            continue
+            
         if entry.user and entry.user.psychological_profile and entry.user.messengers_enabled:
             other_users.append({
                 'id': entry.user.id,
@@ -226,8 +243,23 @@ async def find_match(
         user2_id=user2_id_sorted,
         is_active=True,
     )
-    chat.user1_alias = await random_names.generate_random_alias(session)
-    chat.user2_alias = await random_names.generate_random_alias(session)
+    
+    max_attempts = 10
+    user1_alias = await random_names.generate_random_alias(session)
+    user2_alias = await random_names.generate_random_alias(session)
+    
+    attempts = 0
+    while user1_alias == user2_alias and attempts < max_attempts:
+        logger.warning(f"find_match: Алиасы совпали ({user1_alias}), перегенерируем user2_alias")
+        user2_alias = await random_names.generate_random_alias(session)
+        attempts += 1
+    
+    if user1_alias == user2_alias:
+        logger.error(f"find_match: Не удалось сгенерировать уникальные алиасы после {max_attempts} попыток")
+        user2_alias = f"{user2_alias} 2"
+    
+    chat.user1_alias = user1_alias
+    chat.user2_alias = user2_alias
     session.add(chat)
 
     stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
@@ -307,14 +339,6 @@ async def create_anonymous_message(
     chat_id: int,
     sender_id: int,
     content: str | None = None,
-    *,
-    media_type: str | None = None,
-    media_url: str | None = None,
-    media_preview_url: str | None = None,
-    media_size: int | None = None,
-    media_duration: float | None = None,
-    media_width: int | None = None,
-    media_height: int | None = None,
 ) -> AnonymousMessage:
     chat_stmt = select(AnonymousChat).where(AnonymousChat.id == chat_id)
     chat_result = await session.execute(chat_stmt)
@@ -330,13 +354,6 @@ async def create_anonymous_message(
         chat_id=chat_id,
         sender_id=sender_id,
         content=(content or ""),
-        media_type=media_type,
-        media_url=media_url,
-        media_preview_url=media_preview_url,
-        media_size=media_size,
-        media_duration=media_duration,
-        media_width=media_width,
-        media_height=media_height,
     )
     session.add(message)
 
@@ -372,6 +389,32 @@ async def get_user_public_chats(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def mark_messages_as_read(
+    session: AsyncSession,
+    chat_id: int,
+    user_id: int,
+) -> int:
+    chat = await get_anonymous_chat(session, chat_id, user_id)
+    if not chat:
+        raise ValueError("Чат не найден")
+    
+    unread_messages = [
+        msg for msg in chat.messages 
+        if msg.sender_id != user_id and not msg.is_read
+    ]
+    
+    count = 0
+    for message in unread_messages:
+        message.is_read = True
+        count += 1
+    
+    if count > 0:
+        await session.commit()
+        logger.info(f"mark_messages_as_read: Помечено {count} сообщений как прочитанных в чате {chat_id} для пользователя {user_id}")
+    
+    return count
 
 
 async def reveal_anonymous_chat(

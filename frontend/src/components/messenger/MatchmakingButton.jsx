@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { API_URL } from '../../config';
+import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 import '../../css/components/MatchmakingButton.css';
 
 // Throttle функция для ограничения частоты обновлений
@@ -47,7 +48,13 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     // Очистка при размонтировании
     return () => {
       if (wsRef.current) {
-        wsRef.current.close();
+        try {
+          if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+            wsRef.current.close(1000, 'Component unmounting');
+          }
+        } catch (err) {
+          logError(err, 'MatchmakingButton WebSocket cleanup');
+        }
         wsRef.current = null;
       }
       isConnectingRef.current = false;
@@ -64,10 +71,10 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         setIsSearching(data.is_searching);
         setQueueCount(data.queue_count || 0);
       } else {
-        // Silent error handling
+        await handleApiError(response, 'MatchmakingButton loadStatus');
       }
     } catch (error) {
-      // Silent error handling
+      logError(error, 'MatchmakingButton loadStatus');
     }
   };
 
@@ -148,7 +155,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
           setIsSearching(false);
         }
       } catch (err) {
-        // Silent error handling
+        handleWebSocketError(err, 'MatchmakingButton WebSocket');
       }
     };
 

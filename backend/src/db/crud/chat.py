@@ -71,19 +71,20 @@ async def create_message(
     
     # Если это сообщение от пользователя, проверяем, нужно ли активировать мессенджеры
     if is_from_user:
-        # Получаем чат и пользователя
-        stmt = select(Chat).where(Chat.id == chat_id)
+        # Получаем чат с блокировкой для предотвращения race condition
+        stmt = select(Chat).where(Chat.id == chat_id).with_for_update()
         result = await session.execute(stmt)
         chat = result.scalar_one_or_none()
         
         if chat:
-            # Получаем пользователя
-            user_stmt = select(User).where(User.id == chat.user_id)
+            # Получаем пользователя с блокировкой
+            user_stmt = select(User).where(User.id == chat.user_id).with_for_update()
             user_result = await session.execute(user_stmt)
             user = user_result.scalar_one_or_none()
             
             if user and not user.messengers_enabled:
-                # Проверяем, есть ли уже сообщения от пользователя в этом чате
+                # Атомарная проверка количества сообщений от пользователя в этом чате
+                # Используем подзапрос для точного подсчета
                 messages_stmt = select(func.count(Message.id)).where(
                     Message.chat_id == chat_id,
                     Message.is_from_user.is_(True)
@@ -92,7 +93,8 @@ async def create_message(
                 user_messages_count = messages_result.scalar() or 0
                 
                 # Если это первое сообщение от пользователя, активируем мессенджеры
-                if user_messages_count == 0:  # До добавления текущего сообщения
+                # Проверяем ДО добавления текущего сообщения в БД
+                if user_messages_count == 0:
                     user.messengers_enabled = True
     
     await session.commit()

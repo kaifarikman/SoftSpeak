@@ -31,7 +31,7 @@ function Admin() {
       ...options,
       headers: {
         ...headers,
-        Authorization: token,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -53,15 +53,28 @@ function Admin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginForm),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.detail || 'Ошибка входа');
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
       }
+      
+      if (!response.ok) {
+        throw new Error(data?.detail || `Ошибка входа: ${response.status}`);
+      }
+      
+      if (!data.token) {
+        throw new Error('Токен не получен от сервера');
+      }
+      
       localStorage.setItem('admin_token', data.token);
       setToken(data.token);
       setLoginStatus({ type: 'success', message: 'Вход выполнен' });
     } catch (error) {
-      setLoginStatus({ type: 'error', message: error.message });
+      console.error('Admin login error:', error);
+      setLoginStatus({ type: 'error', message: error.message || 'Ошибка входа' });
     } finally {
       setLoading(false);
     }
@@ -214,44 +227,43 @@ function Admin() {
   if (!token) {
     return (
       <div className="admin-layout">
-        <form className="admin-card admin-login" onSubmit={handleLogin}>
-          <h1>Админка SoftSpeak</h1>
-          <p>Введите данные, выданные разработчиками.</p>
-          {loginStatus.message && (
-            <div className={`admin-alert ${loginStatus.type}`}>{loginStatus.message}</div>
-          )}
-          <label>
-            Имя
-            <input
-              type="text"
-              value={loginForm.username}
-              onChange={(e) => setLoginForm((prev) => ({ ...prev, username: e.target.value }))}
-            />
-          </label>
-          <label>
-            Пароль
-            <input
-              type="password"
-              value={loginForm.password}
-              onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
-            />
-          </label>
-          <button type="submit" className="admin-btn primary" disabled={loading}>
-            {loading ? 'Входим...' : 'Войти'}
-          </button>
-        </form>
+        <div className="admin-login-container">
+          <form className="admin-card admin-login" onSubmit={handleLogin}>
+            <h1>Админка SoftSpeak</h1>
+            <p>Введите данные, выданные разработчиками.</p>
+            {loginStatus.message && (
+              <div className={`admin-alert ${loginStatus.type}`}>{loginStatus.message}</div>
+            )}
+            <label>
+              Имя
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm((prev) => ({ ...prev, username: e.target.value }))}
+              />
+            </label>
+            <label>
+              Пароль
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
+              />
+            </label>
+            <button type="submit" className="admin-btn primary" disabled={loading}>
+              {loading ? 'Входим...' : 'Войти'}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="admin-layout">
-      <header className="admin-header">
-        <div>
-          <h1>Админ-панель SoftSpeak</h1>
-          <span>Управление вопросами и псевдонимами</span>
-        </div>
-        <div className="header-actions">
+      <nav className="admin-navigation">
+        <h1>Админ-панель SoftSpeak</h1>
+        <div className="admin-navigation-actions">
           <button className="admin-btn ghost" onClick={loadAllData} disabled={loading}>
             ⟳ Обновить
           </button>
@@ -259,11 +271,12 @@ function Admin() {
             Выйти
           </button>
         </div>
-      </header>
+      </nav>
 
-      {panelMessage.message && (
-        <div className={`admin-alert ${panelMessage.type}`}>{panelMessage.message}</div>
-      )}
+      <div className="admin-content">
+        {panelMessage.message && (
+          <div className={`admin-alert ${panelMessage.type}`}>{panelMessage.message}</div>
+        )}
 
       <section className="admin-section stats-grid">
         <div className="stat-card">
@@ -436,6 +449,7 @@ function Admin() {
           })}
         </div>
       </section>
+      </div>
     </div>
   );
 }

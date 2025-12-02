@@ -1,8 +1,9 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from src.api.auth import router as auth_router
 from src.api.chat import router as chat_router
@@ -12,9 +13,10 @@ from src.api.websocket_survey import websocket_survey_endpoint
 from src.api.matchmaking import router as matchmaking_router
 from src.api.settings import router as settings_router
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="SoftSpeak API",
@@ -22,28 +24,42 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.on_event("startup")
 async def startup_event():
-    """Инициализация приложения."""
     logger.info("Запуск приложения...")
+    from src.api.websocket_survey import start_retry_task
+    start_retry_task()
     logger.info("Приложение запущено.")
 
-# Подключаем статические файлы для админ-панели и аватаров
-static_dir = Path(__file__).parent.parent / "static"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+from src.core.config import settings
 
-# Создаем директорию для загрузки аватаров
-uploads_dir = static_dir / "uploads" / "avatars"
-uploads_dir.mkdir(parents=True, exist_ok=True)
+cors_origins_list = [
+    origin.strip() 
+    for origin in settings.cors_origins.split(",") 
+    if origin.strip()
+]
+
+if settings.cors_origins.strip() == "*":
+    cors_origins_list = ["*"]
+else:
+    if "*" in cors_origins_list and len(cors_origins_list) > 1:
+        logger.warning("CORS: '*' игнорируется при наличии других origins")
+        cors_origins_list = [o for o in cors_origins_list if o != "*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from slowapi.middleware import SlowAPIMiddleware
+app.add_middleware(SlowAPIMiddleware)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(admin_router)
@@ -54,19 +70,12 @@ app.include_router(settings_router)
 
 @app.get("/")
 async def root():
-    """Корневой эндпоинт."""
-
     return {"message": "Hello"}
-
 
 @app.get("/health")
 async def health():
-    """Health check эндпоинт."""
-
     return {"status": "ok"}
-
 
 @app.websocket("/ws/survey/{username}")
 async def websocket_survey(websocket: WebSocket, username: str):
-    """WebSocket эндпоинт для опроса."""
     await websocket_survey_endpoint(websocket, username)

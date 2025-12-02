@@ -24,13 +24,10 @@ async def get_chat_data_for_user(
 
     if not user.ai_enabled:
         return ChatResponse(
-            ai=False,  # type: ignore
+            ai=False,
             anonym=user.anonym,
             messengers=True,
             settings=user.settings_enabled,
-            avatar=user.avatar or "",
-            media_auto_upload_photos=user.media_auto_upload_photos,
-            media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
     chat = await get_chat_with_messages(session, user.id)
@@ -48,45 +45,33 @@ async def get_chat_data_for_user(
         if has_user_messages and chat and chat.messages:
             messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
             return ChatResponse(
-                ai=messages,  # type: ignore
+                ai=messages,
                 anonym=user.anonym,
                 messengers=messengers_available,
                 settings=user.settings_enabled,
-                avatar=user.avatar or "",
-                media_auto_upload_photos=user.media_auto_upload_photos,
-                media_auto_upload_videos=user.media_auto_upload_videos,
             )
         else:
             return ChatResponse(
-                ai="start_survey",  # type: ignore
+                ai="start_survey",
                 anonym=user.anonym,
                 messengers=messengers_available,
                 settings=user.settings_enabled,
-                avatar=user.avatar or "",
-                media_auto_upload_photos=user.media_auto_upload_photos,
-                media_auto_upload_videos=user.media_auto_upload_videos,
             )
     
     if chat and chat.messages:
         messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
         return ChatResponse(
-            ai=messages,  # type: ignore
+            ai=messages,
             anonym=user.anonym,
             messengers=user.messengers_enabled,
             settings=user.settings_enabled,
-            avatar=user.avatar or "",
-            media_auto_upload_photos=user.media_auto_upload_photos,
-            media_auto_upload_videos=user.media_auto_upload_videos,
         )
 
     return ChatResponse(
-        ai=True,  # type: ignore
+        ai=True,
         anonym=user.anonym,
         messengers=user.messengers_enabled,
         settings=user.settings_enabled,
-        avatar=user.avatar or "",
-        media_auto_upload_photos=user.media_auto_upload_photos,
-        media_auto_upload_videos=user.media_auto_upload_videos,
     )
 
 

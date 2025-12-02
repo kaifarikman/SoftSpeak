@@ -5,7 +5,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SettingsContent from './SettingsContent';
 import { API_URL, WS_URL } from '../../config';
-import { resolveStaticUrl } from '../../utils/url';
+import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 
 const ChatArea = memo(({
   selectedChat,
@@ -19,12 +19,12 @@ const ChatArea = memo(({
 }) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
-  const [isMediaUploading, setIsMediaUploading] = useState(false);
   const [isSurveyActive, setIsSurveyActive] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
   const [revealError, setRevealError] = useState('');
+  const [chatInfo, setChatInfo] = useState(null);
   const wsRef = useRef(null);
   const anonChatWsRef = useRef(null); // WebSocket для анонимного чата
   const reconnectTimeoutRef = useRef(null);
@@ -42,11 +42,18 @@ const ChatArea = memo(({
       
       return () => {
         if (wsRef.current) {
-          wsRef.current.close();
+          try {
+            if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+              wsRef.current.close(1000, 'Component unmounting');
+            }
+          } catch (err) {
+            logError(err, 'ChatArea survey WebSocket cleanup');
+          }
           wsRef.current = null;
         }
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
         }
         isConnectingRef.current = false;
       };
@@ -74,7 +81,13 @@ const ChatArea = memo(({
 
       return () => {
         if (anonChatWsRef.current) {
-          anonChatWsRef.current.close();
+          try {
+            if (anonChatWsRef.current.readyState === WebSocket.OPEN || anonChatWsRef.current.readyState === WebSocket.CONNECTING) {
+              anonChatWsRef.current.close(1000, 'Component unmounting');
+            }
+          } catch (err) {
+            logError(err, 'ChatArea anonymous chat WebSocket cleanup');
+          }
           anonChatWsRef.current = null;
         }
         anonChatIdRef.current = null;
@@ -134,7 +147,6 @@ const ChatArea = memo(({
             const formattedChat = {
               id: data.chat_id,
               name: data.other_user.username,
-              avatar: data.other_user.avatar || '',
               lastMessage: data.last_message || '',
               lastMessageTime: data.last_message_time
                 ? new Date(data.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -144,12 +156,12 @@ const ChatArea = memo(({
           }
         }
       } catch (err) {
-        // Silent error handling for WebSocket messages
+        handleWebSocketError(err, 'ChatArea anonymous chat message');
       }
     };
 
     ws.onerror = (error) => {
-      // Silent error handling
+      handleWebSocketError(error, 'ChatArea anonymous chat connection');
     };
 
     ws.onclose = (event) => {
@@ -230,7 +242,7 @@ const ChatArea = memo(({
                 }
               }
             } catch (err) {
-              // Silent error handling for production
+              logError(err, 'ChatArea survey completion chat data update');
             }
           }, 2000);
         } else if (data.type === 'error') {
@@ -269,29 +281,46 @@ const ChatArea = memo(({
   };
 
   const mapIncomingMessage = useCallback((payload) => {
-    const normalizedMedia = payload?.media && payload.media.url
-      ? {
-          ...payload.media,
-          url: resolveStaticUrl(payload.media.url),
-          previewUrl: payload.media.preview_url ? resolveStaticUrl(payload.media.preview_url) : null,
-        }
-      : null;
-
     return {
       id: payload.id,
       text: payload.content || '',
       timestamp: payload.created_at,
       isMine: typeof payload.is_mine === 'boolean' ? payload.is_mine : false,
-      media: normalizedMedia,
     };
   }, []);
 
+  // Set для отслеживания уже загруженных ID сообщений
+  const loadedMessageIdsRef = useRef(new Set());
+
   const upsertMessage = useCallback((incoming) => {
     setMessages((prev) => {
-      const exists = prev.some((msg) => msg.id === incoming.id);
-      if (exists) {
+      // Проверяем по ID
+      const existsById = prev.some((msg) => msg.id === incoming.id);
+      
+      // Проверяем по timestamp и тексту (для дедупликации без ID)
+      const existsByTimestamp = incoming.timestamp && incoming.text
+        ? prev.some((msg) => 
+            msg.timestamp === incoming.timestamp && 
+            msg.text === incoming.text &&
+            msg.isMine === incoming.isMine
+          )
+        : false;
+      
+      if (existsById) {
+        // Обновляем существующее сообщение
         return prev.map((msg) => (msg.id === incoming.id ? incoming : msg));
       }
+      
+      if (existsByTimestamp) {
+        // Дубликат по timestamp, пропускаем
+        return prev;
+      }
+      
+      // Добавляем ID в Set отслеживания
+      if (incoming.id) {
+        loadedMessageIdsRef.current.add(incoming.id);
+      }
+      
       return [...prev, incoming];
     });
   }, []);
@@ -304,7 +333,54 @@ const ChatArea = memo(({
       if (response.ok) {
         const data = await response.json();
         const formattedMessages = data.messages.map(mapIncomingMessage);
-        setMessages(formattedMessages);
+        
+        // Обновляем информацию о чате (аватар, имя) из ответа API
+        if (data.name !== undefined) {
+          setChatInfo({
+            name: data.name || 'Собеседник',
+          });
+        }
+        
+        // Дедупликация при загрузке: используем Set для отслеживания ID
+        const seenIds = new Set();
+        const seenTimestamps = new Map(); // timestamp -> Set of texts
+        
+        const uniqueMessages = formattedMessages.filter((msg) => {
+          // Проверка по ID
+          if (msg.id) {
+            if (seenIds.has(msg.id)) {
+              return false;
+            }
+            seenIds.add(msg.id);
+            loadedMessageIdsRef.current.add(msg.id);
+          }
+          
+          // Проверка по timestamp и тексту (для сообщений без ID)
+          if (msg.timestamp && msg.text) {
+            const key = `${msg.timestamp}_${msg.isMine}`;
+            if (!seenTimestamps.has(key)) {
+              seenTimestamps.set(key, new Set());
+            }
+            const texts = seenTimestamps.get(key);
+            if (texts.has(msg.text)) {
+              return false;
+            }
+            texts.add(msg.text);
+          }
+          
+          return true;
+        });
+        
+        setMessages(uniqueMessages);
+        
+        // Помечаем сообщения как прочитанные после загрузки
+        try {
+          await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
+            method: 'PUT',
+          });
+        } catch (readError) {
+          logError(readError, 'ChatArea mark messages as read');
+        }
       } else {
         setMessages([]);
       }
@@ -315,6 +391,11 @@ const ChatArea = memo(({
 
   // Загрузка сообщений при выборе чата или смене секции
   useEffect(() => {
+    // Очищаем Set отслеживания при смене чата
+    loadedMessageIdsRef.current.clear();
+    // Сбрасываем информацию о чате при смене чата
+    setChatInfo(null);
+    
     // Если это опрос, не загружаем сообщения из БД
     if (activeSection === 'bot' && chatData && chatData.ai === 'start_survey') {
       setMessages([]);
@@ -396,7 +477,6 @@ const ChatArea = memo(({
       text: text,
       timestamp: new Date().toISOString(),
       isMine: true,
-      media: null,
     };
     setMessages(prev => [...prev, newMessage]);
 
@@ -430,7 +510,7 @@ const ChatArea = memo(({
                   }
                 }
               } catch (err) {
-                // Silent error handling
+                logError(err, 'ChatArea send message');
               }
             }, 1000);
           } else {
@@ -459,32 +539,6 @@ const ChatArea = memo(({
       } catch (error) {
         setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
       }
-    }
-  };
-
-  const handleSendMedia = async (type, file) => {
-    if (!selectedChat || !username) return;
-
-    setIsMediaUploading(true);
-    const formData = new FormData();
-    formData.append('media_type', type);
-    formData.append('file', file);
-
-    try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/media/${username}`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data) {
-        throw new Error(data?.detail || 'Не удалось отправить файл');
-      }
-      const formatted = mapIncomingMessage(data);
-      upsertMessage(formatted);
-    } catch (error) {
-      console.error('Ошибка отправки медиа', error);
-    } finally {
-      setIsMediaUploading(false);
     }
   };
 
@@ -522,7 +576,6 @@ const ChatArea = memo(({
         const formattedChat = {
           id: data.chat.id,
           name: data.chat.name,
-          avatar: data.chat.avatar || '',
           lastMessage: data.chat.last_message || '',
           lastMessageTime: data.chat.last_message_time
             ? new Date(data.chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -589,7 +642,7 @@ const ChatArea = memo(({
   
   // Use a special header for anonymous chats
   const anonDisplayName = activeSection === 'anon'
-    ? (selectedChat?.name || 'Собеседник')
+    ? (chatInfo?.name || selectedChat?.name || 'Собеседник')
     : null;
 
   const chatHeader = activeSection === 'anon'
@@ -608,9 +661,6 @@ const ChatArea = memo(({
 
   const showAnonBackButton = activeSection === 'anon' && typeof onAnonChatExit === 'function' && isStandalone;
   const chatAreaClass = `chat-area ${isStandalone ? 'chat-area-standalone' : ''}`;
-  const mediaButtonsEnabled = activeSection === 'anon' || activeSection === 'people';
-  const allowPhotoUploads = mediaButtonsEnabled && Boolean(chatData?.media_auto_upload_photos);
-  const allowVideoUploads = mediaButtonsEnabled && Boolean(chatData?.media_auto_upload_videos);
   
   return (
     <div className={chatAreaClass}>
@@ -627,14 +677,10 @@ const ChatArea = memo(({
       <MessageList messages={messages} />
       <MessageInput 
         onSend={handleSendMessage} 
-        onSendMedia={mediaButtonsEnabled ? handleSendMedia : undefined}
         disabled={
           (activeSection === 'bot' && chatData && chatData.ai === false) ||
-          (activeSection === 'bot' && isSurveyCompleted)  // Disable input after survey completion
+          (activeSection === 'bot' && isSurveyCompleted)
         }
-        allowPhotos={allowPhotoUploads}
-        allowVideos={allowVideoUploads}
-        isMediaUploading={isMediaUploading}
         placeholder={activeSection === 'bot' && isSurveyCompleted ? "Опрос завершен. Чат доступен только для просмотра." : undefined}
       />
     </div>

@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import botIcon from '../../assets/icons/chatbot.png';
 import anonIcon from '../../assets/icons/masks.png';
 import peopleIcon from '../../assets/icons/people.png';
 import settingsIcon from '../../assets/icons/settings.png';
-import { resolveStaticUrl } from '../../utils/url';
-import { API_URL } from '../../config';
 
 const NAV_SECTIONS = [
   { id: 'bot', icon: botIcon, title: 'Бот' },
@@ -32,45 +30,6 @@ function Navigation({ activeSection, setActiveSection, chatData, username }) {
     });
   }, [chatData]);
 
-  const [avatarUrl, setAvatarUrl] = useState(() => resolveStaticUrl(chatData?.avatar || ''));
-  const [avatarError, setAvatarError] = useState(false);
-
-  useEffect(() => {
-    setAvatarError(false);
-    setAvatarUrl(resolveStaticUrl(chatData?.avatar || ''));
-  }, [chatData?.avatar]);
-
-  useEffect(() => {
-    if (avatarUrl || !username) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchAvatar = async () => {
-      try {
-        const response = await fetch(`${API_URL}/settings/${username}`, {
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data?.avatar) {
-          setAvatarUrl(resolveStaticUrl(data.avatar));
-          setAvatarError(false);
-        }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.warn('Не удалось загрузить аватар пользователя:', error);
-        }
-      }
-    };
-
-    fetchAvatar();
-
-    return () => controller.abort();
-  }, [avatarUrl, username]);
-
-  const showInitials = !avatarUrl || avatarError;
   const userInitial = (username || 'U').charAt(0).toUpperCase();
 
   return (
@@ -89,15 +48,7 @@ function Navigation({ activeSection, setActiveSection, chatData, username }) {
       </div>
       <div className="user-avatar" title={username || 'Профиль'}>
         <div className="avatar-circle">
-          {showInitials ? (
-            <span className="avatar-placeholder">{userInitial}</span>
-          ) : (
-            <img
-              src={avatarUrl}
-              alt="User avatar"
-              onError={() => setAvatarError(true)}
-            />
-          )}
+          <span className="avatar-placeholder">{userInitial}</span>
         </div>
       </div>
     </div>

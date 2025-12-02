@@ -1,4 +1,3 @@
-"""ORM-модели приложения."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -9,8 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 class User(Base):
-    """Пользователь системы."""
-
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -19,22 +16,13 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    avatar: Mapped[str | None] = mapped_column(String(512), nullable=True, default="")
     anonym: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     messengers_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     settings_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    
-    # Настройки профиля
-    bio: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)  # Информация о себе
-    
-    # Настройки уведомлений
-    notification_anon_chats: Mapped[bool] = mapped_column(Boolean, default=True)  # Уведомления из анонимных чатов
-    notification_open_chats: Mapped[bool] = mapped_column(Boolean, default=True)  # Уведомления из открытых чатов
-    
-    # Настройки медиа
-    media_auto_upload_photos: Mapped[bool] = mapped_column(Boolean, default=False)  # Автозагрузка фото
-    media_auto_upload_videos: Mapped[bool] = mapped_column(Boolean, default=False)  # Автозагрузка видео
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    notification_anon_chats: Mapped[bool] = mapped_column(Boolean, default=True)
+    notification_open_chats: Mapped[bool] = mapped_column(Boolean, default=True)
     verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -84,8 +72,6 @@ class User(Base):
 
 
 class EmailVerificationCode(Base):
-    """Коды подтверждения email для активации учетных записей."""
-
     __tablename__ = "email_verification_codes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -101,8 +87,6 @@ class EmailVerificationCode(Base):
 
 
 class Chat(Base):
-    """Чат пользователя с AI."""
-
     __tablename__ = "chats"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -127,8 +111,6 @@ class Chat(Base):
 
 
 class Message(Base):
-    """Сообщение в чате."""
-
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -146,8 +128,6 @@ class Message(Base):
 
 
 class Category(Base):
-    """Категория вопросов для психологического портрета."""
-
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -163,8 +143,6 @@ class Category(Base):
 
 
 class Question(Base):
-    """Вопрос для категории."""
-
     __tablename__ = "questions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -184,8 +162,6 @@ class Question(Base):
 
 
 class UserAnswer(Base):
-    """Ответ пользователя на вопрос."""
-
     __tablename__ = "user_answers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -208,8 +184,6 @@ class UserAnswer(Base):
 
 
 class PsychologicalProfile(Base):
-    """Психологический портрет пользователя (финальный вектор)."""
-
     __tablename__ = "psychological_profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -227,8 +201,6 @@ class PsychologicalProfile(Base):
 
 
 class AnonymousChat(Base):
-    """Анонимный чат между двумя пользователями."""
-
     __tablename__ = "anonymous_chats"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -264,8 +236,6 @@ class AnonymousChat(Base):
 
 
 class AnonymousMessage(Base):
-    """Сообщение в анонимном чате."""
-
     __tablename__ = "anonymous_messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -278,13 +248,6 @@ class AnonymousMessage(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    media_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    media_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    media_preview_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    media_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    media_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
-    media_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    media_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -295,8 +258,6 @@ class AnonymousMessage(Base):
 
 
 class MatchmakingQueue(Base):
-    """Очередь пользователей, ищущих матч."""
-
     __tablename__ = "matchmaking_queue"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -314,8 +275,6 @@ class MatchmakingQueue(Base):
 
 
 class Blacklist(Base):
-    """Черный список пользователей."""
-
     __tablename__ = "blacklist"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -334,15 +293,12 @@ class Blacklist(Base):
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="blocked_users")
     blocked_user: Mapped["User"] = relationship("User", foreign_keys=[blocked_user_id], back_populates="blocked_by_users")
 
-    # Уникальный индекс: один пользователь не может заблокировать другого дважды
     __table_args__ = (
         UniqueConstraint('user_id', 'blocked_user_id', name='uq_blacklist_user_blocked'),
     )
 
 
 class RandomNameAdjective(Base):
-    """Список прилагательных для генерации псевдонимов."""
-
     __tablename__ = "random_name_adjectives"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -353,8 +309,6 @@ class RandomNameAdjective(Base):
 
 
 class RandomNameNoun(Base):
-    """Список существительных для генерации псевдонимов."""
-
     __tablename__ = "random_name_nouns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

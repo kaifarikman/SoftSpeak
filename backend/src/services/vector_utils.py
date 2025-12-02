@@ -2,7 +2,8 @@
 import logging
 import httpx
 import os
-from typing import List, Optional
+import asyncio
+from typing import List, Optional, Callable, Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,11 @@ EMBEDDING_DIM = 768
 # Глобальный HTTP клиент
 _http_client: Optional[httpx.AsyncClient] = None
 
+# Настройки retry
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1.0  # секунды
+MAX_RETRY_DELAY = 10.0  # секунды
+
 
 def get_http_client() -> httpx.AsyncClient:
     """Получает или создает HTTP клиент для запросов к ML сервису."""
@@ -22,6 +28,59 @@ def get_http_client() -> httpx.AsyncClient:
     if _http_client is None:
         _http_client = httpx.AsyncClient(timeout=30.0)
     return _http_client
+
+
+async def _retry_with_backoff(
+    func: Callable,
+    operation_name: str,
+    *args,
+    **kwargs
+) -> Any:
+    """
+    Выполняет функцию с повторными попытками и экспоненциальной задержкой.
+    
+    Args:
+        func: Асинхронная функция для выполнения
+        operation_name: Название операции для логирования
+        *args, **kwargs: Аргументы для функции
+        
+    Returns:
+        Результат выполнения функции
+        
+    Raises:
+        RuntimeError: Если все попытки исчерпаны
+    """
+    last_exception = None
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await func(*args, **kwargs)
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            last_exception = e
+            
+            # Не повторяем для клиентских ошибок (4xx), кроме таймаутов
+            if isinstance(e, httpx.HTTPStatusError):
+                if 400 <= e.response.status_code < 500:
+                    logger.error(f"{operation_name}: Клиентская ошибка {e.response.status_code}, не повторяем")
+                    raise
+            
+            if attempt < MAX_RETRIES - 1:
+                # Экспоненциальная задержка: 1s, 2s, 4s
+                delay = min(INITIAL_RETRY_DELAY * (2 ** attempt), MAX_RETRY_DELAY)
+                logger.warning(
+                    f"{operation_name}: Попытка {attempt + 1}/{MAX_RETRIES} не удалась. "
+                    f"Повтор через {delay:.1f}с. Ошибка: {str(e)}"
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(f"{operation_name}: Все {MAX_RETRIES} попытки исчерпаны")
+        except Exception as e:
+            # Для других ошибок не повторяем
+            logger.error(f"{operation_name}: Неожиданная ошибка: {e}", exc_info=True)
+            raise
+    
+    # Если дошли сюда, все попытки исчерпаны
+    raise RuntimeError(f"{operation_name}: Не удалось выполнить операцию после {MAX_RETRIES} попыток: {str(last_exception)}")
 
 
 async def create_embedding(text: str) -> List[float]:
@@ -43,7 +102,7 @@ async def create_embedding(text: str) -> List[float]:
     
     logger.info(f"Запрос эмбеддинга для текста длиной {len(text)} символов")
     
-    try:
+    async def _make_request():
         client = get_http_client()
         response = await client.post(
             f"{ML_SERVICE_URL}/embedding",
@@ -57,18 +116,17 @@ async def create_embedding(text: str) -> List[float]:
         if not embedding:
             raise RuntimeError("ML сервис вернул пустой эмбеддинг")
         
+        # Валидация размера эмбеддинга
+        if len(embedding) != EMBEDDING_DIM:
+            raise ValueError(
+                f"Неверная размерность эмбеддинга: ожидалось {EMBEDDING_DIM}, "
+                f"получено {len(embedding)}"
+            )
+        
         logger.info(f"Эмбеддинг получен, размер: {len(embedding)}")
         return embedding
     
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Ошибка HTTP при запросе к ML сервису: {e.response.status_code} - {e.response.text}")
-        raise RuntimeError(f"ML сервис вернул ошибку: {e.response.status_code}")
-    except httpx.RequestError as e:
-        logger.error(f"Ошибка подключения к ML сервису: {e}")
-        raise RuntimeError("Не удалось подключиться к ML сервису")
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при запросе к ML сервису: {e}", exc_info=True)
-        raise RuntimeError(f"Ошибка при создании эмбеддинга: {str(e)}")
+    return await _retry_with_backoff(_make_request, "create_embedding")
 
 
 async def create_profile_vector(embeddings: List[List[float]]) -> List[float]:
@@ -82,15 +140,23 @@ async def create_profile_vector(embeddings: List[List[float]]) -> List[float]:
         Нормализованный вектор профиля
         
     Raises:
-        ValueError: Если список эмбеддингов пустой
+        ValueError: Если список эмбеддингов пустой или размерность неверная
         RuntimeError: Если ML сервис недоступен
     """
     if not embeddings:
         raise ValueError("Список векторов не может быть пустым")
     
+    # Валидация размерности всех эмбеддингов
+    for i, emb in enumerate(embeddings):
+        if len(emb) != EMBEDDING_DIM:
+            raise ValueError(
+                f"Неверная размерность эмбеддинга #{i}: ожидалось {EMBEDDING_DIM}, "
+                f"получено {len(emb)}"
+            )
+    
     logger.info(f"Создание вектора профиля из {len(embeddings)} эмбеддингов")
     
-    try:
+    async def _make_request():
         client = get_http_client()
         response = await client.post(
             f"{ML_SERVICE_URL}/profile-vector",
@@ -104,18 +170,17 @@ async def create_profile_vector(embeddings: List[List[float]]) -> List[float]:
         if not profile_vector:
             raise RuntimeError("ML сервис вернул пустой вектор профиля")
         
+        # Валидация размера вектора профиля
+        if len(profile_vector) != EMBEDDING_DIM:
+            raise ValueError(
+                f"Неверная размерность вектора профиля: ожидалось {EMBEDDING_DIM}, "
+                f"получено {len(profile_vector)}"
+            )
+        
         logger.info(f"Вектор профиля создан, размер: {len(profile_vector)}")
         return profile_vector
     
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Ошибка HTTP при запросе к ML сервису: {e.response.status_code} - {e.response.text}")
-        raise RuntimeError(f"ML сервис вернул ошибку: {e.response.status_code}")
-    except httpx.RequestError as e:
-        logger.error(f"Ошибка подключения к ML сервису: {e}")
-        raise RuntimeError("Не удалось подключиться к ML сервису")
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при запросе к ML сервису: {e}", exc_info=True)
-        raise RuntimeError(f"Ошибка при создании вектора профиля: {str(e)}")
+    return await _retry_with_backoff(_make_request, "create_profile_vector")
 
 
 async def find_best_match(
@@ -150,7 +215,7 @@ async def find_best_match(
     
     logger.info(f"Поиск лучшего совпадения среди {len(other_users)} пользователей (threshold: {threshold})")
     
-    try:
+    async def _make_request():
         client = get_http_client()
         response = await client.post(
             f"{ML_SERVICE_URL}/best-match",
@@ -173,12 +238,4 @@ async def find_best_match(
         
         return match_id
     
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Ошибка HTTP при запросе к ML сервису: {e.response.status_code} - {e.response.text}")
-        raise RuntimeError(f"ML сервис вернул ошибку: {e.response.status_code}")
-    except httpx.RequestError as e:
-        logger.error(f"Ошибка подключения к ML сервису: {e}")
-        raise RuntimeError("Не удалось подключиться к ML сервису")
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при запросе к ML сервису: {e}", exc_info=True)
-        raise RuntimeError(f"Ошибка при поиске совпадения: {str(e)}")
+    return await _retry_with_backoff(_make_request, "find_best_match")

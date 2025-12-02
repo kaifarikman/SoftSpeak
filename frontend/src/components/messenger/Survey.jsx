@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
+import { logError, handleWebSocketError } from '../../utils/errorHandler';
 
 function Survey({ username, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -19,7 +20,13 @@ function Survey({ username, onComplete }) {
 
     return () => {
       if (wsRef.current) {
-        wsRef.current.close();
+        try {
+          if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+            wsRef.current.close(1000, 'Component unmounting');
+          }
+        } catch (err) {
+          logError(err, 'Survey WebSocket cleanup');
+        }
         wsRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
@@ -85,13 +92,13 @@ function Survey({ username, onComplete }) {
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('Ошибка парсинга сообщения:', err);
+        logError(err, 'Survey WebSocket message parsing');
         setError('Ошибка обработки сообщения');
       }
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket ошибка:', error);
+      handleWebSocketError(error, 'Survey connection');
       setError('Ошибка подключения');
       setIsLoading(false);
       isConnectingRef.current = false;

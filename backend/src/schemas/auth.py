@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, SecretStr
+from pydantic import BaseModel, EmailStr, SecretStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -21,7 +21,7 @@ class EmailVerificationRequest(BaseModel):
 
     username: str
     email: EmailStr
-    password: SecretStr
+    password: SecretStr = Field(..., min_length=8)
 
 
 class EmailVerificationResponse(BaseModel):

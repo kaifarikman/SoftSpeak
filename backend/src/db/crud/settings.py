@@ -1,4 +1,3 @@
-"""CRUD-операции для настроек пользователя."""
 from typing import Optional, List
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,25 +7,31 @@ from src.db.models import User, Blacklist
 from src.core.security import verify_password, hash_password
 from src.db.crud.auth import get_user_by_username
 
+FORBIDDEN_USERNAMES = {
+    "admin", "administrator", "root", "system", "support", "help",
+    "moderator", "mod", "staff", "team", "service", "api", "bot",
+    "test", "testing", "demo", "example", "null", "undefined", "none",
+    "softspeak", "soft", "speak", "anonymous", "anon", "user", "users",
+    "mail", "email", "www", "http", "https", "ftp", "localhost",
+    "server", "client", "db", "database", "sql", "postgres", "mysql"
+}
+
 
 async def update_username(session: AsyncSession, user_id: int, new_username: str) -> tuple[bool, Optional[str]]:
-    """
-    Обновляет username пользователя.
-    
-    Returns:
-        (success: bool, error_message: Optional[str])
-    """
-    # Проверяем, что новый username не занят
     existing_user = await get_user_by_username(session, new_username)
     if existing_user and existing_user.id != user_id:
         return False, "Никнейм занят"
     
-    # Проверяем формат username (только буквы, цифры, подчеркивания)
     if not new_username.replace('_', '').replace('-', '').isalnum():
         return False, "Никнейм может содержать только буквы, цифры, дефисы и подчеркивания"
     
     if len(new_username) < 3 or len(new_username) > 32:
         return False, "Никнейм должен быть от 3 до 32 символов"
+    
+    username_lower = new_username.lower().strip()
+    for forbidden in FORBIDDEN_USERNAMES:
+        if username_lower == forbidden.lower():
+            return False, f"Никнейм не может быть '{forbidden}'"
     
     user_stmt = select(User).where(User.id == user_id)
     user_result = await session.execute(user_stmt)
@@ -41,16 +46,9 @@ async def update_username(session: AsyncSession, user_id: int, new_username: str
 
 
 async def update_bio(session: AsyncSession, user_id: int, bio: Optional[str]) -> tuple[bool, Optional[str]]:
-    """
-    Обновляет информацию о себе (bio).
-    
-    Returns:
-        (success: bool, error_message: Optional[str])
-    """
     if bio and len(bio) > 500:
         return False, "Информация о себе не может быть длиннее 500 символов"
     
-    # Проверка на недопустимые символы (можно расширить)
     if bio and any(ord(char) < 32 and char not in '\n\r\t' for char in bio):
         return False, "Недопустимые символы в тексте"
     
@@ -72,7 +70,6 @@ async def update_notification_settings(
     notification_anon_chats: Optional[bool] = None,
     notification_open_chats: Optional[bool] = None,
 ) -> Optional[User]:
-    """Обновляет настройки уведомлений."""
     user_stmt = select(User).where(User.id == user_id)
     user_result = await session.execute(user_stmt)
     user = user_result.scalar_one_or_none()
@@ -90,42 +87,12 @@ async def update_notification_settings(
     return user
 
 
-async def update_media_settings(
-    session: AsyncSession,
-    user_id: int,
-    media_auto_upload_photos: Optional[bool] = None,
-    media_auto_upload_videos: Optional[bool] = None,
-) -> Optional[User]:
-    """Обновляет настройки медиа."""
-    user_stmt = select(User).where(User.id == user_id)
-    user_result = await session.execute(user_stmt)
-    user = user_result.scalar_one_or_none()
-    
-    if not user:
-        return None
-    
-    if media_auto_upload_photos is not None:
-        user.media_auto_upload_photos = media_auto_upload_photos
-    if media_auto_upload_videos is not None:
-        user.media_auto_upload_videos = media_auto_upload_videos
-    
-    await session.commit()
-    await session.refresh(user)
-    return user
-
-
 async def change_password(
     session: AsyncSession,
     user_id: int,
     old_password: str,
     new_password: str,
 ) -> tuple[bool, Optional[str]]:
-    """
-    Изменяет пароль пользователя.
-    
-    Returns:
-        (success: bool, error_message: Optional[str])
-    """
     user_stmt = select(User).where(User.id == user_id)
     user_result = await session.execute(user_stmt)
     user = user_result.scalar_one_or_none()
@@ -133,28 +100,18 @@ async def change_password(
     if not user:
         return False, "Пользователь не найден"
     
-    # Проверяем старый пароль
     if not verify_password(old_password, user.password_hash):
         return False, "Неправильный пароль"
     
-    # Проверяем новый пароль
     if len(new_password) < 8:
         return False, "Новый пароль должен быть не менее 8 символов"
     
-    # Обновляем пароль
     user.password_hash = hash_password(new_password)
     await session.commit()
     return True, None
 
 
 async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username: str) -> tuple[bool, Optional[str]]:
-    """
-    Добавляет пользователя в черный список.
-    
-    Returns:
-        (success: bool, error_message: Optional[str])
-    """
-    # Нельзя заблокировать самого себя
     user_stmt = select(User).where(User.id == user_id)
     user_result = await session.execute(user_stmt)
     user = user_result.scalar_one_or_none()
@@ -165,12 +122,10 @@ async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username
     if user.username == blocked_username:
         return False, "Нельзя заблокировать самого себя"
     
-    # Находим пользователя для блокировки
     blocked_user = await get_user_by_username(session, blocked_username)
     if not blocked_user:
         return False, "Пользователь не найден"
     
-    # Проверяем, не заблокирован ли уже
     existing_stmt = select(Blacklist).where(
         and_(
             Blacklist.user_id == user_id,
@@ -183,7 +138,6 @@ async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username
     if existing:
         return False, "Пользователь уже в черном списке"
     
-    # Добавляем в черный список
     blacklist_entry = Blacklist(
         user_id=user_id,
         blocked_user_id=blocked_user.id,
@@ -194,12 +148,6 @@ async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username
 
 
 async def remove_from_blacklist(session: AsyncSession, user_id: int, blocked_username: str) -> tuple[bool, Optional[str]]:
-    """
-    Удаляет пользователя из черного списка.
-    
-    Returns:
-        (success: bool, error_message: Optional[str])
-    """
     blocked_user = await get_user_by_username(session, blocked_username)
     if not blocked_user:
         return False, "Пользователь не найден"
@@ -222,7 +170,6 @@ async def remove_from_blacklist(session: AsyncSession, user_id: int, blocked_use
 
 
 async def get_blacklist(session: AsyncSession, user_id: int) -> List[User]:
-    """Получает список заблокированных пользователей."""
     stmt = (
         select(User)
         .join(Blacklist, User.id == Blacklist.blocked_user_id)

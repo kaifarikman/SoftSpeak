@@ -1,7 +1,4 @@
-import { resolveStaticUrl } from '../../utils/url';
-
 function ChatItem({ chat, isSelected, onClick }) {
-  const avatarSrc = resolveStaticUrl(chat.avatar || '');
   const displayName =
     chat.name && chat.name.length > 24
       ? `${chat.name.slice(0, 24)}…`
@@ -13,13 +10,9 @@ function ChatItem({ chat, isSelected, onClick }) {
       onClick={onClick}
     >
       <div className="chat-avatar">
-        {chat.avatar ? (
-          <img src={avatarSrc} alt={chat.name} />
-        ) : (
-          <div className="avatar-placeholder">
-            {chat.name[0].toUpperCase()}
-          </div>
-        )}
+        <div className="avatar-placeholder">
+          {chat.name && chat.name[0] ? chat.name[0].toUpperCase() : '?'}
+        </div>
       </div>
       <div className="chat-info">
         <div className="chat-header-row">

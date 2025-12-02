@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.admin_auth import verify_admin, verify_admin_token, ADMIN_TOKEN
+from src.core.admin_auth import verify_admin, verify_admin_token, get_admin_token
 from src.db.session import get_db
 from src.db.crud.psychological import (
     get_all_categories,
@@ -26,7 +26,7 @@ from src.schemas.psychological import QuestionSchema, CategorySchema
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-def get_admin_token(authorization: str = Header(None)) -> str:
+def get_admin_token(authorization: str | None = Header(None)) -> str:
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -52,9 +52,10 @@ async def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
             detail="Неверный логин или пароль",
         )
     
+    from src.core.admin_auth import get_admin_token as get_token_from_settings
     return AdminLoginResponse(
         message="Успешный вход в админку",
-        token=ADMIN_TOKEN,
+        token=get_token_from_settings(),
     )
 
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
-import { resolveStaticUrl } from '../../utils/url';
 import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
@@ -9,11 +8,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   const [formData, setFormData] = useState({
     username: '',
     bio: '',
-    avatar: '',
     notification_anon_chats: true,
     notification_open_chats: true,
-    media_auto_upload_photos: false,
-    media_auto_upload_videos: false,
     old_password: '',
     new_password: '',
     new_password_confirm: '',
@@ -46,11 +42,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
           ...prev,
           username: data.username || username,
           bio: data.bio || '',
-          avatar: data.avatar || '',
           notification_anon_chats: data.notification_anon_chats ?? true,
           notification_open_chats: data.notification_open_chats ?? true,
-          media_auto_upload_photos: data.media_auto_upload_photos ?? false,
-          media_auto_upload_videos: data.media_auto_upload_videos ?? false,
         }));
       } else {
         console.error('Failed to load user data:', response.status, await response.text());
@@ -127,48 +120,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     }
   };
 
-  const handleUploadAvatar = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch(`${API_URL}/settings/profile/avatar/${username}`, {
-        method: 'PUT',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showMessage('Фотография профиля изменена', 'success');
-        console.log('Avatar updated, new chat_data:', data.chat_data);
-        console.log('Avatar URL:', data.chat_data?.avatar);
-        
-        if (data.chat_data && onChatDataUpdate) {
-          onChatDataUpdate(data.chat_data);
-          // Диспатчим событие для немедленного обновления Navigation
-          window.dispatchEvent(new Event('chatDataUpdated'));
-        }
-        // Обновляем аватар в форме
-        if (data.chat_data?.avatar) {
-          setFormData(prev => ({ ...prev, avatar: data.chat_data.avatar }));
-        }
-        // Перезагружаем данные
-        loadUserData();
-      } else {
-        showMessage(data.message || 'Неправильный формат или слишком большой размер файла', 'error');
-      }
-    } catch (error) {
-      showMessage('Ошибка загрузки фотографии', 'error');
-    } finally {
-      setLoading(false);
-      e.target.value = ''; // Сбрасываем input
-    }
-  };
-
   const handleUpdateBio = async () => {
     setLoading(true);
     try {
@@ -217,37 +168,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
       }
     } catch (error) {
       console.error('Ошибка обновления настроек уведомлений:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== Медиа ====================
-
-  const handleUpdateMedia = async (field, value) => {
-    console.log('Updating media settings:', field, value);
-    setLoading(true);
-    try {
-      const url = `${API_URL}/settings/media/${username}`;
-      console.log('Updating media at:', url);
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          [field]: value,
-        }),
-      });
-
-      const data = await response.json();
-      console.log('Media update response:', data);
-      if (data.success) {
-        setFormData(prev => ({ ...prev, [field]: value }));
-        console.log('Media settings updated successfully');
-      } else {
-        console.error('Failed to update media settings:', data.message);
-      }
-    } catch (error) {
-      console.error('Ошибка обновления настроек медиа:', error);
     } finally {
       setLoading(false);
     }
@@ -402,42 +322,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
               </div>
             </div>
 
-            {/* Аватар */}
-            <div className="settings-field">
-              <label>Фотография профиля</label>
-              <div className="settings-field-row">
-                <div className="avatar-preview">
-                  {formData.avatar ? (
-                    <img
-                      src={resolveStaticUrl(formData.avatar)}
-                      alt="Avatar"
-                      onError={(e) => {
-                        console.error('Ошибка загрузки аватара:', formData.avatar);
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      <span>👤</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept=".jpg,.jpeg,.png"
-                    onChange={handleUploadAvatar}
-                    style={{ display: 'none' }}
-                  />
-                  <label htmlFor="avatar-upload" className="upload-button">
-                    Загрузить
-                  </label>
-                  <p className="upload-hint">Загрузите файл .jpg/.png размером не более 10 Мб</p>
-                </div>
-              </div>
-            </div>
-
             {/* Информация о себе */}
             <div className="settings-field">
               <label>Отображаемая информация о себе</label>
@@ -480,38 +364,6 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                 <div
                   className={`toggle-switch ${formData.notification_open_chats ? 'on' : 'off'}`}
                   onClick={() => handleUpdateNotifications('notification_open_chats', !formData.notification_open_chats)}
-                >
-                  <div className="toggle-slider"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'Медиа':
-        return (
-          <div className="settings-section">
-            {renderAlert()}
-            <h2>Медиа</h2>
-            
-            <div className="settings-field">
-              <div className="toggle-field">
-                <label>Автозагрузка фото</label>
-                <div
-                  className={`toggle-switch ${formData.media_auto_upload_photos ? 'on' : 'off'}`}
-                  onClick={() => handleUpdateMedia('media_auto_upload_photos', !formData.media_auto_upload_photos)}
-                >
-                  <div className="toggle-slider"></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="settings-field">
-              <div className="toggle-field">
-                <label>Автозагрузка видео</label>
-                <div
-                  className={`toggle-switch ${formData.media_auto_upload_videos ? 'on' : 'off'}`}
-                  onClick={() => handleUpdateMedia('media_auto_upload_videos', !formData.media_auto_upload_videos)}
                 >
                   <div className="toggle-slider"></div>
                 </div>
@@ -594,19 +446,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                 {blacklist.map((user) => (
                   <div key={user.id} className="blacklist-item">
                     <div className="blacklist-user-info" title={user.username}>
-                      <div className={`blacklist-avatar ${user.avatar ? '' : 'placeholder'}`}>
-                        {user.avatar ? (
-                          <img
-                            src={resolveStaticUrl(user.avatar)}
-                            alt={user.username}
-                            onError={(e) => {
-                              console.error('Ошибка загрузки аватара пользователя:', user.avatar);
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <span>{user.username?.charAt(0)?.toUpperCase()}</span>
-                        )}
+                      <div className="blacklist-avatar placeholder">
+                        <span>{user.username?.charAt(0)?.toUpperCase()}</span>
                       </div>
                       <div className="blacklist-text">
                         <span className="blacklist-username">

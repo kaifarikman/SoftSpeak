@@ -5,18 +5,15 @@ from fastapi import (
     status,
     WebSocket,
     WebSocketDisconnect,
-    UploadFile,
-    File,
-    Form,
+    Request,
 )
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Literal
+from typing import Dict
 import json
 import logging
 import asyncio
-from pathlib import Path
-import uuid
 
 from src.db.session import get_db, AsyncSessionLocal
 from src.db.crud.auth import get_user_by_username
@@ -31,6 +28,7 @@ from src.db.crud.matchmaking import (
     create_anonymous_message,
     reveal_anonymous_chat,
     summarize_message_text,
+    mark_messages_as_read,
 )
 from src.db.crud.psychological import has_completed_profile
 from src.db.models import User
@@ -75,17 +73,6 @@ class AnonymousMessageSchema(BaseModel):
 class SendAnonymousMessageRequest(BaseModel):
     text: str
 
-
-STATIC_DIR = Path(__file__).parent.parent.parent / "static"
-CHAT_MEDIA_ROOT = STATIC_DIR / "uploads" / "chat_media"
-MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB
-MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
-PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
-VIDEO_EXTENSIONS = {'.mp4', '.mov', '.m4v', '.webm'}
-
-CHAT_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-
-
 def build_message_payload(message, *, current_user_id: int | None = None, is_mine_override: bool | None = None):
     payload = {
         "id": message.id,
@@ -99,20 +86,6 @@ def build_message_payload(message, *, current_user_id: int | None = None, is_min
         payload["is_mine"] = message.sender_id == current_user_id
     else:
         payload["is_mine"] = False
-
-    if message.media_type and message.media_url:
-        payload["media"] = {
-            "type": message.media_type,
-            "url": message.media_url,
-            "preview_url": message.media_preview_url,
-            "size": message.media_size,
-            "duration": message.media_duration,
-            "width": message.media_width,
-            "height": message.media_height,
-        }
-    else:
-        payload["media"] = None
-
     return payload
 
 
@@ -201,6 +174,7 @@ chat_manager = AnonymousChatConnectionManager()
 
 @router.post("/start/{username}", response_model=MatchmakingStatusResponse)
 async def start_matchmaking(
+    request: Request,
     username: str,
     session: AsyncSession = Depends(get_db),
 ) -> MatchmakingStatusResponse:
@@ -486,13 +460,23 @@ async def matchmaking_websocket(websocket: WebSocket, username: str):
                 "type": "error",
                 "message": "Произошла внутренняя ошибка сервера.",
             })
-        except:
-            pass
+        except Exception:
+            logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {username}")
     finally:
-        if search_task:
-            search_task.cancel()
+        try:
+            if search_task and not search_task.done():
+                search_task.cancel()
+                try:
+                    await search_task
+                except asyncio.CancelledError:
+                    pass
+        except Exception as e:
+            logger.error(f"Ошибка при отмене задачи поиска для {username}: {e}")
         
-        matchmaking_manager.disconnect(username)
+        try:
+            matchmaking_manager.disconnect(username)
+        except Exception as e:
+            logger.error(f"Ошибка при отключении пользователя {username} из менеджера: {e}")
         
         if user:
             try:
@@ -501,6 +485,12 @@ async def matchmaking_websocket(websocket: WebSocket, username: str):
                     logger.info(f"Пользователь {username} удален из очереди матчинга")
             except Exception as e:
                 logger.error(f"Ошибка при очистке очереди для {username}: {e}")
+        
+        try:
+            if websocket.client_state.name != "DISCONNECTED":
+                await websocket.close(code=1000)
+        except Exception as e:
+            logger.warning(f"Ошибка при закрытии WebSocket для {username}: {e}")
 
 
 @router.websocket("/chat/{chat_id}/ws/{username}")
@@ -550,8 +540,24 @@ async def anonymous_chat_websocket(websocket: WebSocket, chat_id: int, username:
         logger.info(f"WebSocket отключен для пользователя {username} в чате {chat_id}")
     except Exception as e:
         logger.error(f"Ошибка в WebSocket для {username} в чате {chat_id}: {e}", exc_info=True)
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Произошла ошибка соединения",
+            })
+        except Exception:
+            pass
     finally:
-        chat_manager.disconnect(chat_id, username)
+        try:
+            chat_manager.disconnect(chat_id, username)
+        except Exception as e:
+            logger.error(f"Ошибка при отключении пользователя {username} из чата {chat_id}: {e}")
+        
+        try:
+            if websocket.client_state.name != "DISCONNECTED":
+                await websocket.close(code=1000)
+        except Exception as e:
+            logger.warning(f"Ошибка при закрытии WebSocket для {username} в чате {chat_id}: {e}")
 
 
 @router.get("/chats/{username}")
@@ -578,10 +584,16 @@ async def get_anonymous_chats(
         last_message_time = None
         unread_count = 0
         if chat.messages:
-            last_msg = chat.messages[-1]
-            last_message = summarize_message_text(last_msg)
-            last_message_time = last_msg.created_at.isoformat()
-            unread_count = sum(1 for msg in chat.messages if msg.sender_id != user.id and not msg.is_read)
+            last_msg = None
+            for msg in chat.messages:
+                if msg.sender_id != user.id and not msg.is_read:
+                    unread_count += 1
+                if last_msg is None or msg.created_at > last_msg.created_at:
+                    last_msg = msg
+            
+            if last_msg:
+                last_message = summarize_message_text(last_msg)
+                last_message_time = last_msg.created_at.isoformat()
 
         result.append({
             "id": chat.id,
@@ -623,16 +635,21 @@ async def get_public_chats(
         last_message_time = None
         unread_count = 0
         if chat.messages:
-            last_msg = chat.messages[-1]
-            last_message = summarize_message_text(last_msg)
-            last_message_time = last_msg.created_at.isoformat()
-            unread_count = sum(1 for msg in chat.messages if msg.sender_id != user.id and not msg.is_read)
+            last_msg = None
+            for msg in chat.messages:
+                if msg.sender_id != user.id and not msg.is_read:
+                    unread_count += 1
+                if last_msg is None or msg.created_at > last_msg.created_at:
+                    last_msg = msg
+            
+            if last_msg:
+                last_message = summarize_message_text(last_msg)
+                last_message_time = last_msg.created_at.isoformat()
 
         result.append({
             "id": chat.id,
             "other_user_id": other_user.id,
             "name": other_user.username,
-            "avatar": other_user.avatar or "",
             "created_at": chat.created_at.isoformat(),
             "updated_at": chat.updated_at.isoformat(),
             "last_message": last_message,
@@ -669,12 +686,42 @@ async def get_anonymous_chat_messages(
     ]
 
     other_user = chat.user2 if chat.user1_id == user.id else chat.user1
+    other_alias = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
+    other_alias = other_alias or "Собеседник"
 
     return {
         "chat_id": chat.id,
         "other_user_id": other_user.id,
         "messages": messages,
+        "name": other_user.username if chat.is_public else other_alias,
     }
+
+
+@router.put("/chat/{chat_id}/read/{username}")
+async def mark_chat_messages_as_read(
+    chat_id: int,
+    username: str,
+    session: AsyncSession = Depends(get_db),
+):
+    user = await get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+
+    try:
+        count = await mark_messages_as_read(session, chat_id, user.id)
+        return {
+            "success": True,
+            "marked_count": count,
+            "message": f"Помечено {count} сообщений как прочитанных"
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.post("/chat/{chat_id}/message/{username}")
@@ -689,6 +736,19 @@ async def send_anonymous_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
+        )
+
+    chat = await get_anonymous_chat(session, chat_id, user.id)
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Чат не найден",
+        )
+    
+    if not chat.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Чат неактивен",
         )
 
     try:
@@ -716,106 +776,6 @@ async def send_anonymous_message(
         )
 
 
-@router.post("/chat/{chat_id}/media/{username}")
-async def send_anonymous_media(
-    chat_id: int,
-    username: str,
-    media_type: Literal["photo", "video"] = Form(...),
-    file: UploadFile = File(...),
-    caption: str | None = Form(None),
-    session: AsyncSession = Depends(get_db),
-):
-    user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
-
-    if media_type == "photo" and not user.media_auto_upload_photos:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Отправка фотографий отключена в настройках.",
-        )
-
-    if media_type == "video" and not user.media_auto_upload_videos:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Отправка видео отключена в настройках.",
-        )
-
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл не указан",
-        )
-
-    ext = Path(file.filename).suffix.lower()
-    if media_type == "photo" and ext not in PHOTO_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Недопустимый формат изображения",
-        )
-    if media_type == "video" and ext not in VIDEO_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Недопустимый формат видео",
-        )
-
-    contents = await file.read()
-    size = len(contents)
-    if size == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Пустой файл",
-        )
-
-    max_size = MAX_PHOTO_SIZE if media_type == "photo" else MAX_VIDEO_SIZE
-    if size > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл превышает допустимый размер",
-        )
-
-    chat_dir = CHAT_MEDIA_ROOT / str(chat_id)
-    chat_dir.mkdir(parents=True, exist_ok=True)
-    file_id = uuid.uuid4().hex
-    stored_path = chat_dir / f"{file_id}{ext}"
-    with open(stored_path, "wb") as buffer:
-        buffer.write(contents)
-
-    media_url = f"/static/uploads/chat_media/{chat_id}/{stored_path.name}"
-    preview_url = media_url if media_type == "photo" else None
-
-    try:
-        message = await create_anonymous_message(
-            session,
-            chat_id,
-            user.id,
-            caption,
-            media_type=media_type,
-            media_url=media_url,
-            media_preview_url=preview_url,
-            media_size=size,
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-    await chat_manager.broadcast_to_chat(
-        chat_id,
-        {
-            "type": "new_message",
-            "message": build_message_payload(message, is_mine_override=False),
-        },
-        exclude_username=username,
-    )
-
-    return build_message_payload(message, current_user_id=user.id, is_mine_override=True)
-
-
 @router.post("/chat/{chat_id}/reveal/{username}")
 async def reveal_chat(
     chat_id: int,
@@ -839,6 +799,32 @@ async def reveal_chat(
 
     other_user = chat.user2 if chat.user1_id == user.id else chat.user1
 
+    reveal_message_text = "Собеседник хочет раскрыться" if not both_revealed else "Оба пользователя согласны раскрыться. Чат переведен в публичный."
+    reveal_message = await create_anonymous_message(
+        session,
+        chat_id,
+        user.id,
+        reveal_message_text,
+    )
+    
+    await chat_manager.send_to_user_in_chat(
+        chat_id,
+        username,
+        {
+            "type": "new_message",
+            "message": build_message_payload(reveal_message, current_user_id=user.id, is_mine_override=True),
+        }
+    )
+    
+    await chat_manager.send_to_user_in_chat(
+        chat_id,
+        other_user.username,
+        {
+            "type": "new_message",
+            "message": build_message_payload(reveal_message, current_user_id=other_user.id, is_mine_override=False),
+        }
+    )
+
     if both_revealed:
         last_message = None
         last_message_time = None
@@ -854,7 +840,6 @@ async def reveal_chat(
             "other_user": {
                 "id": other_user.id,
                 "username": other_user.username,
-                "avatar": other_user.avatar or "",
             },
             "last_message": last_message,
             "last_message_time": last_message_time,
@@ -868,7 +853,6 @@ async def reveal_chat(
             "other_user": {
                 "id": user.id,
                 "username": user.username,
-                "avatar": user.avatar or "",
             },
             "last_message": last_message,
             "last_message_time": last_message_time,
@@ -885,7 +869,6 @@ async def reveal_chat(
             "chat": {
                 "id": chat.id,
                 "name": other_user.username,
-                "avatar": other_user.avatar or "",
                 "last_message": last_message,
                 "last_message_time": last_message_time,
             }

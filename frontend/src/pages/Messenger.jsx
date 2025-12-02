@@ -8,6 +8,7 @@ import ChatListAnon from '../components/messenger/ChatListAnon';
 import SettingsList from '../components/messenger/SettingsList';
 import { useChatData } from '../context/ChatDataContext';
 import { API_URL } from '../config';
+import { logError, handleApiError } from '../utils/errorHandler';
 import '../css/Messenger.css';
 import '../css/components/ChatArea.css';
 import '../css/components/ChatHeader.css';
@@ -66,9 +67,8 @@ function Messenger() {
   const settingsChats = [
     { id: 1, name: "Профиль" },
     { id: 2, name: "Уведомления" },
-    { id: 3, name: "Медиа" },
-    { id: 4, name: "Аккаунт" },
-    { id: 5, name: "Черный список" }
+    { id: 3, name: "Аккаунт" },
+    { id: 4, name: "Черный список" }
   ];
   
   const [chatsPeople, setChatsPeople] = useState([]); // Загружается из API
@@ -103,7 +103,7 @@ function Messenger() {
         setChatsPeople(formatted);
       }
     } catch (error) {
-      // Silent error handling
+      logError(error, 'Messenger fetchPublicChats');
     }
   }, [username]);
 

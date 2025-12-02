@@ -1,70 +1,129 @@
+/* Админка в стиле основного проекта - темная тема */
 .admin-layout {
   min-height: 100vh;
-  background: linear-gradient(135deg, #5b60ff 0%, #8a3cff 100%);
-  padding: 40px 20px;
+  background: #0f1117;
+  color: #ffffff;
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont;
-  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Навигация (как в Messenger) */
+.admin-navigation {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid #2a2d3a;
+  background: #1a1d29;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.admin-navigation h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.admin-navigation-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Форма входа */
+.admin-login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: #0f1117;
 }
 
 .admin-card {
-  background: #fff;
+  background: #1a1d29;
   border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 25px 65px rgba(15, 23, 42, 0.15);
+  padding: 40px;
+  border: 1px solid #2a2d3a;
   max-width: 420px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .admin-login h1 {
   font-size: 28px;
   margin-bottom: 8px;
+  color: #ffffff;
+  text-align: center;
 }
 
 .admin-login p {
-  color: #475569;
+  color: #94a3b8;
   margin-bottom: 24px;
+  text-align: center;
+  font-size: 14px;
 }
 
 .admin-login label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 18px;
+  gap: 8px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+  font-size: 14px;
 }
 
 .admin-login input {
-  border: 2px solid #e2e8f0;
+  border: 1px solid #2a2d3a;
   border-radius: 10px;
-  padding: 12px;
-  font-size: 16px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  padding: 12px 16px;
+  font-size: 15px;
+  background: #1f2230;
+  color: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .admin-login input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
   outline: none;
+  border-color: #3a3d4a;
+  background: #252835;
+  box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
 }
 
+/* Основной контент */
+.admin-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Заголовок */
 .admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 24px;
-  color: #fff;
+  margin-bottom: 32px;
 }
 
 .admin-header h1 {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
 }
 
 .admin-header span {
-  color: rgba(255, 255, 255, 0.8);
+  color: #94a3b8;
+  font-size: 14px;
 }
 
 .header-actions {
@@ -72,67 +131,104 @@
   gap: 12px;
 }
 
+/* Кнопки */
 .admin-btn {
   border: none;
   border-radius: 10px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .admin-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .admin-btn.primary {
-  background: linear-gradient(135deg, #6366f1, #9333ea);
-  color: #fff;
-  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+  background: #3b82f6;
+  color: #ffffff;
 }
 
 .admin-btn.primary:hover:not(:disabled) {
+  background: #2563eb;
   transform: translateY(-1px);
 }
 
+.admin-btn.primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 .admin-btn.danger {
-  background: #ef4444;
-  color: #fff;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.admin-btn.danger:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-1px);
 }
 
 .admin-btn.ghost {
-  background: rgba(255, 255, 255, 0.17);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #1f2230;
+  color: #cbd5e1;
+  border: 1px solid #2a2d3a;
 }
 
+.admin-btn.ghost:hover:not(:disabled) {
+  background: #252835;
+  border-color: #3a3d4a;
+  color: #ffffff;
+}
+
+/* Алерты */
 .admin-alert {
   margin-bottom: 24px;
   padding: 16px 20px;
   border-radius: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .admin-alert.success {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
 }
 
 .admin-alert.error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
 }
 
+/* Секции */
 .admin-section {
-  background: #fff;
-  border-radius: 20px;
+  background: #1a1d29;
+  border-radius: 16px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  border: 1px solid #2a2d3a;
 }
 
+.admin-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+}
+
+.admin-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* Статистика */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -140,18 +236,27 @@
 }
 
 .stat-card {
-  background: rgba(99, 102, 241, 0.08);
-  border-radius: 16px;
-  padding: 18px;
+  background: #1f2230;
+  border-radius: 12px;
+  padding: 20px;
   text-align: center;
+  border: 1px solid #2a2d3a;
 }
 
 .stat-card strong {
   display: block;
   font-size: 32px;
-  color: #312e81;
+  color: #3b82f6;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
+.stat-card span {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* Форма вопроса */
 .question-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -161,76 +266,110 @@
 .question-form label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-  color: #0f172a;
+  gap: 8px;
+  font-weight: 500;
+  color: #cbd5e1;
+  font-size: 14px;
 }
 
 .question-form select,
 .question-form input,
 .question-form textarea {
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 12px;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  padding: 12px 16px;
   font-size: 15px;
+  background: #1f2230;
+  color: #ffffff;
   resize: vertical;
   min-height: 48px;
+  transition: all 0.2s ease;
+}
+
+.question-form select:focus,
+.question-form input:focus,
+.question-form textarea:focus {
+  outline: none;
+  border-color: #3a3d4a;
+  background: #252835;
+  box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
+/* Категории */
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .category-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 18px;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: #f8fafc;
+  gap: 16px;
+  background: #1f2230;
 }
 
 .category-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.category-head strong {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.category-head p {
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 4px 0 0 0;
 }
 
 .badge {
-  background: #eef2ff;
-  color: #4338ca;
-  padding: 4px 12px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  padding: 6px 12px;
   border-radius: 999px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
+/* Вопросы */
 .question-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .question-item {
-  background: #fff;
-  border-radius: 14px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
+  background: #1a1d29;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #2a2d3a;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-start;
+  transition: all 0.2s ease;
+}
+
+.question-item:hover {
+  border-color: #3a3d4a;
+  background: #1f2230;
 }
 
 .question-item.inactive {
@@ -238,12 +377,14 @@
 }
 
 .question-item p {
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #ffffff;
+  font-size: 15px;
 }
 
 .question-item span {
-  color: #64748b;
+  color: #94a3b8;
   font-size: 13px;
 }
 
@@ -251,29 +392,32 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .empty-placeholder {
   text-align: center;
-  color: #94a3b8;
+  color: #64748b;
   font-style: italic;
-  padding: 12px 0;
+  padding: 20px 0;
+  font-size: 14px;
 }
 
+/* Слова */
 .words-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .word-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 18px;
-  background: #f8fafc;
+  border: 1px solid #2a2d3a;
+  border-radius: 12px;
+  padding: 20px;
+  background: #1f2230;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .word-card-head {
@@ -289,41 +433,89 @@
 
 .word-add-row input {
   flex: 1;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #2a2d3a;
+  padding: 12px 16px;
+  background: #1a1d29;
+  color: #ffffff;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.word-add-row input:focus {
+  outline: none;
+  border-color: #3a3d4a;
+  background: #252835;
+  box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
 }
 
 .word-list {
-  max-height: 260px;
-  overflow: auto;
+  max-height: 300px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.word-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.word-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.word-list::-webkit-scrollbar-thumb {
+  background: #3a3d4a;
+  border-radius: 3px;
+}
+
+.word-list::-webkit-scrollbar-thumb:hover {
+  background: #4a4d5a;
+}
+
 .word-item {
-  background: #fff;
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: #1a1d29;
+  border-radius: 10px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #2a2d3a;
+  transition: all 0.2s ease;
+}
+
+.word-item:hover {
+  border-color: #3a3d4a;
+  background: #1f2230;
 }
 
 .word-item .muted {
-  color: #94a3b8;
+  color: #64748b;
+}
+
+.word-item span {
+  color: #cbd5e1;
+  font-size: 15px;
 }
 
 .word-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
+/* Адаптивность */
 @media (max-width: 768px) {
-  .admin-layout {
-    padding: 24px 14px;
+  .admin-navigation {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-content {
+    padding: 20px;
   }
 
   .admin-header {
@@ -343,5 +535,30 @@
     flex-direction: row;
     flex-wrap: wrap;
   }
+
+  .categories-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .words-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
+@media (max-width: 480px) {
+  .admin-card {
+    padding: 32px 24px;
+  }
+
+  .admin-content {
+    padding: 16px;
+  }
+
+  .admin-section {
+    padding: 20px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

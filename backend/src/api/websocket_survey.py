@@ -2,7 +2,8 @@
 import json
 import logging
 import asyncio
-from typing import Dict
+from typing import Dict, List, Tuple, Optional
+from datetime import datetime, timezone
 
 from fastapi import WebSocket, WebSocketDisconnect, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,66 @@ from src.db.crud.chat import get_or_create_active_chat, create_message
 from src.services.vector_utils import create_embedding, create_profile_vector
 
 logger = logging.getLogger(__name__)
+
+# Очередь для отложенной обработки профилей при недоступности ML-сервиса
+# Формат: [(user_id, username, timestamp), ...]
+_pending_profiles_queue: List[Tuple[int, str, datetime]] = []
+_queue_lock: Optional[asyncio.Lock] = None
+
+
+def _get_queue_lock() -> asyncio.Lock:
+    """Получает или создает lock для очереди."""
+    global _queue_lock
+    if _queue_lock is None:
+        _queue_lock = asyncio.Lock()
+    return _queue_lock
+
+
+async def _retry_pending_profiles():
+    """Периодически пытается обработать очередь отложенных профилей."""
+    global _pending_profiles_queue
+    
+    while True:
+        await asyncio.sleep(60)  # Проверяем каждую минуту
+        
+        if not _pending_profiles_queue:
+            continue
+        
+        async with _get_queue_lock():
+            # Копируем очередь и очищаем
+            queue_copy = _pending_profiles_queue.copy()
+            _pending_profiles_queue.clear()
+        
+        # Пытаемся обработать каждый профиль
+        for user_id, username, timestamp in queue_copy:
+            try:
+                async with AsyncSessionLocal() as session:
+                    profile_created = await create_profile_with_embeddings(session, user_id, username)
+                    if profile_created:
+                        logger.info(f"✓ Отложенный профиль успешно создан для {username}")
+                    else:
+                        # Если не удалось, добавляем обратно в очередь (но не более 3 раз)
+                        if (datetime.now(timezone.utc) - timestamp).total_seconds() < 3600:  # 1 час
+                            async with _get_queue_lock():
+                                _pending_profiles_queue.append((user_id, username, timestamp))
+            except Exception as e:
+                logger.error(f"Ошибка при обработке отложенного профиля для {username}: {e}")
+                # Добавляем обратно в очередь
+                if (datetime.now(timezone.utc) - timestamp).total_seconds() < 3600:
+                    async with _get_queue_lock():
+                        _pending_profiles_queue.append((user_id, username, timestamp))
+
+
+# Запускаем фоновую задачу для обработки очереди
+_retry_task = None
+
+
+def start_retry_task():
+    """Запускает фоновую задачу для обработки очереди."""
+    global _retry_task
+    if _retry_task is None or _retry_task.done():
+        _retry_task = asyncio.create_task(_retry_pending_profiles())
+        logger.info("Запущена фоновая задача для обработки отложенных профилей")
 
 
 async def create_profile_with_embeddings(session: AsyncSession, user_id: int, username: str) -> bool:
@@ -62,6 +123,19 @@ async def create_profile_with_embeddings(session: AsyncSession, user_id: int, us
                     logger.info(f"Эмбеддинг создан ({embeddings_created}/{len(answers)})")
                 else:
                     embeddings.append(answer.embedding)
+            except RuntimeError as e:
+                # Если ML-сервис недоступен, добавляем в очередь для отложенной обработки
+                error_msg = str(e).lower()
+                if "ml сервис" in error_msg or "не удалось подключиться" in error_msg or "недоступен" in error_msg:
+                    logger.warning(f"ML-сервис недоступен для ответа {answer.id}, добавляем в очередь")
+                    async with _get_queue_lock():
+                        _pending_profiles_queue.append((user_id, username, datetime.now(timezone.utc)))
+                    # Запускаем фоновую задачу, если еще не запущена
+                    start_retry_task()
+                    return False
+                else:
+                    logger.error(f"Ошибка создания эмбеддинга для ответа {answer.id}: {e}", exc_info=True)
+                    return False
             except Exception as e:
                 logger.error(f"Ошибка создания эмбеддинга для ответа {answer.id}: {e}", exc_info=True)
                 return False
@@ -344,7 +418,18 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                                 # Создаем профиль с реальными эмбеддингами
                                 logger.info(f"Создание профиля для {username}")
                                 
-                                profile_created = await create_profile_with_embeddings(session, user.id, username)
+                                try:
+                                    profile_created = await create_profile_with_embeddings(session, user.id, username)
+                                except RuntimeError as e:
+                                    # Если ML-сервис недоступен, уведомляем пользователя
+                                    error_msg = str(e).lower()
+                                    if "ml сервис" in error_msg or "не удалось подключиться" in error_msg:
+                                        await websocket.send_json({
+                                            "type": "error",
+                                            "message": "Сервис создания профиля временно недоступен. Ваши ответы сохранены, профиль будет создан автоматически, когда сервис станет доступен."
+                                        })
+                                        logger.warning(f"ML-сервис недоступен для {username}, ответы сохранены")
+                                    profile_created = False
                                 
                                 if profile_created:
                                     # Активируем мессенджеры только после успешного создания профиля
@@ -435,21 +520,33 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         break
 
         except WebSocketDisconnect:
+            logger.info(f"WebSocket отключен для пользователя {username} (опрос)")
             manager.disconnect(username)
             await session.rollback()
             return
         except Exception as e:
-            print(f"Ошибка в WebSocket: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Ошибка в WebSocket опроса для {username}: {e}", exc_info=True)
             try:
                 await websocket.send_json({
                     "type": "error",
                     "message": f"Ошибка сервера: {str(e)}"
                 })
-            except:
-                pass
+            except Exception:
+                logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {username}")
             await session.rollback()
             manager.disconnect(username)
             return
+        finally:
+            # Гарантированная очистка
+            try:
+                manager.disconnect(username)
+            except Exception as e:
+                logger.error(f"Ошибка при отключении пользователя {username} из менеджера опроса: {e}")
+            
+            # Гарантированное закрытие WebSocket соединения
+            try:
+                if websocket.client_state.name != "DISCONNECTED":
+                    await websocket.close(code=1000)
+            except Exception as e:
+                logger.warning(f"Ошибка при закрытии WebSocket для {username}: {e}")
 

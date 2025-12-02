@@ -26,6 +26,12 @@ function SignUp() {
       return;
     }
     
+    // Проверяем длину пароля
+    if (password.length < 8) {
+      setError('Пароль должен быть не менее 8 символов');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -43,7 +49,7 @@ function SignUp() {
       });
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail?.message || 'Ошибка регистрации');
+        throw new Error(data.detail || 'Ошибка регистрации');
       }
 
       // Всё ок — переход на страницу ввода кода
@@ -81,6 +87,7 @@ function SignUp() {
               placeholder="Логин"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
+              autocomplete="off"
               required
             />
           </div>
@@ -92,6 +99,7 @@ function SignUp() {
               placeholder="Адрес электронной почты"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autocomplete="off"
               required
             />
           </div>
@@ -103,6 +111,8 @@ function SignUp() {
               placeholder="Пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autocomplete="off"
+              minLength={8}
               required
             />
           </div>

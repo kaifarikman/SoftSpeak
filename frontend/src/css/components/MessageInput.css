@@ -8,36 +8,6 @@
   width: 100%;
 }
 
-.media-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.media-button {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  border: 1px solid #2b2e41;
-  background: #15162a;
-  color: #f4f5f7;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s ease, border 0.2s ease, opacity 0.2s ease;
-}
-
-.media-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: #6b6fff;
-}
-
-.media-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .message-input {
   flex: 1;
   height: 68px;
@@ -71,8 +41,8 @@
 .send-button {
   width: 56px;
   height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #25D366, #1ebe82);
+  border-radius: 14px;
+  background: #22c55e;
   border: none;
   color: #ffffff;
   font-size: 20px;
@@ -80,13 +50,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: all 0.2s ease;
   box-shadow: none;
 }
 
 .send-button:hover:not(:disabled) {
+  background: #16a34a;
   transform: translateY(-1px);
-  box-shadow: none;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.send-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .send-button:focus-visible {

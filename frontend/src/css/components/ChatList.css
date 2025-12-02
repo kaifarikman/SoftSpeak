@@ -2,35 +2,38 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #393636;
-  width: 420px;
-  max-width: 420px;
-  background: #141522;
+  border-right: 1px solid #2a2d3a;
+  width: 380px;
+  max-width: 380px;
+  background: #1a1d29;
 }
 
 .chat-list-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #393636;
+  border-bottom: 1px solid #2a2d3a;
+  background: #1a1d29;
 }
 
 .search-input {
   width: 100%;
   padding: 12px 16px;
-  background: #1f2130;
-  border: 1px solid #2a2d3f;
-  border-radius: 12px;
-  color: white;
+  background: #1f2230;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  color: #ffffff;
   font-size: 15px;
   outline: none;
+  transition: all 0.2s ease;
 }
 
 .search-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  border-color: #3a3d4a;
+  background: #252835;
+  box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
 }
 
 .search-input::placeholder {
-  color: #5c6173;
+  color: #64748b;
 }
 
 .chats {

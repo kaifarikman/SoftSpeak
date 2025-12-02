@@ -11,6 +11,16 @@ from src.core.config import settings
 from src.core.security import hash_password, verify_password
 from src.db.models import EmailVerificationCode, User
 
+# Запрещенные слова для username (дублируем из settings.py для использования в auth)
+FORBIDDEN_USERNAMES = {
+    "admin", "administrator", "root", "system", "support", "help",
+    "moderator", "mod", "staff", "team", "service", "api", "bot",
+    "test", "testing", "demo", "example", "null", "undefined", "none",
+    "softspeak", "soft", "speak", "anonymous", "anon", "user", "users",
+    "mail", "email", "www", "http", "https", "ftp", "localhost",
+    "server", "client", "db", "database", "sql", "postgres", "mysql"
+}
+
 
 async def get_user_by_username(
     session: AsyncSession,
@@ -68,6 +78,12 @@ async def issue_email_verification_code(
     """
     Создает (или обновляет) пользователя и генерирует новый код подтверждения email.
     """
+    
+    # Проверяем username на запрещенные слова (только точное совпадение)
+    username_lower = username.lower().strip()
+    for forbidden in FORBIDDEN_USERNAMES:
+        if username_lower == forbidden.lower():
+            raise ValueError(f"Никнейм не может быть '{forbidden}'")
 
     user = await get_user_by_username(session, username)
 
@@ -80,7 +96,7 @@ async def issue_email_verification_code(
 
     if user:
         if user.is_active:
-            raise ValueError("Пользователь уже подтвержден и может войти.")
+            raise ValueError(f"Пользователь с именем '{username}' уже существует и подтвержден. Пожалуйста, войдите в систему.")
 
         user.email = email
         user.password_hash = password_hash

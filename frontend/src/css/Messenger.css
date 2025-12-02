@@ -297,24 +297,27 @@ select.form-control {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #0e0f16;
-  color: #fff;
+  background: #0f1117;
+  color: #ffffff;
 }
 
 .messenger-body {
   display: flex;
   flex: 1;
   overflow: hidden;
-  margin-top: -12px; /* aligns top edge with nav padding */
+  margin-top: 0;
 }
 
 .messenger-list {
-  width: 420px;
-  min-width: 420px;
-  background: #141522;
-  border-right: 1px solid #2b2d3c;
+  width: 380px;
+  min-width: 380px;
+  background: #1a1d29;
+  border-right: 1px solid #2a2d3a;
   overflow-y: auto;
-  padding-top: 12px; /* matches navigation padding */
+  overflow-x: hidden;
+  padding-top: 0;
+  height: calc(100vh - 80px);
+  position: relative;
 }
 
 .messenger-chat {
@@ -322,8 +325,30 @@ select.form-control {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+  background: #0f1117;
 }
 
+/* Scrollbar styling */
+.messenger-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messenger-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messenger-list::-webkit-scrollbar-thumb {
+  background: #3a3d4a;
+  border-radius: 4px;
+}
+
+.messenger-list::-webkit-scrollbar-thumb:hover {
+  background: #4a4d5a;
+}
+
+/* Tablet and below */
 @media (max-width: 1024px) {
   .messenger-body {
     flex-direction: column;
@@ -333,7 +358,38 @@ select.form-control {
     width: 100%;
     min-width: 100%;
     border-right: none;
-    border-bottom: 1px solid #2b2d3c;
+    border-bottom: 1px solid #2a2d3a;
+    height: auto;
+    max-height: 50vh;
+    min-height: 200px;
+  }
+
+  .messenger-chat {
+    height: auto;
+    min-height: 50vh;
+    flex: 1;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .messenger-list {
+    max-height: 45vh;
+  }
+
+  .messenger-chat {
+    min-height: 55vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .messenger-list {
+    max-height: 40vh;
+    min-height: 180px;
+  }
+
+  .messenger-chat {
+    min-height: 60vh;
   }
 }
 

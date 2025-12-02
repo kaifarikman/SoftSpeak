@@ -24,8 +24,19 @@ def create_profile_vector_from_embeddings(
     if not embeddings:
         raise ValueError("Список эмбеддингов пуст")
     
-    # Преобразуем в numpy массивы
-    np_embeddings = [np.array(emb) for emb in embeddings]
+    # Ожидаемая размерность эмбеддинга
+    EXPECTED_DIM = 768
+    
+    # Преобразуем в numpy массивы и валидируем размерность
+    np_embeddings = []
+    for i, emb in enumerate(embeddings):
+        emb_array = np.array(emb)
+        if len(emb_array) != EXPECTED_DIM:
+            raise ValueError(
+                f"Неверная размерность эмбеддинга #{i}: ожидалось {EXPECTED_DIM}, "
+                f"получено {len(emb_array)}"
+            )
+        np_embeddings.append(emb_array)
     
     # Усредняем все эмбеддинги (mean pooling)
     # Это сохраняет размерность 768 и лучше для similarity search

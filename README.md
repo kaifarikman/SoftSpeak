@@ -106,7 +106,9 @@ docker-compose exec backend alembic upgrade head
 - `JWT_SECRET` — ключ токенов (32+ символа)
 - `SMTP_*` — email для прода
 - `ML_MODEL_NAME` — модель эмбеддингов
-- `ADMIN_USERNAME`, `ADMIN_PASSWORD` — доступ к админке
+- `ADMIN_USERNAME` — имя пользователя админки (по умолчанию: admin)
+- `ADMIN_PASSWORD` — пароль админки (по умолчанию: admin)
+- `ADMIN_TOKEN` — токен для доступа к админ-API (по умолчанию: admin_token_secret_change_in_production)
 
 Полный список в `.env.example`.
 

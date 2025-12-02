@@ -4,8 +4,8 @@ import { API_URL } from '../config';
 
 function SignIn() {
   const navigate = useNavigate();
-  const [login, setLogin] = useState('example_user');
-  const [password, setPassword] = useState('password123');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -72,6 +72,7 @@ function SignIn() {
               placeholder="Логин"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
+              autocomplete="off"
               required
             />
           </div>
@@ -83,6 +84,7 @@ function SignIn() {
               placeholder="Пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autocomplete="off"
               required
             />
           </div>
