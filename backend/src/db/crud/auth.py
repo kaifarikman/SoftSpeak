@@ -1,4 +1,3 @@
-"""CRUD-операции аутентификации, работающие с PostgreSQL."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -11,7 +10,6 @@ from src.core.config import settings
 from src.core.security import hash_password, verify_password
 from src.db.models import EmailVerificationCode, User
 
-# Запрещенные слова для username (дублируем из settings.py для использования в auth)
 FORBIDDEN_USERNAMES = {
     "admin", "administrator", "root", "system", "support", "help",
     "moderator", "mod", "staff", "team", "service", "api", "bot",
@@ -26,16 +24,12 @@ async def get_user_by_username(
     session: AsyncSession,
     username: str,
 ) -> Optional[User]:
-    """Возвращает пользователя по username из базы данных."""
-
     stmt = select(User).where(User.username == username)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
-    """Возвращает пользователя по email."""
-
     stmt = select(User).where(User.email == email)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
@@ -46,8 +40,6 @@ async def authenticate_user(
     username: str,
     password: str,
 ) -> Optional[User]:
-    """Проверяет username/password и возвращает пользователя."""
-
     user = await get_user_by_username(session, username)
     if not user:
         return None
@@ -62,8 +54,6 @@ async def authenticate_user(
 
 
 def _generate_verification_code() -> str:
-    """Генерирует числовой код нужной длины."""
-
     length = settings.verification_code_length
     max_value = 10**length
     from secrets import randbelow
@@ -78,11 +68,6 @@ async def issue_email_verification_code(
     email: str,
     raw_password: str,
 ) -> Tuple[User, EmailVerificationCode]:
-    """
-    Создает (или обновляет) пользователя и генерирует новый код подтверждения email.
-    """
-    
-    # Проверяем username на запрещенные слова (только точное совпадение)
     username_lower = username.lower().strip()
     for forbidden in FORBIDDEN_USERNAMES:
         if username_lower == forbidden.lower():
@@ -90,7 +75,6 @@ async def issue_email_verification_code(
 
     user = await get_user_by_username(session, username)
 
-    # Проверяем уникальность email при создании/обновлении пользователя
     existing_email_owner = await get_user_by_email(session, email)
     if existing_email_owner and (not user or existing_email_owner.id != user.id):
         raise ValueError("Почта уже используется другим аккаунтом.")
@@ -104,20 +88,18 @@ async def issue_email_verification_code(
         user.email = email
         user.password_hash = password_hash
     else:
-        # При создании нового пользователя устанавливаем правильные значения по умолчанию
         user = User(
             username=username,
             email=email,
             password_hash=password_hash,
             is_active=False,
-            # Доступны только AI чат и настройки при регистрации
             ai_enabled=True,
-            messengers_enabled=False,  # Мессенджеры недоступны до прохождения диалога с AI
+            messengers_enabled=False,
             settings_enabled=True,
             anonym=True,
         )
         session.add(user)
-        await session.flush()  # получаем user.id
+        await session.flush()
 
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.verification_code_ttl_min
@@ -143,8 +125,6 @@ async def confirm_email_verification_code(
     username: str,
     code: str,
 ) -> Optional[User]:
-    """Подтверждает код для пользователя, активирует аккаунт."""
-
     user = await get_user_by_username(session, username)
     if not user:
         return None

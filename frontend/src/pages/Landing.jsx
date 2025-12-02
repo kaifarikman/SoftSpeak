@@ -6,7 +6,7 @@ function Landing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Проверяем авторизацию - если авторизован, редиректим в мессенджер
+
     const username = localStorage.getItem('username');
     if (username) {
       navigate('/home');

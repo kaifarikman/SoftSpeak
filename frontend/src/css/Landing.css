@@ -14,7 +14,7 @@
   text-align: center;
 }
 
-/* Logo Section */
+
 .logo-section {
   margin-bottom: 80px;
   animation: fadeInDown 1s ease-out;
@@ -46,7 +46,7 @@
   letter-spacing: 1px;
 }
 
-/* Features Section */
+
 .features-section {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -88,7 +88,7 @@
   line-height: 1.6;
 }
 
-/* CTA Section */
+
 .cta-section {
   display: flex;
   gap: 20px;
@@ -131,7 +131,7 @@
   transform: translateY(-2px);
 }
 
-/* Animations */
+
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -154,7 +154,7 @@
   }
 }
 
-/* Mobile Responsive */
+
 @media (max-width: 768px) {
   .logo-title {
     font-size: 48px;

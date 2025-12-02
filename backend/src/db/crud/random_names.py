@@ -1,4 +1,3 @@
-"""CRUD и утилиты для генерации случайных псевдонимов."""
 from __future__ import annotations
 
 import random
@@ -12,7 +11,6 @@ from src.db.models import RandomNameAdjective, RandomNameNoun
 
 logger = logging.getLogger(__name__)
 
-# In-memory кэш для активных слов
 _cached_adjectives: Optional[list[str]] = None
 _cached_nouns: Optional[list[str]] = None
 
@@ -36,7 +34,6 @@ DEFAULT_NOUNS = [
 
 
 async def _load_active_words(session: AsyncSession, model) -> list[str]:
-    """Загружает активные слова из БД."""
     stmt = select(model).where(model.is_active.is_(True))
     result = await session.execute(stmt)
     words = [obj.text for obj in result.scalars().all()]
@@ -44,7 +41,6 @@ async def _load_active_words(session: AsyncSession, model) -> list[str]:
 
 
 async def _get_cached_adjectives(session: AsyncSession) -> list[str]:
-    """Получает кэшированные прилагательные или загружает из БД."""
     global _cached_adjectives
     if _cached_adjectives is None:
         _cached_adjectives = await _load_active_words(session, RandomNameAdjective)
@@ -53,7 +49,6 @@ async def _get_cached_adjectives(session: AsyncSession) -> list[str]:
 
 
 async def _get_cached_nouns(session: AsyncSession) -> list[str]:
-    """Получает кэшированные существительные или загружает из БД."""
     global _cached_nouns
     if _cached_nouns is None:
         _cached_nouns = await _load_active_words(session, RandomNameNoun)
@@ -62,7 +57,6 @@ async def _get_cached_nouns(session: AsyncSession) -> list[str]:
 
 
 def _invalidate_cache():
-    """Инвалидирует кэш (вызывается при изменении через админ-панель)."""
     global _cached_adjectives, _cached_nouns
     _cached_adjectives = None
     _cached_nouns = None
@@ -70,13 +64,11 @@ def _invalidate_cache():
 
 
 async def _get_random_word(session: AsyncSession, model) -> str | None:
-    """Получает случайное слово из кэша или БД."""
     if model == RandomNameAdjective:
         words = await _get_cached_adjectives(session)
     elif model == RandomNameNoun:
         words = await _get_cached_nouns(session)
     else:
-        # Fallback на прямой запрос к БД
         stmt = (
             select(model)
             .where(model.is_active.is_(True))
@@ -145,7 +137,6 @@ async def create_adjective(session: AsyncSession, text: str) -> RandomNameAdject
     session.add(word)
     await session.commit()
     await session.refresh(word)
-    # Инвалидируем кэш при создании нового слова
     _invalidate_cache()
     return word
 
@@ -165,7 +156,6 @@ async def create_noun(session: AsyncSession, text: str) -> RandomNameNoun:
     session.add(word)
     await session.commit()
     await session.refresh(word)
-    # Инвалидируем кэш при создании нового слова
     _invalidate_cache()
     return word
 
@@ -186,7 +176,6 @@ async def update_adjective(
         word.is_active = is_active
     await session.commit()
     await session.refresh(word)
-    # Инвалидируем кэш при изменении активности
     _invalidate_cache()
     return word
 
@@ -207,7 +196,6 @@ async def update_noun(
         word.is_active = is_active
     await session.commit()
     await session.refresh(word)
-    # Инвалидируем кэш при изменении активности
     _invalidate_cache()
     return word
 
@@ -215,13 +203,11 @@ async def update_noun(
 async def delete_adjective(session: AsyncSession, word: RandomNameAdjective) -> None:
     await session.delete(word)
     await session.commit()
-    # Инвалидируем кэш при удалении
     _invalidate_cache()
 
 
 async def delete_noun(session: AsyncSession, word: RandomNameNoun) -> None:
     await session.delete(word)
     await session.commit()
-    # Инвалидируем кэш при удалении
     _invalidate_cache()
 

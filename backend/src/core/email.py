@@ -1,4 +1,3 @@
-"""Утилиты для отправки email-сообщений."""
 from __future__ import annotations
 
 from email.message import EmailMessage
@@ -10,7 +9,6 @@ from src.core.config import settings
 
 
 def _build_message(subject: str, body: str, recipient: str) -> EmailMessage:
-    """Создает EmailMessage с переданными параметрами."""
 
     message = EmailMessage()
     message["Subject"] = subject
@@ -21,7 +19,6 @@ def _build_message(subject: str, body: str, recipient: str) -> EmailMessage:
 
 
 async def send_email_async(subject: str, body: str, recipient: str) -> None:
-    """Асинхронно отправляет письмо через SMTP."""
 
     message = _build_message(subject, body, recipient)
 
@@ -37,7 +34,6 @@ async def send_email_async(subject: str, body: str, recipient: str) -> None:
 
 
 async def send_verification_code_email(email: str, code: str) -> None:
-    """Отправляет письмо с кодом подтверждения регистрации."""
 
     subject = "SoftSpeak: код подтверждения регистрации"
     body = (

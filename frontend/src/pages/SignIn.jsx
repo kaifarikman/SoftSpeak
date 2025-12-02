@@ -15,8 +15,8 @@ function SignIn() {
     setLoading(true);
 
     try {
-      // Очищаем данные предыдущего пользователя перед входом
-      localStorage.clear(); // Полностью очищаем весь localStorage
+
+      localStorage.clear();
 
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
@@ -35,15 +35,15 @@ function SignIn() {
         throw new Error(data.detail || 'Неверный логин или пароль');
       }
 
-      // Сохраняем данные чата в localStorage
+
       if (data.chat_data) {
         localStorage.setItem('chat_data', JSON.stringify(data.chat_data));
         localStorage.setItem('username', data.username);
-        // Диспатчим событие для обновления Context
+
         window.dispatchEvent(new Event('chatDataUpdated'));
       }
 
-      // Небольшая задержка для синхронизации Context перед переходом
+
       setTimeout(() => {
         navigate('/home', { replace: true });
       }, 100);

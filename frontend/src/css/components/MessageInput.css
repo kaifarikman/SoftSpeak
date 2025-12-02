@@ -80,7 +80,7 @@
   filter: invert(1);
 }
 
-/* Мобильная адаптация */
+
 @media (max-width: 768px) {
   .message-input-container {
     padding: 15px 20px;

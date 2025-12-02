@@ -32,16 +32,16 @@ const ChatArea = memo(({
   const [showReportModal, setShowReportModal] = useState(false);
   const [chatBlocked, setChatBlocked] = useState(false);
   const wsRef = useRef(null);
-  const anonChatWsRef = useRef(null); // WebSocket для анонимного чата
+  const anonChatWsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
-  const anonChatIdRef = useRef(null); // ID текущего анонимного чата
+  const anonChatIdRef = useRef(null);
 
-  // helper functions defined above
 
-  // WebSocket для опроса
+
+
   useEffect(() => {
-    // Если это опрос, подключаемся к WebSocket
+
     if (activeSection === 'bot' && chatData && chatData.ai === 'start_survey' && username) {
       setIsSurveyActive(true);
       connectSurveyWebSocket();
@@ -79,7 +79,7 @@ const ChatArea = memo(({
     }
   }, [activeSection]);
 
-  // WebSocket для анонимного и публичного чата
+
   useEffect(() => {
     if (selectedChat && selectedChat.id && username && (activeSection === 'anon' || activeSection === 'people')) {
       connectAnonymousChatWebSocket(selectedChat.id);
@@ -114,16 +114,16 @@ const ChatArea = memo(({
       return;
     }
 
-    // WebSocket для анонимного чата: /matchmaking/chat/{chat_id}/ws/{username}
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/matchmaking/chat/${chatId}/ws/${username}`;
+    const wsUrl = `${protocol}
 
     const ws = new WebSocket(wsUrl);
     anonChatWsRef.current = ws;
 
     ws.onopen = () => {
-      // WebSocket connected successfully
+
     };
 
     ws.onmessage = (event) => {
@@ -131,14 +131,14 @@ const ChatArea = memo(({
         const data = JSON.parse(event.data);
 
         if (data.type === 'connected') {
-          // Connected to chat successfully
+
         } else if (data.type === 'new_message') {
           if (anonChatIdRef.current === chatId) {
             const formatted = mapIncomingMessage(data.message);
             upsertMessage(formatted);
           }
         } else if (data.type === 'reveal_request') {
-          // Собеседник хочет раскрыться
+
           const systemMessage = {
             id: `system-reveal-${Date.now()}`,
             text: '⚠️ ' + data.message,
@@ -148,7 +148,7 @@ const ChatArea = memo(({
           };
           setMessages(prev => [...prev, systemMessage]);
         } else if (data.type === 'chat_revealed') {
-          // Чат раскрыт - переводим в публичный
+
           if (data.both_revealed && onChatRevealed) {
             const formattedChat = {
               id: data.chat_id,
@@ -185,7 +185,7 @@ const ChatArea = memo(({
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/survey/${username}`;
+    const wsUrl = `${protocol}
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -280,7 +280,7 @@ const ChatArea = memo(({
             if (isSurveyActive) {
               connectSurveyWebSocket();
             }
-          }, 10000); // Увеличиваем интервал до 10 секунд
+          }, 10000);
         }
       }
     };
@@ -295,15 +295,15 @@ const ChatArea = memo(({
     };
   }, []);
 
-  // Set для отслеживания уже загруженных ID сообщений
+
   const loadedMessageIdsRef = useRef(new Set());
 
   const upsertMessage = useCallback((incoming) => {
     setMessages((prev) => {
-      // Проверяем по ID
+
       const existsById = prev.some((msg) => msg.id === incoming.id);
       
-      // Проверяем по timestamp и тексту (для дедупликации без ID)
+
       const existsByTimestamp = incoming.timestamp && incoming.text
         ? prev.some((msg) => 
             msg.timestamp === incoming.timestamp && 
@@ -313,16 +313,16 @@ const ChatArea = memo(({
         : false;
       
       if (existsById) {
-        // Обновляем существующее сообщение
+
         return prev.map((msg) => (msg.id === incoming.id ? incoming : msg));
       }
       
       if (existsByTimestamp) {
-        // Дубликат по timestamp, пропускаем
+
         return prev;
       }
       
-      // Добавляем ID в Set отслеживания
+
       if (incoming.id) {
         loadedMessageIdsRef.current.add(incoming.id);
       }
@@ -340,24 +340,24 @@ const ChatArea = memo(({
         const data = await response.json();
         const formattedMessages = data.messages.map(mapIncomingMessage);
         
-        // Обновляем информацию о чате (аватар, имя) из ответа API
+
         if (data.name !== undefined) {
           setChatInfo({
             name: data.name || 'Собеседник',
           });
         }
         
-        // Проверяем блокировку чата
+
         if (data.is_blocked !== undefined) {
           setChatBlocked(data.is_blocked);
         }
         
-        // Дедупликация при загрузке: используем Set для отслеживания ID
+
         const seenIds = new Set();
-        const seenTimestamps = new Map(); // timestamp -> Set of texts
+        const seenTimestamps = new Map();
         
         const uniqueMessages = formattedMessages.filter((msg) => {
-          // Проверка по ID
+
           if (msg.id) {
             if (seenIds.has(msg.id)) {
               return false;
@@ -366,7 +366,7 @@ const ChatArea = memo(({
             loadedMessageIdsRef.current.add(msg.id);
           }
           
-          // Проверка по timestamp и тексту (для сообщений без ID)
+
           if (msg.timestamp && msg.text) {
             const key = `${msg.timestamp}_${msg.isMine}`;
             if (!seenTimestamps.has(key)) {
@@ -384,7 +384,7 @@ const ChatArea = memo(({
         
         setMessages(uniqueMessages);
         
-        // Помечаем сообщения как прочитанные после загрузки
+
         try {
           await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
             method: 'PUT',
@@ -400,37 +400,37 @@ const ChatArea = memo(({
     }
   }, [username, mapIncomingMessage]);
 
-  // Загрузка сообщений при выборе чата или смене секции
+
   useEffect(() => {
-    // Очищаем Set отслеживания при смене чата
+
     loadedMessageIdsRef.current.clear();
-    // Сбрасываем информацию о чате при смене чата
+
     setChatInfo(null);
     
-    // Если это опрос, не загружаем сообщения из БД
+
     if (activeSection === 'bot' && chatData && chatData.ai === 'start_survey') {
       setMessages([]);
       return;
     }
 
     if (selectedChat && activeSection !== 'settings') {
-      // Загрузка сообщений для анонимного или публичного чата
+
       if ((activeSection === 'anon' || activeSection === 'people') && selectedChat && selectedChat.id) {
         loadConversationMessages(selectedChat.id);
         return;
       }
 
-      // Если это AI чат (bot), используем данные из chatData
+
       if (activeSection === 'bot' && chatData) {
-        // Если ai = true, это новый чат, сообщений нет
+
         if (chatData.ai === true) {
           setMessages([]);
         }
-        // Если ai = false, AI недоступен (не должно быть здесь, но на всякий случай)
+
         else if (chatData.ai === false) {
           setMessages([]);
         }
-        // Если ai = массив сообщений, преобразуем их в формат фронтенда
+
         else if (Array.isArray(chatData.ai)) {
           const formattedMessages = chatData.ai.map(msg => ({
             id: msg.id,
@@ -441,7 +441,7 @@ const ChatArea = memo(({
           setMessages(formattedMessages);
         }
       }
-      // Для других секций (people) загружаем из API
+
       else {
         setMessages([]);
       }
@@ -450,10 +450,10 @@ const ChatArea = memo(({
     }
   }, [selectedChat, activeSection, chatData?.ai, username, loadConversationMessages]);
 
-  // loadConversationMessages moved above with useCallback
+
 
   const handleSendMessage = async (text) => {
-    // Если это опрос, отправляем ответ через WebSocket
+
     if (isSurveyActive && currentQuestion) {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         const userMessage = {
@@ -478,7 +478,7 @@ const ChatArea = memo(({
     
     if (!selectedChat) return;
 
-    // Сообщение для AI чата или анонимного чата отключено после завершения опроса
+
     if (activeSection === 'bot' && chatData && (chatData.ai === false || Array.isArray(chatData.ai))) {
       return;
     }
@@ -496,7 +496,7 @@ const ChatArea = memo(({
         let response;
         
         if (activeSection === 'bot') {
-          // AI chat
+
           response = await fetch(`${API_URL}/chat/message/${username}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -528,7 +528,7 @@ const ChatArea = memo(({
             setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
           }
         } else if ((activeSection === 'anon' || activeSection === 'people') && selectedChat && selectedChat.id) {
-          // Anonymous или публичный чат
+
           response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/message/${username}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -583,7 +583,7 @@ const ChatArea = memo(({
       }
 
       if (data.status === 'revealed' && data.both_revealed) {
-        // Оба согласны - чат переходит в публичный
+
         const formattedChat = {
           id: data.chat.id,
           name: data.chat.name,
@@ -597,7 +597,7 @@ const ChatArea = memo(({
           onChatRevealed(formattedChat);
         }
       } else if (data.status === 'pending') {
-        // Ожидаем согласия другого пользователя
+
         const systemMessage = {
           id: `system-pending-${Date.now()}`,
           text: '✓ ' + data.message,
@@ -642,7 +642,7 @@ const ChatArea = memo(({
     setShowReportModal(false);
   }, []);
 
-  // Special handling for settings section
+
   if (activeSection === 'settings') {
     return (
       <div className="chat-area">
@@ -657,7 +657,7 @@ const ChatArea = memo(({
   }
 
   if (!selectedChat) {
-    // If it's an anonymous chat and no chat is selected, show a specific empty state
+
     if (activeSection === 'anon') {
       return (
         <div className="chat-area">
@@ -679,7 +679,7 @@ const ChatArea = memo(({
 
   const isSurveyCompleted = chatData && Array.isArray(chatData.ai) && chatData.ai.length > 0;
   
-  // Use a special header for anonymous chats
+
   const anonDisplayName = activeSection === 'anon'
     ? (chatInfo?.name || selectedChat?.name || 'Собеседник')
     : null;

@@ -11,11 +11,11 @@ export const ChatDataProvider = ({ children }) => {
   const updateChatData = (newData) => {
     setChatData(newData);
     localStorage.setItem('chat_data', JSON.stringify(newData));
-    // Диспатчим кастомное событие для синхронизации
+
     window.dispatchEvent(new Event('chatDataUpdated'));
   };
 
-  // Слушаем изменения в localStorage
+
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'chat_data' && e.newValue) {
@@ -28,7 +28,7 @@ export const ChatDataProvider = ({ children }) => {
       }
     };
 
-    // Слушаем кастомное событие обновления chat_data
+
     const handleChatDataUpdate = () => {
       const saved = localStorage.getItem('chat_data');
       if (saved) {

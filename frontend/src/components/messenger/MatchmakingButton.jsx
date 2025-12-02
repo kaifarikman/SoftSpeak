@@ -3,7 +3,7 @@ import { API_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 import '../../css/components/MatchmakingButton.css';
 
-// Throttle функция для ограничения частоты обновлений
+
 const throttle = (func, delay) => {
   let timeoutId;
   let lastExecTime = 0;
@@ -32,7 +32,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   
-  // Throttled функция для обновления счетчика очереди (максимум раз в 3 секунды)
+
   const throttledSetQueueCount = useRef(
     throttle((count) => {
       setQueueCount(count);
@@ -40,12 +40,12 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
   ).current;
 
   useEffect(() => {
-    // Загружаем начальный статус
+
     if (username) {
       loadStatus();
     }
 
-    // Очистка при размонтировании
+
     return () => {
       if (wsRef.current) {
         try {
@@ -87,7 +87,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
       return;
     }
 
-    // Закрываем старое соединение, если есть
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -96,10 +96,10 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     isConnectingRef.current = true;
     setError(null);
     
-    // WebSocket для матчинга: /matchmaking/ws/{username}
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/matchmaking/ws/${username}`;
+    const wsUrl = `${protocol}
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -121,23 +121,23 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
           setQueueCount(data.queue_count || 0);
           setError(null);
         } else if (data.type === 'queue_update') {
-          // Используем throttled функцию для снижения частоты обновлений UI
+
           throttledSetQueueCount(data.queue_count || 0);
         } else if (data.type === 'match_found') {
           console.log('WebSocket: матч найден!', data.chat_id);
           console.log('Stopping spinner and calling onMatchFound...');
           
-          // Сначала останавливаем спиннер
+
           setIsSearching(false);
           setQueueCount(0);
           
-          // Закрываем WebSocket
+
           if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
           }
           
-          // Затем вызываем колбэк для загрузки чата
+
           if (onMatchFound && data.chat_id) {
             console.log('Calling onMatchFound with chat_id:', data.chat_id);
             onMatchFound(data.chat_id);
@@ -167,10 +167,10 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     ws.onclose = (event) => {
       isConnectingRef.current = false;
       
-      // Если это не было намеренное закрытие и мы все еще ищем
+
       if (event.code !== 1000 && isSearching && reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current++;
-        // Экспоненциальная задержка: 5сек, 10сек, 20сек
+
         const delay = Math.min(5000 * Math.pow(2, reconnectAttemptsRef.current - 1), 20000);
         setTimeout(() => {
           if (isSearching) {
@@ -201,13 +201,13 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         const data = await response.json();
         setError(null);
 
-        // Если сервер сразу нашел матч, не запускаем поиск и возвращаем чат
+
         if (data.chat_id) {
           console.log('REST: мгновенный матч найден, чат', data.chat_id);
           setIsSearching(false);
           setQueueCount(data.queue_count || 0);
 
-          // Закрываем активный WS если он вдруг есть
+
           if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -219,7 +219,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
           return;
         }
 
-        // В противном случае продолжаем поиск через WebSocket
+
         setIsSearching(data.is_searching ?? true);
         setQueueCount(data.queue_count || 0);
 
@@ -241,7 +241,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     if (!username) return;
 
     try {
-      // Отправляем команду остановки через WebSocket, если подключен
+
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'stop_search' }));
       }
@@ -262,7 +262,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         }
       }
     } catch (error) {
-      // Все равно останавливаем локально
+
       setIsSearching(false);
       if (wsRef.current) {
         wsRef.current.close();

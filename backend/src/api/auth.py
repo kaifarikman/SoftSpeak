@@ -24,16 +24,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def get_limiter(request: Request):
-    """Получает limiter из состояния приложения."""
     return request.app.state.limiter
 
 
 def rate_limit_decorator(limit: str):
-    """Создает декоратор для rate limiting с использованием limiter из app.state."""
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             limiter = get_limiter(request)
-            # Применяем декоратор limiter к функции
             limited_func = limiter.limit(limit)(func)
             return await limited_func(request, *args, **kwargs)
         return wrapper
@@ -46,8 +43,6 @@ async def login(
     request_data: LoginRequest,
     session: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    # Rate limiting обрабатывается через SlowAPIMiddleware
-    # Для специфичных лимитов можно добавить дополнительную проверку
     user = await authenticate_user(
         session,
         request_data.username,
@@ -79,7 +74,6 @@ async def request_email_verification(
     request_data: EmailVerificationRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationResponse:
-    # Rate limiting обрабатывается через SlowAPIMiddleware
     try:
         _, verification_code = await issue_email_verification_code(
             session,
@@ -110,7 +104,6 @@ async def confirm_email(
     request_data: EmailVerificationConfirmRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationConfirmResponse:
-    # Rate limiting обрабатывается через SlowAPIMiddleware
     user = await confirm_email_verification_code(
         session,
         username=request_data.username,

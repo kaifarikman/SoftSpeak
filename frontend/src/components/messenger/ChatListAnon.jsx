@@ -12,7 +12,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
   useEffect(() => {
     if (username) {
       loadChats();
-      // Обновляем чаты каждые 5 минут для снижения нагрузки
+
       const interval = setInterval(loadChats, 300000);
       return () => clearInterval(interval);
     }
@@ -31,7 +31,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
       const response = await fetch(`${API_URL}/matchmaking/chats/${username}`);
       if (response.ok) {
         const data = await response.json();
-        // Форматируем чаты для отображения
+
         const formattedChats = data.map(chat => ({
           id: chat.id,
           name: chat.name || 'Собеседник',
@@ -52,7 +52,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
   const handleMatchFound = async (chatId) => {
     console.log('Match found! Chat ID:', chatId);
     
-    // Немедленно загружаем чаты
+
     try {
       const response = await fetch(`${API_URL}/matchmaking/chats/${username}`);
       if (response.ok) {
@@ -72,13 +72,13 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
           onChatsUpdate(formattedChats);
         }
         
-        // Автоматически выбираем найденный чат
+
         const foundChat = formattedChats.find(chat => chat.id === chatId);
         if (foundChat) {
           console.log('Selecting chat:', foundChat);
           setSelectedChat(foundChat);
         } else {
-          // Если чат не найден сразу, попробуем через 500мс (возможна задержка на сервере)
+
           console.log('Chat not found immediately, retrying in 500ms...');
           setTimeout(async () => {
             const retryResponse = await fetch(`${API_URL}/matchmaking/chats/${username}`);

@@ -16,7 +16,7 @@ body {
   box-sizing: inherit;
 }
 
-/* Typography */
+
 h1,
 h2,
 h3,
@@ -45,7 +45,7 @@ pre code {
   padding: 0;
 }
 
-/* Buttons */
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -87,7 +87,7 @@ pre code {
   cursor: not-allowed;
 }
 
-/* Form elements */
+
 .form-control {
   display: block;
   width: 100%;
@@ -118,7 +118,7 @@ select.form-control {
 
 
 
-/* Status indicators - simplified with CSS variables */
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -168,7 +168,7 @@ select.form-control {
     rgba(var(--color-info-rgb, 98, 108, 113), var(--status-border-opacity));
 }
 
-/* Container layout */
+
 .container {
   width: 100%;
   margin-right: auto;
@@ -198,7 +198,7 @@ select.form-control {
   }
 }
 
-/* Utility classes */
+
 .flex {
   display: flex;
 }
@@ -269,7 +269,7 @@ select.form-control {
   display: none;
 }
 
-/* Accessibility */
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -289,9 +289,9 @@ select.form-control {
 
 
 
-/* END PERPLEXITY DESIGN SYSTEM */
 
-/* Messenger Styles */
+
+
 
 .messenger-container {
   display: flex;
@@ -331,7 +331,7 @@ select.form-control {
   background: #0f1117;
 }
 
-/* Scrollbar styling */
+
 .messenger-list::-webkit-scrollbar {
   width: 8px;
 }
@@ -349,7 +349,7 @@ select.form-control {
   background: #4a4d5a;
 }
 
-/* Tablet and below */
+
 @media (max-width: 1024px) {
   .messenger-body {
     flex-direction: column;
@@ -372,7 +372,7 @@ select.form-control {
   }
 }
 
-/* Mobile */
+
 @media (max-width: 768px) {
   .messenger-list {
     max-height: 45vh;
@@ -401,7 +401,7 @@ select.form-control {
 
 
 
-/* Section Placeholder */
+
 .section-placeholder {
   padding: var(--space-32) var(--space-20);
   text-align: center;
@@ -418,14 +418,14 @@ select.form-control {
   color: var(--color-text-secondary);
 }
 
-/* Empty State */
+
 .empty-state {
   padding: var(--space-32) var(--space-20);
   text-align: center;
   color: var(--color-text-secondary);
 }
 
-/* Scrollbar */
+
 .chats::-webkit-scrollbar,
 .message-list::-webkit-scrollbar {
   width: 6px;
@@ -447,7 +447,7 @@ select.form-control {
   background: var(--color-slate-500);
 }
 
-/* Mobile Responsive - 480px breakpoint */
+
 @media (max-width: 480px) {
   .chat-list {
     max-height: 40vh;

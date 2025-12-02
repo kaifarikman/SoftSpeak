@@ -132,7 +132,7 @@ class Message(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    is_from_user: Mapped[bool] = mapped_column(Boolean, default=True)  # True - от пользователя, False - от AI
+    is_from_user: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -146,7 +146,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Порядок отображения
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     questions: Mapped[list["Question"]] = relationship(
         back_populates="category",
@@ -164,7 +164,7 @@ class Question(Base):
         index=True,
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Порядок в категории
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     category: Mapped["Category"] = relationship(back_populates="questions")
@@ -187,7 +187,7 @@ class UserAnswer(Base):
         index=True,
     )
     answer_text: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float), nullable=True)  # Эмбеддинг ответа
+    embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -205,7 +205,7 @@ class PsychologicalProfile(Base):
         index=True,
         unique=True,
     )
-    profile_vector: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)  # Финальный вектор
+    profile_vector: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
@@ -234,8 +234,8 @@ class AnonymousChat(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     revealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    user1_revealed: Mapped[bool] = mapped_column(Boolean, default=False)  # user1 хочет раскрыться
-    user2_revealed: Mapped[bool] = mapped_column(Boolean, default=False)  # user2 хочет раскрыться
+    user1_revealed: Mapped[bool] = mapped_column(Boolean, default=False)
+    user2_revealed: Mapped[bool] = mapped_column(Boolean, default=False)
     user1_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
     user2_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)

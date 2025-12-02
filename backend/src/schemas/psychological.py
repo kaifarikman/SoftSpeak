@@ -1,4 +1,3 @@
-"""Схемы для работы с психологическим профилем."""
 from datetime import datetime
 from typing import Optional
 
@@ -6,7 +5,6 @@ from pydantic import BaseModel
 
 
 class CategorySchema(BaseModel):
-    """Схема категории."""
 
     id: int
     name: str
@@ -18,7 +16,6 @@ class CategorySchema(BaseModel):
 
 
 class QuestionSchema(BaseModel):
-    """Схема вопроса."""
 
     id: int
     category_id: int
@@ -31,7 +28,6 @@ class QuestionSchema(BaseModel):
 
 
 class QuestionWithCategorySchema(QuestionSchema):
-    """Схема вопроса с категорией."""
 
     category: CategorySchema
 
@@ -40,7 +36,6 @@ class QuestionWithCategorySchema(QuestionSchema):
 
 
 class UserAnswerSchema(BaseModel):
-    """Схема ответа пользователя."""
 
     id: int
     user_id: int
@@ -53,14 +48,12 @@ class UserAnswerSchema(BaseModel):
 
 
 class AnswerRequest(BaseModel):
-    """Запрос на сохранение ответа."""
 
     question_id: int
     answer_text: str
 
 
 class NextQuestionResponse(BaseModel):
-    """Ответ с следующим вопросом."""
 
     question: Optional[QuestionWithCategorySchema] = None
     current_question_number: int
@@ -69,11 +62,10 @@ class NextQuestionResponse(BaseModel):
 
 
 class PsychologicalProfileSchema(BaseModel):
-    """Схема психологического профиля."""
 
     id: int
     user_id: int
-    profile_vector: list[float]  # Вектор психологического профиля
+    profile_vector: list[float]
     completed_at: datetime
 
     class Config:

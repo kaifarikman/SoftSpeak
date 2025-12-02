@@ -3,7 +3,7 @@ export function resolveStaticUrl(path) {
     return '';
   }
 
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith('http:
     return path;
   }
 

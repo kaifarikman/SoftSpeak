@@ -24,15 +24,15 @@ import '../css/components/WelcomeScreen.css';
 
 function Messenger() {
   const navigate = useNavigate();
-  // Используем Context API вместо прямого доступа к localStorage
+
   const { chatData, updateChatData } = useChatData();
-  const [activeSection, setActiveSection] = useState('bot'); // bot, anon, people, settings, null = welcome
+  const [activeSection, setActiveSection] = useState('bot');
   const [selectedChatBot, setSelectedChatBot] = useState("SoftSpeak");
   const [selectedChatAnon, setSelectedChatAnon] = useState(null);
   const [selectedChatPeople, setSelectedChatPeople] = useState(null);
   const [selectedChatSettings, setSelectedChatSettings] = useState(null);
 
-  // Принудительно синхронизируем chatData при монтировании
+
   useEffect(() => {
     const savedChatData = localStorage.getItem('chat_data');
     if (savedChatData) {
@@ -43,23 +43,23 @@ function Messenger() {
         console.error('Ошибка парсинга chat_data:', err);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Выполняется только при монтировании
+
+  }, []);
 
   useEffect(() => {
-    // Проверяем авторизацию
+
     const username = localStorage.getItem('username');
     if (!username) {
-      // Если пользователь не авторизован, перенаправляем на страницу входа
+
       navigate('/signin');
       return;
     }
     
-    // Не устанавливаем начальную секцию - показываем WelcomeScreen
-    // Пользователь сам выберет нужный раздел
+
+
   }, [chatData, navigate]);
 
-  // Данные для чатов
+
   const chatBot = {
     id: 1,
     name: "SoftSpeak",
@@ -71,11 +71,11 @@ function Messenger() {
     { id: 4, name: "Черный список" }
   ];
   
-  const [chatsPeople, setChatsPeople] = useState([]); // Загружается из API
-  const [chatsAnon, setChatsAnon] = useState([]); // Загружается из API
+  const [chatsPeople, setChatsPeople] = useState([]);
+  const [chatsAnon, setChatsAnon] = useState([]);
   const username = localStorage.getItem('username') || '';
 
-  // Очищаем состояния чатов при смене пользователя
+
   useEffect(() => {
     setChatsPeople([]);
     setChatsAnon([]);
@@ -115,35 +115,35 @@ function Messenger() {
     return () => clearInterval(interval);
   }, [username, fetchPublicChats]);
 
-  // Загрузка чатов при монтировании компонента
-  // useEffect(() => {
-  //   async function fetchChats() {
-  //     const response = await fetch('http://localhost:8000/chats');
-  //     const data = await response.json();
-  //     setChats(data);
-  //   }
-  //   fetchChats();
-  // }, []);
+
+
+
+
+
+
+
+
+
   const handleSectionChange = (newSection) => {
-    // Проверяем доступность секции на основе chat_data
+
     if (chatData) {
       if (newSection === 'bot' && chatData.ai === false) {
-        // AI недоступен, нельзя перейти на bot
+
         return;
       }
       if ((newSection === 'people' || newSection === 'anon') && !chatData.messengers) {
-        // Мессенджеры (публичные и анонимные) недоступны
+
         return;
       }
       if (newSection === 'settings' && !chatData.settings) {
-        // Settings недоступен
+
         return;
       }
     }
     
     setActiveSection(newSection);
     
-    // Сброс выбранного чата при смене секции
+
     if (newSection === 'bot') {
       setSelectedChatBot("SoftSpeak");
     } else if (newSection === 'anon') {
@@ -193,7 +193,7 @@ const getActiveChatData = () => {
   const activeChatData = getActiveChatData();
   const isAnonChatFocused = activeSection === 'anon' && selectedChatAnon;
   
-  // Показываем WelcomeScreen если не выбрана секция
+
   const showWelcomeScreen = !activeSection;
 
   const renderListPanel = () => {

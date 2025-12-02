@@ -10,7 +10,7 @@ function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Валидация email
+
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -20,13 +20,13 @@ function SignUp() {
     e.preventDefault();
     setError('');
     
-    // Проверяем формат email
+
     if (!validateEmail(email)) {
       setError('Пожалуйста, введите корректный адрес электронной почты');
       return;
     }
     
-    // Проверяем длину пароля
+
     if (password.length < 8) {
       setError('Пароль должен быть не менее 8 символов');
       return;
@@ -35,7 +35,7 @@ function SignUp() {
     setLoading(true);
 
     try {
-      // Отправляем только email
+
       const response = await fetch(`${API_URL}/auth/email/request`, {
         method: 'POST',
         headers: {
@@ -52,7 +52,7 @@ function SignUp() {
         throw new Error(data.detail || 'Ошибка регистрации');
       }
 
-      // Всё ок — переход на страницу ввода кода
+
       navigate('/verify', { state: { login } });
     } catch (err) {
       console.error(err);

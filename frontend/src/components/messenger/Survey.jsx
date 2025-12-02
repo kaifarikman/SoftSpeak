@@ -40,14 +40,14 @@ function Survey({ username, onComplete }) {
   const connectWebSocket = () => {
     if (!username || isConnectingRef.current) return;
     
-    // Если уже есть активное соединение, не создаем новое
+
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return;
     }
 
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/survey/${username}`;
+    const wsUrl = `${protocol}
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -57,7 +57,7 @@ function Survey({ username, onComplete }) {
       setIsLoading(false);
       setError('');
       isConnectingRef.current = false;
-      // Сервер автоматически отправит первый вопрос при подключении
+
     };
 
     ws.onmessage = (event) => {
@@ -71,8 +71,8 @@ function Survey({ username, onComplete }) {
           setIsLoading(false);
           setError('');
         } else if (data.type === 'survey_completed') {
-          // Проверяем, что опрос действительно завершен (есть текущий вопрос или он был)
-          // Не показываем "завершен" если пользователь еще не начал опрос
+
+
           if (currentQuestion || currentNumber > 0) {
             setIsCompleted(true);
             setIsLoading(false);
@@ -83,7 +83,7 @@ function Survey({ username, onComplete }) {
             }
             ws.close();
           } else {
-            // Если нет текущего вопроса, это ошибка
+
             setError('Ошибка: получено сообщение о завершении опроса, но опрос не был начат');
             setIsLoading(false);
           }
@@ -108,15 +108,15 @@ function Survey({ username, onComplete }) {
       console.log('WebSocket отключен', event.code, event.reason);
       isConnectingRef.current = false;
       
-      // Не переподключаемся если:
-      // 1. Опрос завершен
-      // 2. Закрыто нормально (код 1000)
-      // 3. Уже есть запланированное переподключение
+
+
+
+
       if (isCompleted || event.code === 1000) {
         return;
       }
       
-      // Переподключение только если нет активного таймера
+
       if (!reconnectTimeoutRef.current) {
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectTimeoutRef.current = null;

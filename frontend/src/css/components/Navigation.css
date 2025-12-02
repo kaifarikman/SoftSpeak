@@ -133,7 +133,7 @@
   filter: none;
 }
 
-/* Мобильная адаптация */
+
 @media (max-width: 768px) {
   .navigation {
     flex-direction: column;

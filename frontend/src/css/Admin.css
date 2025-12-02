@@ -1,4 +1,4 @@
-/* Админка в стиле основного проекта - темная тема */
+
 .admin-layout {
   min-height: 100vh;
   background: #0f1117;
@@ -8,7 +8,7 @@
   flex-direction: column;
 }
 
-/* Навигация (как в Messenger) */
+
 .admin-navigation {
   width: 100%;
   display: flex;
@@ -34,7 +34,7 @@
   gap: 12px;
 }
 
-/* Форма входа */
+
 .admin-login-container {
   display: flex;
   align-items: center;
@@ -94,7 +94,7 @@
   box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
 }
 
-/* Основной контент */
+
 .admin-content {
   flex: 1;
   padding: 32px;
@@ -104,7 +104,7 @@
   margin: 0 auto;
 }
 
-/* Заголовок */
+
 .admin-header {
   display: flex;
   justify-content: space-between;
@@ -131,7 +131,7 @@
   gap: 12px;
 }
 
-/* Кнопки */
+
 .admin-btn {
   border: none;
   border-radius: 10px;
@@ -184,7 +184,7 @@
   color: #ffffff;
 }
 
-/* Алерты */
+
 .admin-alert {
   margin-bottom: 24px;
   padding: 16px 20px;
@@ -205,7 +205,7 @@
   color: #f87171;
 }
 
-/* Секции */
+
 .admin-section {
   background: #1a1d29;
   border-radius: 16px;
@@ -228,7 +228,7 @@
   margin: 0;
 }
 
-/* Статистика */
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -256,7 +256,7 @@
   font-size: 14px;
 }
 
-/* Форма вопроса */
+
 .question-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -302,7 +302,7 @@
   margin-bottom: 20px;
 }
 
-/* Категории */
+
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -348,7 +348,7 @@
   white-space: nowrap;
 }
 
-/* Вопросы */
+
 .question-list {
   display: flex;
   flex-direction: column;
@@ -403,7 +403,7 @@
   font-size: 14px;
 }
 
-/* Слова */
+
 .words-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -505,7 +505,7 @@
   flex-shrink: 0;
 }
 
-/* Адаптивность */
+
 @media (max-width: 768px) {
   .admin-navigation {
     padding: 16px;

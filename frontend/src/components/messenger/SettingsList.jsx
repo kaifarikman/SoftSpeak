@@ -4,7 +4,7 @@ import SettingsItem from './SettingsItem';
 function SettingsList({settings, selectedChat, setSelectedChat }) {
   const [searchQuery, setSearchQuery] = useState('');
  
-  // Проверяем, что settings является массивом
+
   const settingsArray = Array.isArray(settings) ? settings : [];
   
   const filteredSettings = settingsArray.filter(setting =>

@@ -1,10 +1,10 @@
-// API configuration
-// В Docker используем относительные пути, так как nginx проксирует запросы
+
+
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // Всегда используем относительный путь - nginx проксирует
+
   return '/api';
 };
 
@@ -14,8 +14,8 @@ const getWsUrl = () => {
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
-  // Используем тот же хост, что и для HTTP
-  return `${protocol}//${host}/ws`;
+
+  return `${protocol}
 };
 
 export const API_URL = getApiUrl();

@@ -58,7 +58,7 @@
   opacity: 0.8;
 }
 
-/* Мобильная адаптация */
+
 @media (max-width: 768px) {
   .message-content {
     max-width: 80%;

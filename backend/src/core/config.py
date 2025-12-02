@@ -1,12 +1,10 @@
-"""Конфигурация приложения через переменные окружения."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[2]  # путь до корня проекта
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
-    """Настройки приложения из переменных окружения."""
 
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/app"
 
@@ -20,14 +18,12 @@ class Settings(BaseSettings):
     @field_validator('jwt_secret')
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:
-        """Валидирует JWT секрет."""
         if len(v) < 32:
             raise ValueError(
                 f"JWT_SECRET должен быть минимум 32 символа. "
                 f"Текущая длина: {len(v)}. "
                 f"Это критично для безопасности!"
             )
-        # Проверяем только на точные совпадения с небезопасными значениями
         unsafe_values = [
             "change_me",
             "change-me-in-production-please-use-secure-key",
@@ -39,7 +35,6 @@ class Settings(BaseSettings):
         ]
         v_lower = v.lower().strip()
         
-        # Проверяем только точное совпадение (не подстроку)
         if v_lower in [uv.lower() for uv in unsafe_values]:
             raise ValueError(
                 f"JWT_SECRET не может быть небезопасным значением. "

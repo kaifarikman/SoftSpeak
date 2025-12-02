@@ -4,7 +4,7 @@ import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' }); // type: 'success' | 'error'
+  const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
     username: '',
     bio: '',
@@ -17,7 +17,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   const [blacklist, setBlacklist] = useState([]);
   const [blacklistInput, setBlacklistInput] = useState('');
 
-  // Загружаем данные пользователя при монтировании
+
   useEffect(() => {
     if (username) {
       loadUserData();
@@ -86,7 +86,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     ) : null
   );
 
-  // ==================== Профиль ====================
+
 
   const handleUpdateUsername = async () => {
     if (!formData.username || formData.username.length < 3) {
@@ -108,7 +108,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
         if (data.chat_data && onChatDataUpdate) {
           onChatDataUpdate(data.chat_data);
         }
-        // Обновляем username в localStorage
+
         localStorage.setItem('username', formData.username);
       } else {
         showMessage(data.message || 'Никнейм занят', 'error');
@@ -142,7 +142,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     }
   };
 
-  // ==================== Уведомления ====================
+
 
   const handleUpdateNotifications = async (field, value) => {
     console.log('Updating notifications:', field, value);
@@ -173,7 +173,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     }
   };
 
-  // ==================== Аккаунт ====================
+
 
   const handleChangePassword = async () => {
     if (!formData.old_password || !formData.new_password || !formData.new_password_confirm) {
@@ -228,7 +228,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     window.location.href = '/signin';
   };
 
-  // ==================== Черный список ====================
+
 
   const handleAddToBlacklist = async () => {
     const usernameToBlock = blacklistInput.trim();
@@ -286,7 +286,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     }
   };
 
-  // ==================== Рендеринг ====================
+
 
   if (!selectedSetting) {
     return (
@@ -306,7 +306,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
             {renderAlert()}
             <h2>Профиль</h2>
             
-            {/* Никнейм */}
+            {}
             <div className="settings-field">
               <label>Отображаемый никнейм</label>
               <div className="settings-field-row">
@@ -322,7 +322,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
               </div>
             </div>
 
-            {/* Информация о себе */}
+            {}
             <div className="settings-field">
               <label>Отображаемая информация о себе</label>
               <div className="settings-field-row">
