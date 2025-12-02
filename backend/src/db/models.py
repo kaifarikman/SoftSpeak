@@ -23,6 +23,7 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     notification_anon_chats: Mapped[bool] = mapped_column(Boolean, default=True)
     notification_open_chats: Mapped[bool] = mapped_column(Boolean, default=True)
+    reports_count: Mapped[int] = mapped_column(Integer, default=0)
     verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -67,6 +68,18 @@ class User(Base):
         "Blacklist",
         foreign_keys="Blacklist.blocked_user_id",
         back_populates="blocked_user",
+        cascade="all, delete-orphan",
+    )
+    reports_made: Mapped[list["Report"]] = relationship(
+        "Report",
+        foreign_keys="Report.reporter_id",
+        back_populates="reporter",
+        cascade="all, delete-orphan",
+    )
+    reports_received: Mapped[list["Report"]] = relationship(
+        "Report",
+        foreign_keys="Report.reported_user_id",
+        back_populates="reported_user",
         cascade="all, delete-orphan",
     )
 
@@ -225,6 +238,11 @@ class AnonymousChat(Base):
     user2_revealed: Mapped[bool] = mapped_column(Boolean, default=False)  # user2 хочет раскрыться
     user1_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
     user2_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    blocked_by_report_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reports.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     user1: Mapped["User"] = relationship("User", foreign_keys=[user1_id], back_populates="anonymous_chats_as_user1")
     user2: Mapped["User"] = relationship("User", foreign_keys=[user2_id], back_populates="anonymous_chats_as_user2")
@@ -232,6 +250,10 @@ class AnonymousChat(Base):
         back_populates="chat",
         cascade="all, delete-orphan",
         order_by="AnonymousMessage.created_at",
+    )
+    blocking_report: Mapped["Report | None"] = relationship(
+        "Report",
+        foreign_keys=[blocked_by_report_id],
     )
 
 
@@ -296,6 +318,40 @@ class Blacklist(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'blocked_user_id', name='uq_blacklist_user_blocked'),
     )
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reporter_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    reported_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    chat_id: Mapped[int] = mapped_column(
+        ForeignKey("anonymous_chats.id", ondelete="CASCADE"),
+        index=True,
+    )
+    reason: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by_admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    reporter: Mapped["User"] = relationship("User", foreign_keys=[reporter_id], back_populates="reports_made")
+    reported_user: Mapped["User"] = relationship("User", foreign_keys=[reported_user_id], back_populates="reports_received")
+    chat: Mapped["AnonymousChat"] = relationship("AnonymousChat", foreign_keys=[chat_id])
+    resolved_by: Mapped["User | None"] = relationship("User", foreign_keys=[resolved_by_admin_id])
 
 
 class RandomNameAdjective(Base):

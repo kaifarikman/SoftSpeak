@@ -15,12 +15,91 @@ function Admin() {
   const [words, setWords] = useState({ adjectives: [], nouns: [] });
   const [wordForms, setWordForms] = useState({ adjective: '', noun: '' });
   const [panelMessage, setPanelMessage] = useState({ type: '', message: '' });
+  const [reports, setReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [reportMessages, setReportMessages] = useState([]);
+  const [reportStatusFilter, setReportStatusFilter] = useState('pending');
 
   useEffect(() => {
     if (token) {
       loadAllData();
+      loadReports();
     }
-  }, [token]);
+  }, [token, reportStatusFilter]);
+
+  const loadReports = async () => {
+    try {
+      const response = await authorizedFetch(`/admin/reports?status=${reportStatusFilter}`);
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки жалоб:', err);
+    }
+  };
+
+  const loadReportMessages = async (reportId) => {
+    try {
+      const response = await authorizedFetch(`/admin/reports/${reportId}/chat`);
+      if (response.ok) {
+        const data = await response.json();
+        setReportMessages(data.messages || []);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки сообщений:', err);
+      setReportMessages([]);
+    }
+  };
+
+  const handleViewReport = async (report) => {
+    setSelectedReport(report);
+    await loadReportMessages(report.id);
+  };
+
+  const handleBanUser = async (reportId) => {
+    if (!confirm('Забанить пользователя? Это действие нельзя отменить.')) {
+      return;
+    }
+    try {
+      const response = await authorizedFetch(`/admin/reports/${reportId}/ban`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setPanelMessage({ type: 'success', message: 'Пользователь забанен' });
+        loadReports();
+        setSelectedReport(null);
+        setReportMessages([]);
+      } else {
+        const data = await response.json();
+        setPanelMessage({ type: 'error', message: data.detail || 'Ошибка' });
+      }
+    } catch (err) {
+      setPanelMessage({ type: 'error', message: err.message });
+    }
+  };
+
+  const handleRejectReport = async (reportId) => {
+    if (!confirm('Отклонить жалобу? Чат будет разблокирован.')) {
+      return;
+    }
+    try {
+      const response = await authorizedFetch(`/admin/reports/${reportId}/reject`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setPanelMessage({ type: 'success', message: 'Жалоба отклонена' });
+        loadReports();
+        setSelectedReport(null);
+        setReportMessages([]);
+      } else {
+        const data = await response.json();
+        setPanelMessage({ type: 'error', message: data.detail || 'Ошибка' });
+      }
+    } catch (err) {
+      setPanelMessage({ type: 'error', message: err.message });
+    }
+  };
 
   const authorizedFetch = async (path, options = {}) => {
     const headers = { ...(options.headers || {}) };
@@ -449,6 +528,116 @@ function Admin() {
           })}
         </div>
       </section>
+
+      <section className="admin-section">
+        <div className="section-header">
+          <h2>Жалобы пользователей</h2>
+        </div>
+        <div className="reports-container">
+          <div className="reports-filter">
+            <button
+              className={`admin-btn ${reportStatusFilter === 'pending' ? 'primary' : 'ghost'}`}
+              onClick={() => setReportStatusFilter('pending')}
+            >
+              Ожидают ({reports.filter(r => r.status === 'pending').length})
+            </button>
+            <button
+              className={`admin-btn ${reportStatusFilter === '' ? 'primary' : 'ghost'}`}
+              onClick={() => setReportStatusFilter('')}
+            >
+              Все ({reports.length})
+            </button>
+          </div>
+          <div className="reports-list">
+            {reports.length === 0 ? (
+              <p className="empty-placeholder">Нет жалоб</p>
+            ) : (
+              reports.map((report) => (
+                <div
+                  key={report.id}
+                  className={`report-item ${selectedReport?.id === report.id ? 'active' : ''}`}
+                  onClick={() => handleViewReport(report)}
+                >
+                  <div className="report-header">
+                    <span className="report-reason">{report.reason}</span>
+                    <span className={`report-status ${report.status}`}>{report.status}</span>
+                  </div>
+                  <div className="report-info">
+                    <span>От: {report.reporter_username || report.reporter_id}</span>
+                    <span>На: {report.reported_user_username || report.reported_user_id}</span>
+                  </div>
+                  {report.description && (
+                    <div className="report-description">{report.description}</div>
+                  )}
+                  <div className="report-date">
+                    {new Date(report.created_at).toLocaleString('ru-RU')}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {selectedReport && (
+        <section className="admin-section report-details">
+          <div className="section-header">
+            <h2>Детали жалобы #{selectedReport.id}</h2>
+            <button
+              className="admin-btn ghost"
+              onClick={() => {
+                setSelectedReport(null);
+                setReportMessages([]);
+              }}
+            >
+              Закрыть
+            </button>
+          </div>
+          <div className="report-detail-info">
+            <div><strong>Причина:</strong> {selectedReport.reason}</div>
+            <div><strong>От:</strong> {selectedReport.reporter_username || selectedReport.reporter_id}</div>
+            <div><strong>На:</strong> {selectedReport.reported_user_username || selectedReport.reported_user_id}</div>
+            {selectedReport.description && (
+              <div><strong>Описание:</strong> {selectedReport.description}</div>
+            )}
+            <div><strong>Дата:</strong> {new Date(selectedReport.created_at).toLocaleString('ru-RU')}</div>
+          </div>
+          <div className="report-messages">
+            <h3>Сообщения в чате</h3>
+            {reportMessages.length === 0 ? (
+              <p className="empty-placeholder">Сообщений нет</p>
+            ) : (
+              <div className="messages-list">
+                {reportMessages.map((msg) => (
+                  <div key={msg.id} className="message-item">
+                    <div className="message-header">
+                      <span>ID: {msg.sender_id}</span>
+                      <span>{new Date(msg.created_at).toLocaleString('ru-RU')}</span>
+                    </div>
+                    <div className="message-content">{msg.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedReport.status === 'pending' && (
+            <div className="report-actions">
+              <button
+                className="admin-btn danger"
+                onClick={() => handleBanUser(selectedReport.id)}
+              >
+                Забанить пользователя
+              </button>
+              <button
+                className="admin-btn primary"
+                onClick={() => handleRejectReport(selectedReport.id)}
+              >
+                Отклонить жалобу
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       </div>
     </div>
   );

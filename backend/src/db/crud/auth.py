@@ -49,7 +49,10 @@ async def authenticate_user(
     """Проверяет username/password и возвращает пользователя."""
 
     user = await get_user_by_username(session, username)
-    if not user or not user.is_active:
+    if not user:
+        return None
+    
+    if not user.is_active:
         return None
 
     if not verify_password(password, user.password_hash):

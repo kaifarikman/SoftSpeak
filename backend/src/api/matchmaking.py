@@ -694,6 +694,7 @@ async def get_anonymous_chat_messages(
         "other_user_id": other_user.id,
         "messages": messages,
         "name": other_user.username if chat.is_public else other_alias,
+        "is_blocked": chat.is_blocked,
     }
 
 
@@ -749,6 +750,12 @@ async def send_anonymous_message(
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="Чат неактивен",
+        )
+    
+    if chat.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Чат заблокирован из-за жалобы. Отправка сообщений недоступна.",
         )
 
     try:

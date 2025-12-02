@@ -104,3 +104,10 @@
 .chat-info-message.error {
   color: #f87171;
 }
+
+.chat-info-message.blocked {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border-left: 3px solid #fbbf24;
+  padding-left: 24px;
+}

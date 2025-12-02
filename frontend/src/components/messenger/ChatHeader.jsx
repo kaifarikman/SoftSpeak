@@ -1,4 +1,4 @@
-function ChatHeader({ chat = {}, actions, onBack, onNameClick }) {
+function ChatHeader({ chat = {}, actions, onBack, onNameClick, onReportClick }) {
   const fullName = chat.name || 'Диалог';
   const displayName =
     fullName.length > 20 ? `${fullName.slice(0, 20)}…` : fullName;
@@ -27,7 +27,18 @@ function ChatHeader({ chat = {}, actions, onBack, onNameClick }) {
           )}
         </div>
       </div>
-      <div className="chat-header-actions">{actions}</div>
+      <div className="chat-header-actions">
+        {onReportClick && (
+          <button
+            className="report-button"
+            onClick={onReportClick}
+            title="Пожаловаться на пользователя"
+          >
+            ⚠️ Пожаловаться
+          </button>
+        )}
+        {actions}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ from src.db.crud.psychological import (
     get_question_by_id,
 )
 from src.db.crud import random_names as random_names_crud
+from src.db.crud import reports as reports_crud
 from src.db.models import Question, Category
 from src.schemas.admin import (
     AdminLoginRequest,
@@ -22,6 +23,8 @@ from src.schemas.admin import (
     RandomWordUpdateRequest,
 )
 from src.schemas.psychological import QuestionSchema, CategorySchema
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -276,4 +279,173 @@ async def delete_random_noun(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено")
     await random_names_crud.delete_noun(session, word)
     return {"message": "Существительное удалено"}
+
+
+class ReportSchema(BaseModel):
+    id: int
+    reporter_id: int
+    reported_user_id: int
+    chat_id: int
+    reason: str
+    description: Optional[str]
+    status: str
+    created_at: str
+    resolved_at: Optional[str]
+    resolved_by_admin_id: Optional[int]
+    reporter_username: Optional[str] = None
+    reported_user_username: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminActionResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.get("/reports", response_model=list[ReportSchema])
+async def get_all_reports(
+    status: Optional[str] = None,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+) -> list[ReportSchema]:
+    from sqlalchemy import select
+    from src.db.models import User
+    
+    reports = await reports_crud.get_all_reports(session, status=status)
+    
+    result = []
+    for report in reports:
+        reporter_stmt = select(User).where(User.id == report.reporter_id)
+        reporter_result = await session.execute(reporter_stmt)
+        reporter = reporter_result.scalar_one_or_none()
+        
+        reported_user_stmt = select(User).where(User.id == report.reported_user_id)
+        reported_user_result = await session.execute(reported_user_stmt)
+        reported_user = reported_user_result.scalar_one_or_none()
+        
+        result.append(ReportSchema(
+            id=report.id,
+            reporter_id=report.reporter_id,
+            reported_user_id=report.reported_user_id,
+            chat_id=report.chat_id,
+            reason=report.reason,
+            description=report.description,
+            status=report.status,
+            created_at=report.created_at.isoformat(),
+            resolved_at=report.resolved_at.isoformat() if report.resolved_at else None,
+            resolved_by_admin_id=report.resolved_by_admin_id,
+            reporter_username=reporter.username if reporter else None,
+            reported_user_username=reported_user.username if reported_user else None,
+        ))
+    
+    return result
+
+
+@router.get("/reports/{report_id}/chat")
+async def get_report_chat_messages(
+    report_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    from src.db.crud.reports import get_report_by_id
+    from sqlalchemy import select
+    from src.db.models import AnonymousChat, AnonymousMessage
+    from sqlalchemy.orm import selectinload
+    
+    report = await get_report_by_id(session, report_id)
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Жалоба не найдена",
+        )
+    
+    chat_stmt = (
+        select(AnonymousChat)
+        .where(AnonymousChat.id == report.chat_id)
+        .options(selectinload(AnonymousChat.messages))
+    )
+    chat_result = await session.execute(chat_stmt)
+    chat = chat_result.scalar_one_or_none()
+    
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Чат не найден",
+        )
+    
+    return {
+        "chat_id": report.chat_id,
+        "messages": [
+            {
+                "id": msg.id,
+                "sender_id": msg.sender_id,
+                "content": msg.content,
+                "created_at": msg.created_at.isoformat(),
+                "is_read": msg.is_read,
+            }
+            for msg in chat.messages
+        ],
+    }
+
+
+@router.post("/reports/{report_id}/ban", response_model=AdminActionResponse)
+async def ban_user_from_report(
+    report_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+) -> AdminActionResponse:
+    from src.core.config import settings
+    from src.db.crud.auth import get_user_by_username
+    
+    admin_user = await get_user_by_username(session, settings.admin_username)
+    admin_id = admin_user.id if admin_user else None
+    
+    success, error_message = await reports_crud.ban_user_from_report(
+        session,
+        report_id=report_id,
+        admin_id=admin_id,
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message or "Ошибка бана пользователя",
+        )
+    
+    return AdminActionResponse(
+        success=True,
+        message="Пользователь забанен",
+    )
+
+
+@router.post("/reports/{report_id}/reject", response_model=AdminActionResponse)
+async def reject_report(
+    report_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+) -> AdminActionResponse:
+    from src.core.config import settings
+    from src.db.crud.auth import get_user_by_username
+    
+    admin_user = await get_user_by_username(session, settings.admin_username)
+    admin_id = admin_user.id if admin_user else None
+    
+    success, error_message = await reports_crud.reject_report(
+        session,
+        report_id=report_id,
+        admin_id=admin_id,
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message or "Ошибка отклонения жалобы",
+        )
+    
+    return AdminActionResponse(
+        success=True,
+        message="Жалоба отклонена",
+    )
 

@@ -5,6 +5,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SettingsContent from './SettingsContent';
 import UserProfileModal from './UserProfileModal';
+import ReportModal from './ReportModal';
 import { API_URL, WS_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 
@@ -28,6 +29,8 @@ const ChatArea = memo(({
   const [chatInfo, setChatInfo] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [profileUsername, setProfileUsername] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [chatBlocked, setChatBlocked] = useState(false);
   const wsRef = useRef(null);
   const anonChatWsRef = useRef(null); // WebSocket для анонимного чата
   const reconnectTimeoutRef = useRef(null);
@@ -344,6 +347,11 @@ const ChatArea = memo(({
           });
         }
         
+        // Проверяем блокировку чата
+        if (data.is_blocked !== undefined) {
+          setChatBlocked(data.is_blocked);
+        }
+        
         // Дедупликация при загрузке: используем Set для отслеживания ID
         const seenIds = new Set();
         const seenTimestamps = new Map(); // timestamp -> Set of texts
@@ -618,6 +626,22 @@ const ChatArea = memo(({
     setProfileUsername(null);
   }, []);
 
+  const handleOpenReport = useCallback(() => {
+    const chatId = selectedChat?.id || (activeSection === 'anon' ? anonChatIdRef.current : null);
+    if (chatId) {
+      setShowReportModal(true);
+    }
+  }, [selectedChat, activeSection]);
+
+  const handleCloseReport = useCallback(() => {
+    setShowReportModal(false);
+  }, []);
+
+  const handleReportSubmitted = useCallback((report) => {
+    setChatBlocked(true);
+    setShowReportModal(false);
+  }, []);
+
   // Special handling for settings section
   if (activeSection === 'settings') {
     return (
@@ -685,25 +709,48 @@ const ChatArea = memo(({
         actions={headerActions}
         onBack={showAnonBackButton ? onAnonChatExit : undefined}
         onNameClick={isPublicChat ? handleOpenProfile : undefined}
+        onReportClick={
+          (selectedChat?.id || (activeSection === 'anon' && anonChatIdRef.current)) 
+            ? handleOpenReport 
+            : undefined
+        }
       />
       {revealError && activeSection === 'anon' && (
         <div className="chat-info-message error">
           {revealError}
         </div>
       )}
+      {chatBlocked && (
+        <div className="chat-info-message blocked">
+          ⚠️ Чат заблокирован из-за жалобы. Отправка сообщений недоступна до рассмотрения администратором.
+        </div>
+      )}
       <MessageList messages={messages} />
       <MessageInput 
         onSend={handleSendMessage} 
         disabled={
+          chatBlocked ||
           (activeSection === 'bot' && chatData && chatData.ai === false) ||
           (activeSection === 'bot' && isSurveyCompleted)
         }
-        placeholder={activeSection === 'bot' && isSurveyCompleted ? "Опрос завершен. Чат доступен только для просмотра." : undefined}
+        placeholder={
+          chatBlocked 
+            ? "Чат заблокирован. Отправка сообщений недоступна."
+            : activeSection === 'bot' && isSurveyCompleted 
+            ? "Опрос завершен. Чат доступен только для просмотра."
+            : undefined
+        }
       />
       <UserProfileModal
         username={profileUsername}
         isOpen={showUserProfile}
         onClose={handleCloseProfile}
+      />
+      <ReportModal
+        chatId={selectedChat?.id || (activeSection === 'anon' ? anonChatIdRef.current : null)}
+        isOpen={showReportModal}
+        onClose={handleCloseReport}
+        onReportSubmitted={handleReportSubmitted}
       />
     </div>
   );
