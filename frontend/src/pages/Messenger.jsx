@@ -6,6 +6,7 @@ import WelcomeScreen from '../components/messenger/WelcomeScreen';
 import ChatList from '../components/messenger/ChatList';
 import ChatListAnon from '../components/messenger/ChatListAnon';
 import SettingsList from '../components/messenger/SettingsList';
+import BannedOverlay from '../components/BannedOverlay';
 import { useChatData } from '../context/ChatDataContext';
 import { API_URL } from '../config';
 import { logError, handleApiError } from '../utils/errorHandler';
@@ -31,7 +32,8 @@ function Messenger() {
   const [selectedChatAnon, setSelectedChatAnon] = useState(null);
   const [selectedChatPeople, setSelectedChatPeople] = useState(null);
   const [selectedChatSettings, setSelectedChatSettings] = useState(null);
-
+  const [isBanned, setIsBanned] = useState(false);
+  const [isCheckingBan, setIsCheckingBan] = useState(true);
 
   useEffect(() => {
     const savedChatData = localStorage.getItem('chat_data');
@@ -46,18 +48,89 @@ function Messenger() {
 
   }, []);
 
-  useEffect(() => {
+  // Функция проверки статуса пользователя
+  const checkUserStatus = useCallback(async () => {
+    const username = localStorage.getItem('username');
+    if (!username) return;
 
+    try {
+      const response = await fetch(`${API_URL}/settings/status/${username}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.is_active) {
+          setIsBanned(true);
+          window.dispatchEvent(new Event('userBanned'));
+          return true; // Пользователь забанен
+        } else {
+          setIsBanned(false);
+          return false;
+        }
+      } else if (response.status === 403) {
+        // Пользователь забанен
+        setIsBanned(true);
+        window.dispatchEvent(new Event('userBanned'));
+        return true;
+      } else {
+        // Другая ошибка, но не бан
+        setIsBanned(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Ошибка проверки статуса пользователя:', error);
+      // При ошибке не блокируем доступ, но логируем
+      setIsBanned(false);
+      return false;
+    }
+  }, []);
+
+  // Обработчик события бана из других компонентов
+  useEffect(() => {
+    const handleBanned = () => {
+      setIsBanned(true);
+    };
+    
+    window.addEventListener('userBanned', handleBanned);
+    return () => window.removeEventListener('userBanned', handleBanned);
+  }, []);
+
+  useEffect(() => {
     const username = localStorage.getItem('username');
     if (!username) {
-
       navigate('/signin');
       return;
     }
+
+    // Проверяем статус пользователя при загрузке страницы
+    checkUserStatus().finally(() => {
+      setIsCheckingBan(false);
+    });
     
-
-
-  }, [chatData, navigate]);
+    // Проверяем статус периодически (каждые 10 секунд для более быстрого обнаружения бана)
+    const interval = setInterval(() => {
+      checkUserStatus();
+    }, 10000);
+    
+    // Проверяем статус при возврате фокуса на окно
+    const handleFocus = () => {
+      checkUserStatus();
+    };
+    
+    // Проверяем статус при видимости страницы
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkUserStatus();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [navigate, checkUserStatus]);
 
 
   const chatBot = {
@@ -88,6 +161,12 @@ function Messenger() {
 
     try {
       const response = await fetch(`${API_URL}/matchmaking/public-chats/${username}`);
+      if (response.status === 403) {
+        // Пользователь забанен
+        setIsBanned(true);
+        window.dispatchEvent(new Event('userBanned'));
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         const formatted = data.map(chat => ({
@@ -131,6 +210,12 @@ function Messenger() {
       const response = await fetch(`${API_URL}/matchmaking/chat/${notification.chat_id}/read/${username}`, {
         method: 'PUT',
       });
+      
+      if (response.status === 403) {
+        // Пользователь забанен
+        setIsBanned(true);
+        return;
+      }
       
       if (response.ok) {
         if (notification.chat_type === 'anon') {
@@ -181,8 +266,11 @@ function Messenger() {
   const handleSectionChange = (newSection) => {
 
     if (chatData) {
-      if (newSection === 'bot' && chatData.ai === false) {
-
+      // Блокируем переход к боту если AI отключен или опрос завершен (есть история и messengers доступны)
+      if (newSection === 'bot' && (
+        chatData.ai === false || 
+        (Array.isArray(chatData.ai) && chatData.ai.length > 0 && chatData.messengers === true)
+      )) {
         return;
       }
       if ((newSection === 'people' || newSection === 'anon') && !chatData.messengers) {
@@ -293,6 +381,27 @@ const getActiveChatData = () => {
     activeSection === 'bot' ||
     (activeSection === 'anon' && Boolean(selectedChatAnon));
 
+  // Показываем overlay если пользователь забанен
+  if (isBanned) {
+    return <BannedOverlay />;
+  }
+
+  // Показываем загрузку пока проверяем статус
+  if (isCheckingBan) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '100vh',
+        background: '#0f1117',
+        color: '#cbd5e1'
+      }}>
+        Загрузка...
+      </div>
+    );
+  }
+
   return (
     <div className="messenger-container">
       <Navigation
@@ -308,7 +417,24 @@ const getActiveChatData = () => {
             {renderListPanel()}
           </div>
         )}
-        <div className="messenger-chat">
+        {activeSection === 'bot' ? (
+          // Для бота ChatArea рендерится напрямую в messenger-body без обертки messenger-chat
+          showWelcomeScreen ? (
+            <WelcomeScreen username={username} onSelectSection={handleSectionChange} />
+          ) : (
+            <ChatArea
+              selectedChat={activeChatData.selectedChat}
+              activeSection={activeSection}
+              chatData={chatData}
+              username={username}
+              onChatDataUpdate={updateChatData}
+              isStandalone={true}
+              onAnonChatExit={() => {}}
+              onChatRevealed={() => {}}
+            />
+          )
+        ) : (
+          <div className={`messenger-chat ${shouldHideList ? 'messenger-chat-fullwidth' : ''}`}>
           {showWelcomeScreen ? (
             <WelcomeScreen username={username} onSelectSection={handleSectionChange} />
           ) : (
@@ -335,6 +461,7 @@ const getActiveChatData = () => {
             />
           )}
         </div>
+        )}
       </div>
     </div>
   );

@@ -84,6 +84,10 @@ async def issue_email_verification_code(
     if user:
         if user.is_active:
             raise ValueError(f"Пользователь с именем '{username}' уже существует и подтвержден. Пожалуйста, войдите в систему.")
+        
+        # Проверяем, не забанен ли пользователь (если у него есть email, значит он был активен ранее)
+        if not user.is_active and user.email:
+            raise ValueError("Ваш аккаунт заблокирован администратором. Доступ запрещен.")
 
         user.email = email
         user.password_hash = password_hash

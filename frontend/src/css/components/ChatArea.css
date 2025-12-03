@@ -11,6 +11,13 @@
   width: 100%;
 }
 
+/* Когда ChatArea находится напрямую в messenger-body (чат с ботом) */
+.messenger-body > .chat-area {
+  width: 100%;
+  height: calc(100vh - 80px);
+  flex: 1;
+}
+
 .chat-area.empty {
   display: flex;
   align-items: center;

@@ -17,6 +17,22 @@ import asyncio
 
 from src.db.session import get_db, AsyncSessionLocal
 from src.db.crud.auth import get_user_by_username
+
+
+async def verify_user_active_for_matchmaking(username: str, session: AsyncSession) -> None:
+    """Проверяет, что пользователь активен (не забанен) для matchmaking endpoints."""
+    user = await get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
 from src.db.crud.matchmaking import (
     join_matchmaking_queue,
     leave_matchmaking_queue,
@@ -187,6 +203,22 @@ class AnonymousChatConnectionManager:
             logger.error(f"Ошибка отправки сообщения пользователю {username} в чате {chat_id}: {e}")
             self.disconnect(chat_id, username)
 
+    def is_user_connected_to_chat(self, chat_id: int, username: str) -> bool:
+        """Проверяет, подключен ли пользователь к WebSocket чата и соединение активно."""
+        if chat_id not in self.chat_connections:
+            return False
+        
+        if username not in self.chat_connections[chat_id]:
+            return False
+        
+        websocket = self.chat_connections[chat_id][username]
+        try:
+            # Проверяем, что соединение действительно активно
+            return websocket.client_state.name not in ("DISCONNECTED", "CLOSED")
+        except Exception:
+            # Если не удалось проверить состояние, считаем что соединение неактивно
+            return False
+
 
 chat_manager = AnonymousChatConnectionManager()
 
@@ -197,12 +229,8 @@ async def start_matchmaking(
     username: str,
     session: AsyncSession = Depends(get_db),
 ) -> MatchmakingStatusResponse:
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     if not user.messengers_enabled:
         raise HTTPException(
@@ -218,9 +246,11 @@ async def start_matchmaking(
 
     await join_matchmaking_queue(session, user.id)
 
+    # Стратегия поиска: начинаем с порога 0.95 для поиска наиболее похожих пользователей
+    # Если мгновенный матч не найден, пользователь попадает в очередь с адаптивным снижением порога
     chat_found = None
     try:
-        chat_found = await find_match(session, user.id, threshold=0.03)
+        chat_found = await find_match(session, user.id, threshold=0.95)
     except Exception as match_error:
         logger.error(f"Ошибка мгновенного матчинга для {username}: {match_error}", exc_info=True)
 
@@ -261,12 +291,8 @@ async def stop_matchmaking(
     username: str,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     await leave_matchmaking_queue(session, user.id)
 
@@ -278,12 +304,8 @@ async def get_matchmaking_status(
     username: str,
     session: AsyncSession = Depends(get_db),
 ) -> MatchmakingStatusResponse:
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     from src.db.models import MatchmakingQueue
     from sqlalchemy import select
@@ -308,142 +330,247 @@ async def matchmaking_websocket(websocket: WebSocket, username: str):
     try:
         await matchmaking_manager.connect(websocket, username)
         logger.info(f"WebSocket подключен для {username}")
+        # Отправляем подтверждение подключения сразу
+        await websocket.send_json({
+            "type": "connected",
+            "message": "WebSocket подключен"
+        })
     except Exception as e:
         logger.error(f"Ошибка подключения WebSocket для {username}: {e}", exc_info=True)
         return
 
     search_task = None
     user = None
+    ping_task = None
 
     try:
-        async with AsyncSessionLocal() as session:
-            user = await get_user_by_username(session, username)
-            if not user:
-                logger.warning(f"Пользователь {username} не найден")
+        # Выполняем проверки асинхронно, не блокируя подключение
+        async def initialize_user():
+            nonlocal user
+            async with AsyncSessionLocal() as session:
+                user = await get_user_by_username(session, username)
+                if not user:
+                    logger.warning(f"Пользователь {username} не найден")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Пользователь не найден"
+                    })
+                    matchmaking_manager.disconnect(username)
+                    return False
+
+                # Проверяем, не забанен ли пользователь
+                if not user.is_active:
+                    logger.warning(f"Пользователь {username} забанен, отключение WebSocket")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Ваш аккаунт заблокирован администратором. Доступ запрещен."
+                    })
+                    matchmaking_manager.disconnect(username)
+                    await websocket.close(code=4003, reason="Аккаунт заблокирован")
+                    return False
+
+                if not user.messengers_enabled:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Мессенджеры недоступны. Пройдите опрос."
+                    })
+                    matchmaking_manager.disconnect(username)
+                    return False
+
+                if not await has_completed_profile(session, user.id):
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Психологический профиль не завершен. Пройдите опрос."
+                    })
+                    matchmaking_manager.disconnect(username)
+                    return False
+
+                queue_count = await get_matchmaking_queue_count(session, exclude_user_id=user.id)
+                from src.db.models import MatchmakingQueue, User
+                from sqlalchemy import select
+
+                stmt = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user.id)
+                result = await session.execute(stmt)
+                queue_entry = result.scalar_one_or_none()
+
+                is_searching = queue_entry is not None and queue_entry.is_searching
+                
                 await websocket.send_json({
-                    "type": "error",
-                    "message": "Пользователь не найден"
+                    "type": "status",
+                    "is_searching": is_searching,
+                    "queue_count": queue_count,
                 })
-                matchmaking_manager.disconnect(username)
-                return
-
-            if not user.messengers_enabled:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Мессенджеры недоступны. Пройдите опрос."
-                })
-                matchmaking_manager.disconnect(username)
-                return
-
-            if not await has_completed_profile(session, user.id):
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Психологический профиль не завершен. Пройдите опрос."
-                })
-                matchmaking_manager.disconnect(username)
-                return
-
-            queue_count = await get_matchmaking_queue_count(session, exclude_user_id=user.id)
-            from src.db.models import MatchmakingQueue, User
-            from sqlalchemy import select
-
-            stmt = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user.id)
-            result = await session.execute(stmt)
-            queue_entry = result.scalar_one_or_none()
-
-            is_searching = queue_entry is not None and queue_entry.is_searching
-            
-            await websocket.send_json({
-                "type": "status",
-                "is_searching": is_searching,
-                "queue_count": queue_count,
-            })
-            
-            if is_searching:
-                async def search_loop():
+                return is_searching
+        
+        # Запускаем инициализацию в фоне
+        is_searching = await initialize_user()
+        if is_searching is False:
+            return
+        
+        # Ping/pong для поддержания соединения
+        async def ping_loop():
+            try:
+                while True:
+                    await asyncio.sleep(30)  # Ping каждые 30 секунд
                     try:
-                        logger.info(f"Начало поиска матча для {username}")
-                        current_threshold = 0.03
-                        first_attempt = True
-                        while True:
-                            if not first_attempt:
-                                await asyncio.sleep(2)
-                                current_threshold += 0.01
-                                if current_threshold > 1.0:
-                                    current_threshold = 1.0
-                                    logger.info(f"[{username}] Порог достиг максимума 1.0")
-                            else:
-                                first_attempt = False
-
-                            async with AsyncSessionLocal() as search_session:
-                                current_count = await get_matchmaking_queue_count(
-                                    search_session,
-                                    exclude_user_id=user.id,
-                                )
-                                logger.info(f"[{username}] Пользователей в очереди: {current_count}")
-                                try:
-                                    await websocket.send_json({
-                                        "type": "queue_update",
-                                        "queue_count": current_count,
-                                    })
-                                except Exception as send_error:
-                                    logger.error(f"Ошибка отправки обновления очереди для {username}: {send_error}")
-                                    break
-
-                                try:
-                                    logger.info(f"[{username}] Попытка найти матч с порогом {current_threshold:.2f}...")
-                                    chat = await find_match(search_session, user.id, threshold=current_threshold)
-                                    if chat:
-                                        logger.info(f"Матч найден для {username}: чат {chat.id} (порог: {current_threshold:.2f})")
-                                        
-                                        other_user_id = chat.user2_id if chat.user1_id == user.id else chat.user1_id
-                                        other_user_stmt = select(User).where(User.id == other_user_id)
-                                        other_user_result = await search_session.execute(other_user_stmt)
-                                        other_user = other_user_result.scalar_one_or_none()
-                                        
-                                        await websocket.send_json({
-                                            "type": "match_found",
-                                            "chat_id": chat.id,
-                                        })
-                                        
-                                        if other_user:
-                                            logger.info(f"Отправка уведомления второму пользователю {other_user.username}")
-                                            await matchmaking_manager.send_personal_message(
-                                                {
-                                                    "type": "match_found",
-                                                    "chat_id": chat.id,
-                                                },
-                                                other_user.username
-                                            )
-                                        
-                                        await asyncio.sleep(0.1)
-                                        
-                                        matchmaking_manager.disconnect(username)
-                                        break
-                                except Exception as match_error:
-                                    logger.error(f"Ошибка при поиске матча для {username}: {match_error}", exc_info=True)
-                    except asyncio.CancelledError:
-                        logger.info(f"Поиск матча отменен для {username}")
+                        await websocket.send_json({"type": "ping"})
                     except Exception as e:
-                        logger.error(f"Ошибка в поиске матча для {username}: {e}", exc_info=True)
-                        try:
-                            await websocket.send_json({
-                                "type": "error",
-                                "message": f"Ошибка поиска: {str(e)}",
-                            })
-                        except:
-                            pass
-
-                search_task = asyncio.create_task(search_loop())
-                matchmaking_manager.searching_users[username] = search_task
+                        logger.error(f"Ошибка отправки ping для {username}: {e}")
+                        break
+            except asyncio.CancelledError:
+                pass
+        
+        ping_task = asyncio.create_task(ping_loop())
             
-            while True:
+        if is_searching:
+            async def search_loop():
+                try:
+                    logger.info(f"Начало поиска матча для {username}")
+                    
+                    # Период ожидания для накопления очереди (20 секунд)
+                    wait_duration = 20
+                    wait_interval = 3  # Обновления каждые 3 секунды
+                    elapsed = 0
+                    
+                    logger.info(f"[{username}] Ожидание накопления очереди ({wait_duration} секунд)...")
+                    try:
+                        await websocket.send_json({
+                            "type": "waiting_for_queue",
+                            "message": f"Ожидание накопления очереди... ({wait_duration} сек)",
+                            "remaining_seconds": wait_duration,
+                        })
+                    except Exception as send_error:
+                        logger.warning(f"Не удалось отправить сообщение о ожидании для {username}: {send_error}")
+                    
+                    # Период ожидания с обновлениями
+                    while elapsed < wait_duration:
+                        await asyncio.sleep(wait_interval)
+                        elapsed += wait_interval
+                        remaining = wait_duration - elapsed
+                        
+                        async with AsyncSessionLocal() as wait_session:
+                            current_count = await get_matchmaking_queue_count(
+                                wait_session,
+                                exclude_user_id=user.id,
+                            )
+                            logger.info(f"[{username}] Ожидание... В очереди: {current_count}, осталось: {remaining} сек")
+                            
+                            try:
+                                await websocket.send_json({
+                                    "type": "queue_update",
+                                    "queue_count": current_count,
+                                    "status": "waiting",
+                                    "remaining_seconds": remaining,
+                                })
+                            except Exception as send_error:
+                                logger.warning(f"Ошибка отправки обновления очереди для {username}: {send_error}")
+                    
+                    logger.info(f"[{username}] Период ожидания завершен, начинаем поиск")
+                    try:
+                        await websocket.send_json({
+                            "type": "searching",
+                            "message": "Поиск самого похожего собеседника...",
+                        })
+                    except Exception as send_error:
+                        logger.warning(f"Не удалось отправить сообщение о начале поиска для {username}: {send_error}")
+                    
+                    # Начинаем поиск после периода ожидания
+                    current_threshold = 0.90  # Начинаем с высокого порога после ожидания
+                    first_attempt = True
+                    min_threshold = 0.60  # Минимальный порог для лучшего качества
+                    search_interval = 3  # Интервал между попытками поиска
+                    
+                    while True:
+                        if not first_attempt:
+                            await asyncio.sleep(search_interval)
+                            # Адаптивное снижение порога: более консервативно
+                            if current_threshold > 0.80:
+                                current_threshold -= 0.03  # Средние шаги
+                            elif current_threshold > 0.70:
+                                current_threshold -= 0.02  # Малые шаги
+                            else:
+                                current_threshold -= 0.01  # Очень малые шаги
+                            
+                            if current_threshold < min_threshold:
+                                current_threshold = min_threshold
+                                logger.info(f"[{username}] Порог достиг минимума {min_threshold}")
+                        else:
+                            first_attempt = False
+
+                        async with AsyncSessionLocal() as search_session:
+                            current_count = await get_matchmaking_queue_count(
+                                search_session,
+                                exclude_user_id=user.id,
+                            )
+                            logger.info(f"[{username}] Пользователей в очереди: {current_count}, порог: {current_threshold:.3f}")
+                            try:
+                                await websocket.send_json({
+                                    "type": "queue_update",
+                                    "queue_count": current_count,
+                                    "status": "searching",
+                                    "threshold": current_threshold,
+                                })
+                            except Exception as send_error:
+                                logger.error(f"Ошибка отправки обновления очереди для {username}: {send_error}")
+                                break
+
+                            try:
+                                logger.info(f"[{username}] Попытка найти матч с порогом {current_threshold:.3f}...")
+                                chat = await find_match(search_session, user.id, threshold=current_threshold)
+                                if chat:
+                                    logger.info(f"✓ Матч найден для {username}: чат {chat.id} (порог: {current_threshold:.3f})")
+                                    
+                                    other_user_id = chat.user2_id if chat.user1_id == user.id else chat.user1_id
+                                    other_user_stmt = select(User).where(User.id == other_user_id)
+                                    other_user_result = await search_session.execute(other_user_stmt)
+                                    other_user = other_user_result.scalar_one_or_none()
+                                    
+                                    await websocket.send_json({
+                                        "type": "match_found",
+                                        "chat_id": chat.id,
+                                    })
+                                    
+                                    if other_user:
+                                        logger.info(f"Отправка уведомления второму пользователю {other_user.username}")
+                                        await matchmaking_manager.send_personal_message(
+                                            {
+                                                "type": "match_found",
+                                                "chat_id": chat.id,
+                                            },
+                                            other_user.username
+                                        )
+                                    
+                                    await asyncio.sleep(0.1)
+                                    
+                                    matchmaking_manager.disconnect(username)
+                                    break
+                            except Exception as match_error:
+                                logger.error(f"Ошибка при поиске матча для {username}: {match_error}", exc_info=True)
+                except asyncio.CancelledError:
+                    logger.info(f"Поиск матча отменен для {username}")
+                except Exception as e:
+                    logger.error(f"Ошибка в поиске матча для {username}: {e}", exc_info=True)
+                    try:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": f"Ошибка поиска: {str(e)}",
+                        })
+                    except:
+                        pass
+
+            search_task = asyncio.create_task(search_loop())
+            matchmaking_manager.searching_users[username] = search_task
+            
+        while True:
                 try:
                     data = await websocket.receive_text()
                     message = json.loads(data)
                     logger.info(f"Получено сообщение от {username}: {message}")
 
-                    if message.get("type") == "stop_search":
+                    if message.get("type") == "pong":
+                        # Ответ на ping, ничего не делаем
+                        continue
+                    elif message.get("type") == "stop_search":
                         logger.info(f"Остановка поиска для {username}")
                         async with AsyncSessionLocal() as stop_session:
                             await leave_matchmaking_queue(stop_session, user.id)
@@ -476,6 +603,16 @@ async def matchmaking_websocket(websocket: WebSocket, username: str):
         except Exception:
             logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {username}")
     finally:
+        try:
+            if ping_task and not ping_task.done():
+                ping_task.cancel()
+                try:
+                    await ping_task
+                except asyncio.CancelledError:
+                    pass
+        except Exception as e:
+            logger.error(f"Ошибка при отмене задачи ping для {username}: {e}")
+        
         try:
             if search_task and not search_task.done():
                 search_task.cancel()
@@ -520,6 +657,12 @@ async def anonymous_chat_websocket(websocket: WebSocket, chat_id: int, username:
                 await websocket.close(code=4004, reason="Пользователь не найден")
                 return
 
+            # Проверяем, не забанен ли пользователь
+            if not user.is_active:
+                logger.warning(f"Пользователь {username} забанен, отключение WebSocket чата")
+                await websocket.close(code=4003, reason="Аккаунт заблокирован администратором")
+                return
+
             chat = await get_anonymous_chat(session, chat_id, user.id)
             if not chat:
                 logger.warning(f"Чат {chat_id} не найден для пользователя {username}")
@@ -527,6 +670,14 @@ async def anonymous_chat_websocket(websocket: WebSocket, chat_id: int, username:
                 return
 
         await chat_manager.connect(websocket, chat_id, username)
+        
+        # Помечаем сообщения как прочитанные при подключении к чату
+        try:
+            async with AsyncSessionLocal() as read_session:
+                await mark_messages_as_read(read_session, chat_id, user.id)
+                logger.info(f"Сообщения помечены как прочитанные для {username} в чате {chat_id} при подключении")
+        except Exception as e:
+            logger.error(f"Ошибка при пометке сообщений как прочитанных для {username} в чате {chat_id}: {e}")
 
         await websocket.send_json({
             "type": "connected",
@@ -631,12 +782,8 @@ async def get_public_chats(
     username: str,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     chats = await get_user_public_chats(session, user.id)
 
@@ -679,12 +826,8 @@ async def get_anonymous_chat_messages(
     username: str,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     chat = await get_anonymous_chat(session, chat_id, user.id)
     if not chat:
@@ -717,12 +860,8 @@ async def mark_chat_messages_as_read(
     username: str,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     try:
         count = await mark_messages_as_read(session, chat_id, user.id)
@@ -745,12 +884,8 @@ async def send_anonymous_message(
     request: SendAnonymousMessageRequest,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     chat = await get_anonymous_chat(session, chat_id, user.id)
     if not chat:
@@ -772,12 +907,39 @@ async def send_anonymous_message(
         )
 
     try:
+        other_user = chat.user2 if chat.user1_id == user.id else chat.user1
+        
+        # Проверяем ДО создания сообщения, подключен ли получатель к WebSocket чата
+        # Это предотвращает отправку уведомления, если пользователь уже в чате
+        is_user_in_chat_before = False
+        if other_user:
+            is_user_in_chat_before = chat_manager.is_user_connected_to_chat(chat_id, other_user.username)
+            if is_user_in_chat_before:
+                logger.info(f"Пользователь {other_user.username} уже находится в активном чате {chat_id}, уведомление не будет отправлено")
+        
         message = await create_anonymous_message(
             session,
             chat_id,
             user.id,
             request.text,
         )
+
+        # Проверяем еще раз ПОСЛЕ создания сообщения (на случай, если пользователь подключился во время создания)
+        is_user_in_chat_after = False
+        if other_user:
+            is_user_in_chat_after = chat_manager.is_user_connected_to_chat(chat_id, other_user.username)
+            
+            # Если пользователь в активном чате, помечаем новое сообщение как прочитанное СРАЗУ
+            # Это нужно сделать ДО отправки через WebSocket, чтобы уведомление не отправлялось
+            if is_user_in_chat_before or is_user_in_chat_after:
+                logger.info(f"Пользователь {other_user.username} находится в активном чате {chat_id}, помечаем сообщение как прочитанное")
+                try:
+                    message.is_read = True
+                    await session.commit()
+                    await session.refresh(message)
+                    logger.info(f"Сообщение {message.id} помечено как прочитанное для {other_user.username}, так как он в активном чате")
+                except Exception as e:
+                    logger.error(f"Ошибка при пометке сообщения как прочитанного: {e}")
 
         await chat_manager.broadcast_to_chat(
             chat_id,
@@ -788,43 +950,45 @@ async def send_anonymous_message(
             exclude_username=username
         )
 
-        other_user = chat.user2 if chat.user1_id == user.id else chat.user1
         logger.info(f"Отправка сообщения в чат {chat_id} от {user.username}. Другой пользователь: {other_user.username if other_user else 'None'}")
         if other_user:
-            should_notify = False
-            chat_type = "people" if chat.is_public else "anon"
-            
-            logger.info(f"Проверка настроек уведомлений для {other_user.username}: notification_anon_chats={other_user.notification_anon_chats}, notification_open_chats={other_user.notification_open_chats}, chat_type={chat_type}")
-            
-            if chat_type == "anon" and other_user.notification_anon_chats:
-                should_notify = True
-            elif chat_type == "people" and other_user.notification_open_chats:
-                should_notify = True
-            
-            logger.info(f"should_notify={should_notify} для {other_user.username}")
-            
-            if should_notify:
-                unread_count = sum(
-                    1 for msg in chat.messages
-                    if msg.sender_id != other_user.id and not msg.is_read
-                )
+            if is_user_in_chat_before or is_user_in_chat_after:
+                logger.info(f"Пользователь {other_user.username} находится в активном чате {chat_id}, уведомление не отправляется")
+            else:
+                should_notify = False
+                chat_type = "people" if chat.is_public else "anon"
                 
-                if chat.is_public:
-                    chat_name = user.username
-                else:
-                    chat_name = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
-                    chat_name = chat_name or "Собеседник"
+                logger.info(f"Проверка настроек уведомлений для {other_user.username}: notification_anon_chats={other_user.notification_anon_chats}, notification_open_chats={other_user.notification_open_chats}, chat_type={chat_type}")
                 
-                notification_data = {
-                    "chat_id": chat.id,
-                    "chat_name": chat_name,
-                    "chat_type": chat_type,
-                    "unread_count": unread_count,
-                    "last_message": summarize_message_text(message),
-                }
+                if chat_type == "anon" and other_user.notification_anon_chats:
+                    should_notify = True
+                elif chat_type == "people" and other_user.notification_open_chats:
+                    should_notify = True
                 
-                logger.info(f"Отправка уведомления пользователю {other_user.username} для чата {chat.id} (тип: {chat_type}, непрочитанных: {unread_count})")
-                await matchmaking_manager.send_notification(other_user.username, notification_data)
+                logger.info(f"should_notify={should_notify} для {other_user.username}")
+                
+                if should_notify:
+                    unread_count = sum(
+                        1 for msg in chat.messages
+                        if msg.sender_id != other_user.id and not msg.is_read
+                    )
+                    
+                    if chat.is_public:
+                        chat_name = user.username
+                    else:
+                        chat_name = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
+                        chat_name = chat_name or "Собеседник"
+                    
+                    notification_data = {
+                        "chat_id": chat.id,
+                        "chat_name": chat_name,
+                        "chat_type": chat_type,
+                        "unread_count": unread_count,
+                        "last_message": summarize_message_text(message),
+                    }
+                    
+                    logger.info(f"Отправка уведомления пользователю {other_user.username} для чата {chat.id} (тип: {chat_type}, непрочитанных: {unread_count})")
+                    await matchmaking_manager.send_notification(other_user.username, notification_data)
 
         return build_message_payload(message, current_user_id=user.id, is_mine_override=True)
     except ValueError as e:
@@ -840,12 +1004,8 @@ async def reveal_chat(
     username: str,
     session: AsyncSession = Depends(get_db),
 ):
+    await verify_user_active_for_matchmaking(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
 
     try:
         chat, both_revealed = await reveal_anonymous_chat(session, chat_id, user.id)

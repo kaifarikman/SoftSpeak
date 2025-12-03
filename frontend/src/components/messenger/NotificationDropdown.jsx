@@ -37,7 +37,8 @@ const NotificationDropdown = forwardRef(({ notifications, onNotificationClick, o
         <span className="notification-count">{notifications.length}</span>
       </div>
       <div className="notification-list">
-        {notifications.map((notification) => (
+        {notifications.length > 0 ? (
+          notifications.map((notification) => (
           <div
             key={notification.chat_id}
             className="notification-item"
@@ -56,7 +57,12 @@ const NotificationDropdown = forwardRef(({ notifications, onNotificationClick, o
               )}
             </div>
           </div>
-        ))}
+          ))
+        ) : (
+          <div className="notification-dropdown-empty">
+            <p>Нет новых уведомлений</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,13 +21,12 @@ async def get_chat_data_for_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
         )
-
-    if not user.ai_enabled:
-        return ChatResponse(
-            ai=False,
-            anonym=user.anonym,
-            messengers=True,
-            settings=user.settings_enabled,
+    
+    # Проверяем, не забанен ли пользователь
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
         )
 
     chat = await get_chat_with_messages(session, user.id)
@@ -38,6 +37,26 @@ async def get_chat_data_for_user(
     
     profile_completed = await has_completed_profile(session, user.id)
     answers_count = await get_user_answers_count(session, user.id)
+    
+    # Если AI отключен (после завершения опроса), возвращаем историю для просмотра, но отправка будет заблокирована
+    if not user.ai_enabled:
+        # Если есть история и профиль завершен, показываем ее для просмотра
+        if chat and chat.messages and profile_completed:
+            messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
+            # Возвращаем массив сообщений для просмотра, но фронтенд должен блокировать отправку
+            return ChatResponse(
+                ai=messages,  # История для просмотра
+                anonym=user.anonym,
+                messengers=user.messengers_enabled,
+                settings=user.settings_enabled,
+            )
+        # Если истории нет или профиль не завершен, возвращаем ai=False
+        return ChatResponse(
+            ai=False,  # AI недоступен
+            anonym=user.anonym,
+            messengers=user.messengers_enabled,
+            settings=user.settings_enabled,
+        )
     
     if not profile_completed:
         messengers_available = user.messengers_enabled or has_user_messages
@@ -58,6 +77,7 @@ async def get_chat_data_for_user(
                 settings=user.settings_enabled,
             )
     
+    # Профиль завершен, но ai_enabled еще True (старые пользователи)
     if chat and chat.messages:
         messages = [MessageSchema.model_validate(msg) for msg in chat.messages]
         return ChatResponse(
@@ -106,6 +126,12 @@ async def send_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
         )
     
     if not user.ai_enabled:

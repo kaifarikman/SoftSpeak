@@ -178,6 +178,17 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                 manager.disconnect(username)
                 return
 
+            # Проверяем, не забанен ли пользователь
+            if not user.is_active:
+                logger.warning(f"Пользователь {username} забанен, отключение WebSocket survey")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Ваш аккаунт заблокирован администратором. Доступ запрещен."
+                })
+                manager.disconnect(username)
+                await websocket.close(code=4003, reason="Аккаунт заблокирован")
+                return
+
             profile_completed = await has_completed_profile(session, user.id)
             if profile_completed:
                 await websocket.send_json({
@@ -246,8 +257,9 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                     
                     if profile_created:
                         user.messengers_enabled = True
+                        user.ai_enabled = False  # Отключаем AI чат после завершения опроса
                         await session.commit()
-                        logger.info(f"✓ Профиль создан, мессенджеры активированы для {username}")
+                        logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {username}")
                     else:
                         logger.error(f"✗ Не удалось создать профиль для {username}")
                     
@@ -373,8 +385,9 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                                 
                                 if profile_created:
                                     user.messengers_enabled = True
+                                    user.ai_enabled = False  # Отключаем AI чат после завершения опроса
                                     await session.commit()
-                                    logger.info(f"✓ Профиль создан, мессенджеры активированы для {username}")
+                                    logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {username}")
                                 else:
                                     logger.error(f"✗ Не удалось создать профиль для {username}")
                                     await websocket.send_json({

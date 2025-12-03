@@ -3,7 +3,8 @@
   top: calc(100% + 12px);
   right: 0;
   width: 380px;
-  max-height: 500px;
+  /* Высота: header (~60px) + список (330px) = ~390px */
+  height: 390px;
   background: #1a1d29;
   border: 1px solid #2a2d3a;
   border-radius: 16px;
@@ -53,7 +54,32 @@
 
 .notification-list {
   overflow-y: auto;
-  max-height: 400px;
+  /* Точная высота для 3 элементов: каждый элемент ~110px (100px min-height + padding) */
+  /* 3 элемента = 330px */
+  height: 330px;
+  /* Плавный скролл */
+  scroll-behavior: smooth;
+  /* Убираем flex-shrink чтобы список не сжимался */
+  flex-shrink: 0;
+}
+
+/* Кастомный скроллбар для красоты */
+.notification-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #1a1d29;
+  border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
 }
 
 .notification-item {
@@ -61,6 +87,14 @@
   border-bottom: 1px solid #2a2d3a;
   cursor: pointer;
   transition: background 0.2s ease;
+  /* Фиксированная высота для точного расчета */
+  height: 110px;
+  /* Flex для правильного распределения */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  /* Предотвращаем сжатие */
+  flex-shrink: 0;
 }
 
 .notification-item:hover {
@@ -127,7 +161,7 @@
 @media (max-width: 768px) {
   .notification-dropdown {
     width: 320px;
-    max-height: 400px;
+    height: 360px;
     right: -10px;
   }
 
@@ -135,8 +169,13 @@
     padding: 14px 16px;
   }
 
+  .notification-list {
+    height: 300px; /* Для 3 элементов на планшете */
+  }
+
   .notification-item {
     padding: 14px 16px;
+    height: 100px; /* Чуть меньше на планшете */
   }
 }
 
@@ -144,7 +183,15 @@
   .notification-dropdown {
     width: calc(100vw - 32px);
     right: -16px;
-    max-height: 350px;
+    height: 330px;
+  }
+
+  .notification-list {
+    height: 270px; /* Для 3 элементов на мобильном */
+  }
+
+  .notification-item {
+    height: 90px; /* Чуть меньше на мобильном */
   }
 }
 

@@ -8,6 +8,7 @@ import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
 import { API_URL, WS_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
+import { checkBanStatus } from '../../utils/apiHelper';
 
 const ChatArea = memo(({
   selectedChat,
@@ -171,6 +172,10 @@ const ChatArea = memo(({
 
     ws.onclose = (event) => {
       anonChatWsRef.current = null;
+      // Если закрытие из-за бана (код 4003), отправляем событие
+      if (event.code === 4003) {
+        window.dispatchEvent(new Event('userBanned'));
+      }
     };
   };
 
@@ -184,7 +189,7 @@ const ChatArea = memo(({
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = protocol + '//' + host + '/api/matchmaking/ws/' + username;
+    const wsUrl = protocol + '//' + host + '/api/ws/survey/' + username;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -240,6 +245,9 @@ const ChatArea = memo(({
           setTimeout(async () => {
             try {
               const response = await fetch(`${API_URL}/chat/data/${username}`);
+              if (checkBanStatus(response)) {
+                return; // Пользователь забанен
+              }
               if (response.ok) {
                 const newChatData = await response.json();
                 if (onChatDataUpdate) {
@@ -272,6 +280,11 @@ const ChatArea = memo(({
 
     ws.onclose = (event) => {
       isConnectingRef.current = false;
+      // Если закрытие из-за бана (код 4003), не переподключаемся
+      if (event.code === 4003) {
+        window.dispatchEvent(new Event('userBanned'));
+        return;
+      }
       if (event.code !== 1000 && isSurveyActive) {
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -335,6 +348,9 @@ const ChatArea = memo(({
 
     try {
       const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${username}`);
+      if (checkBanStatus(response)) {
+        return; // Пользователь забанен
+      }
       if (response.ok) {
         const data = await response.json();
         const formattedMessages = data.messages.map(mapIncomingMessage);
@@ -385,9 +401,12 @@ const ChatArea = memo(({
         
 
         try {
-          await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
+          const readResponse = await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
             method: 'PUT',
           });
+          if (checkBanStatus(readResponse)) {
+            return; // Пользователь забанен
+          }
           if (window.notificationUpdateCallback) {
             window.notificationUpdateCallback();
           }
@@ -481,8 +500,15 @@ const ChatArea = memo(({
     if (!selectedChat) return;
 
 
-    if (activeSection === 'bot' && chatData && (chatData.ai === false || Array.isArray(chatData.ai))) {
-      return;
+    // Блокируем отправку если AI отключен или опрос завершен (есть история и messengers доступны)
+    if (activeSection === 'bot' && chatData) {
+      if (chatData.ai === false) {
+        return; // AI отключен
+      }
+      // Если есть история сообщений (массив) И messengers доступны (профиль завершен), блокируем отправку
+      if (Array.isArray(chatData.ai) && chatData.ai.length > 0 && chatData.messengers === true) {
+        return; // Опрос завершен, отправка недоступна
+      }
     }
 
     const newMessage = {
@@ -505,6 +531,11 @@ const ChatArea = memo(({
             body: JSON.stringify({ text })
           });
           
+          if (checkBanStatus(response)) {
+            setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+            return; // Пользователь забанен
+          }
+          
           if (response.ok) {
             const savedMessage = await response.json();
             setMessages(prev => prev.map(msg =>
@@ -516,6 +547,9 @@ const ChatArea = memo(({
             setTimeout(async () => {
               try {
                 const chatResponse = await fetch(`${API_URL}/chat/data/${username}`);
+                if (checkBanStatus(chatResponse)) {
+                  return; // Пользователь забанен
+                }
                 if (chatResponse.ok) {
                   const newChatData = await chatResponse.json();
                   if (onChatDataUpdate) {
@@ -536,6 +570,11 @@ const ChatArea = memo(({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
           });
+          
+          if (checkBanStatus(response)) {
+            setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+            return; // Пользователь забанен
+          }
           
           if (response.ok) {
             const savedMessage = await response.json();
@@ -578,6 +617,11 @@ const ChatArea = memo(({
       const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${username}`, {
         method: 'POST',
       });
+      
+      if (checkBanStatus(response)) {
+        return; // Пользователь забанен
+      }
+      
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data) {
@@ -681,6 +725,23 @@ const ChatArea = memo(({
 
   const isSurveyCompleted = chatData && Array.isArray(chatData.ai) && chatData.ai.length > 0;
   
+  // Определяем, завершен ли опрос бота (есть история сообщений и messengers доступны)
+  const isBotSurveyCompleted = activeSection === 'bot' && chatData && 
+    Array.isArray(chatData.ai) && 
+    chatData.ai.length > 0 && 
+    chatData.messengers === true;
+
+  // Отладка для понимания состояния
+  if (activeSection === 'bot' && chatData) {
+    console.log('ChatArea bot state:', {
+      ai: chatData.ai,
+      aiType: typeof chatData.ai,
+      isArray: Array.isArray(chatData.ai),
+      aiLength: Array.isArray(chatData.ai) ? chatData.ai.length : 0,
+      messengers: chatData.messengers,
+      isBotSurveyCompleted
+    });
+  }
 
   const anonDisplayName = activeSection === 'anon'
     ? (chatInfo?.name || selectedChat?.name || 'Собеседник')
@@ -732,14 +793,16 @@ const ChatArea = memo(({
         onSend={handleSendMessage} 
         disabled={
           chatBlocked ||
-          (activeSection === 'bot' && chatData && chatData.ai === false) ||
-          (activeSection === 'bot' && isSurveyCompleted)
+          (activeSection === 'bot' && chatData && (
+            chatData.ai === false || 
+            isBotSurveyCompleted
+          ))
         }
         placeholder={
           chatBlocked 
             ? "Чат заблокирован. Отправка сообщений недоступна."
-            : activeSection === 'bot' && isSurveyCompleted 
-            ? "Опрос завершен. Чат доступен только для просмотра."
+            : isBotSurveyCompleted
+            ? "Нельзя написать сообщение. Опрос завершен."
             : undefined
         }
       />

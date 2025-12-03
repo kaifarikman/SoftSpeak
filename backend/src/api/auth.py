@@ -43,13 +43,27 @@ async def login(
     request_data: LoginRequest,
     session: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    user = await authenticate_user(
-        session,
-        request_data.username,
-        request_data.password.get_secret_value(),
-    )
-
+    from src.db.crud.auth import get_user_by_username
+    from src.core.security import verify_password
+    
+    # Сначала проверяем существование пользователя и его статус
+    user = await get_user_by_username(session, request_data.username)
+    
     if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверный логин или пароль",
+        )
+    
+    # Проверяем, не забанен ли пользователь
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+    
+    # Проверяем пароль
+    if not verify_password(request_data.password.get_secret_value(), user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин или пароль",
@@ -74,6 +88,16 @@ async def request_email_verification(
     request_data: EmailVerificationRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationResponse:
+    from src.db.crud.auth import get_user_by_username
+    
+    # Проверяем, не забанен ли пользователь перед запросом кода
+    user_check = await get_user_by_username(session, request_data.username)
+    if user_check and not user_check.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+    
     try:
         _, verification_code = await issue_email_verification_code(
             session,
@@ -104,6 +128,16 @@ async def confirm_email(
     request_data: EmailVerificationConfirmRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationConfirmResponse:
+    from src.db.crud.auth import get_user_by_username
+    
+    # Проверяем, не забанен ли пользователь перед подтверждением email
+    user_check = await get_user_by_username(session, request_data.username)
+    if user_check and not user_check.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+    
     user = await confirm_email_verification_code(
         session,
         username=request_data.username,

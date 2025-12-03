@@ -27,7 +27,7 @@ function MessageInput({
     <form className="message-input-container" onSubmit={handleSubmit}>
       <input
         type="text"
-        placeholder={disabled ? (placeholder || "Чат недоступен для отправки сообщений") : placeholder}
+        placeholder={placeholder || "Введите сообщение"}
         className="message-input"
         value={text}
         onChange={(e) => setText(e.target.value)}

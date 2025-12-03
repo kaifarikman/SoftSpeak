@@ -96,6 +96,13 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
           });
           
           setTimeout(() => loadNotifications(), 200);
+        } else if (data.type === 'ping') {
+          // Отвечаем на ping для поддержания соединения
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'pong' }));
+          }
+        } else if (data.type === 'connected') {
+          console.log('NotificationIcon: WebSocket подтвердил подключение');
         }
       } catch (err) {
         console.error('Ошибка обработки WebSocket сообщения:', err);
@@ -108,6 +115,8 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
 
     wsRef.current.onclose = (event) => {
       console.log('NotificationIcon: WebSocket для уведомлений отключен. Код:', event.code, 'Причина:', event.reason);
+      // Переподключение только если это не было намеренное закрытие
+      if (event.code !== 1000 && username) {
       setTimeout(() => {
         if (wsRef.current?.readyState === WebSocket.CLOSED && username) {
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -155,13 +164,23 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
                   return updated;
                 });
                 setTimeout(() => loadNotifications(), 200);
+                } else if (data.type === 'ping') {
+                  // Отвечаем на ping
+                  if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({ type: 'pong' }));
+                  }
               }
             } catch (err) {
               console.error('Ошибка обработки WebSocket сообщения:', err);
             }
           };
+            
+            wsRef.current.onerror = (error) => {
+              console.error('NotificationIcon: WebSocket ошибка при переподключении:', error);
+            };
         }
-      }, 1000);
+        }, 500); // Уменьшили задержку переподключения
+      }
     };
 
     const interval = setInterval(() => {

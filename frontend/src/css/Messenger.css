@@ -309,6 +309,14 @@ select.form-control {
   z-index: 0;
 }
 
+/* Когда активен бот, messenger-body становится контейнером для ChatArea или WelcomeScreen */
+.messenger-body > .chat-area,
+.messenger-body > .welcome-screen {
+  width: 100%;
+  height: calc(100vh - 80px);
+  flex: 1;
+}
+
 .messenger-list {
   width: 380px;
   min-width: 380px;
@@ -330,6 +338,12 @@ select.form-control {
   overflow: hidden;
   background: #0f1117;
   margin-left: 380px;
+}
+
+/* Когда список скрыт (чат с ботом), чат занимает весь экран */
+.messenger-chat-fullwidth {
+  margin-left: 0 !important;
+  width: 100% !important;
 }
 
 

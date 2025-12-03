@@ -11,6 +11,22 @@ from src.api.chat import get_chat_data_for_user
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
+
+async def verify_user_active(username: str, session: AsyncSession) -> None:
+    """Проверяет, что пользователь активен (не забанен). Выбрасывает HTTPException если забанен."""
+    user = await get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+
 class UpdateUsernameRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=32)
 
@@ -63,12 +79,8 @@ async def update_username_endpoint(
     request: UpdateUsernameRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     success, error_message = await settings_crud.update_username(
         session, user.id, request.username
@@ -95,12 +107,8 @@ async def update_bio_endpoint(
     request: UpdateBioRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     success, error_message = await settings_crud.update_bio(
         session, user.id, request.bio
@@ -124,12 +132,8 @@ async def update_notification_settings_endpoint(
     request: UpdateNotificationSettingsRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     updated_user = await settings_crud.update_notification_settings(
         session,
@@ -156,12 +160,8 @@ async def change_password_endpoint(
     request: ChangePasswordRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     if request.new_password != request.new_password_confirm:
         return SettingsResponse(
@@ -194,12 +194,8 @@ async def get_blacklist_endpoint(
     username: str,
     session: AsyncSession = Depends(get_db),
 ) -> list[BlacklistUserResponse]:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     blocked_users = await settings_crud.get_blacklist(session, user.id)
     
@@ -218,12 +214,8 @@ async def add_to_blacklist_endpoint(
     request: AddToBlacklistRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     success, error_message = await settings_crud.add_to_blacklist(
         session, user.id, request.username
@@ -247,12 +239,8 @@ async def remove_from_blacklist_endpoint(
     blocked_username: str,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
+    await verify_user_active(username, session)
     user = await get_user_by_username(session, username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
     
     success, error_message = await settings_crud.remove_from_blacklist(
         session, user.id, blocked_username
@@ -270,6 +258,25 @@ async def remove_from_blacklist_endpoint(
     )
 
 
+@router.get("/status/{username}")
+async def get_user_status(
+    username: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """Проверка статуса пользователя (забанен ли он)"""
+    user = await get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    return {
+        "is_active": user.is_active,
+        "username": user.username
+    }
+
+
 @router.get("/{username}", response_model=UserSettingsResponse)
 async def get_user_settings(
     username: str,
@@ -280,6 +287,13 @@ async def get_user_settings(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
+        )
+    
+    # Проверяем, не забанен ли пользователь
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
         )
     
     return UserSettingsResponse(

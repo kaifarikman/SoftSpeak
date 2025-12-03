@@ -114,6 +114,7 @@ async def submit_answer(
             await create_psychological_profile(session, user.id, profile_vector)
             
             user.messengers_enabled = True
+            user.ai_enabled = False  # Отключаем AI чат после завершения опроса
             await session.commit()
     
     return UserAnswerSchema.model_validate(answer)
