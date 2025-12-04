@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
 import { logError, handleWebSocketError } from '../../utils/errorHandler';
 
-function Survey({ username, onComplete }) {
+function Survey({ email, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentNumber, setCurrentNumber] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(10);
@@ -14,7 +14,7 @@ function Survey({ username, onComplete }) {
   const isConnectingRef = useRef(false);
 
   useEffect(() => {
-    if (!username) return;
+    if (!email) return;
 
     connectWebSocket();
 
@@ -35,10 +35,10 @@ function Survey({ username, onComplete }) {
       }
       isConnectingRef.current = false;
     };
-  }, [username]);
+  }, [email]);
 
   const connectWebSocket = () => {
-    if (!username || isConnectingRef.current) return;
+    if (!email || isConnectingRef.current) return;
     
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -47,7 +47,8 @@ function Survey({ username, onComplete }) {
 
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/api/ws/survey/${email}`;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

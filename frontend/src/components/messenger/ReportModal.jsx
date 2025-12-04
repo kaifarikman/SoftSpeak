@@ -43,14 +43,14 @@ function ReportModal({ chatId, isOpen, onClose, onReportSubmitted }) {
     setError('');
 
     try {
-      const username = localStorage.getItem('username');
-      if (!username) {
+      const email = localStorage.getItem('email');
+      if (!email) {
         setError('Пользователь не авторизован');
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${API_URL}/reports?username=${username}`, {
+      const response = await fetch(`${API_URL}/reports?email=${email}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

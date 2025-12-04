@@ -397,9 +397,9 @@ async def ban_user_from_report(
     _token: str = Depends(get_admin_token),
 ) -> AdminActionResponse:
     from src.core.config import settings
-    from src.db.crud.auth import get_user_by_username
+    from src.db.crud.auth import get_user_by_nickname
     
-    admin_user = await get_user_by_username(session, settings.admin_username)
+    admin_user = await get_user_by_nickname(session, settings.admin_username)
     admin_id = admin_user.id if admin_user else None
     
     success, error_message = await reports_crud.ban_user_from_report(
@@ -427,9 +427,9 @@ async def reject_report(
     _token: str = Depends(get_admin_token),
 ) -> AdminActionResponse:
     from src.core.config import settings
-    from src.db.crud.auth import get_user_by_username
+    from src.db.crud.auth import get_user_by_nickname
     
-    admin_user = await get_user_by_username(session, settings.admin_username)
+    admin_user = await get_user_by_nickname(session, settings.admin_username)
     admin_id = admin_user.id if admin_user else None
     
     success, error_message = await reports_crud.reject_report(

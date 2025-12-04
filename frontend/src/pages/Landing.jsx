@@ -7,8 +7,8 @@ function Landing() {
 
   useEffect(() => {
 
-    const username = localStorage.getItem('username');
-    if (username) {
+    const email = localStorage.getItem('email');
+    if (email) {
       navigate('/home');
     }
   }, [navigate]);

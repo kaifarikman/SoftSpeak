@@ -1,6 +1,6 @@
 import '../../css/components/WelcomeScreen.css';
 
-function WelcomeScreen({ username, onSelectSection }) {
+function WelcomeScreen({ email, onSelectSection }) {
   const features = [
     { id: 'bot', emoji: '🤖', title: 'AI Чат-бот', description: 'Умный ассистент для психологической поддержки' },
     { id: 'anon', emoji: '🎭', title: 'Анонимные чаты', description: 'Найдите собеседника и общайтесь инкогнито' },
@@ -25,13 +25,16 @@ function WelcomeScreen({ username, onSelectSection }) {
           <p className="welcome-subtitle">Платформа доверенного диалога</p>
         </div>
 
-        {username && (
+        {(() => {
+          const nickname = localStorage.getItem('nickname') || '';
+          return nickname && (
           <div className="welcome-greeting">
             <p className="greeting-text">
-              Добро пожаловать, <span className="username-highlight">{username}</span>!
+                Добро пожаловать, <span className="username-highlight">{nickname}</span>!
             </p>
           </div>
-        )}
+          );
+        })()}
 
         <div className="welcome-features">
           {features.map((feature) => (

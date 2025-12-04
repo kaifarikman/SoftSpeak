@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { API_URL } from '../config';
+import { formatHttpError } from '../utils/errorFormatter';
 
 function SignUp() {
   const navigate = useNavigate();
@@ -20,14 +21,23 @@ function SignUp() {
     e.preventDefault();
     setError('');
     
+    // Проверка на пустые поля
+    if (!login || !login.trim()) {
+      setError('Пожалуйста, введите логин');
+      return;
+    }
+    
+    if (!email || !email.trim()) {
+      setError('Пожалуйста, введите адрес электронной почты');
+      return;
+    }
 
     if (!validateEmail(email)) {
       setError('Пожалуйста, введите корректный адрес электронной почты');
       return;
     }
     
-
-    if (password.length < 8) {
+    if (!password || password.length < 8) {
       setError('Пароль должен быть не менее 8 символов');
       return;
     }
@@ -35,21 +45,28 @@ function SignUp() {
     setLoading(true);
 
     try {
+      const requestBody = {
+        nickname: login.trim(),
+        email: email.trim(),
+        password: password
+      };
+      
+      console.log('Отправка запроса регистрации:', { ...requestBody, password: '***' });
 
       const response = await fetch(`${API_URL}/auth/email/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          username: login,
-          email: email,
-          password: password
-        })
+        body: JSON.stringify(requestBody)
       });
+      
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail || 'Ошибка регистрации');
+        console.error('Ошибка регистрации:', data);
+        // Используем formatHttpError для правильного форматирования ошибок
+        const errorMessage = formatHttpError(response, data);
+        throw new Error(errorMessage);
       }
 
 

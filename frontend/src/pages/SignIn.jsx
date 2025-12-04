@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { API_URL } from '../config';
+import { formatHttpError } from '../utils/errorFormatter';
 
 function SignIn() {
   const navigate = useNavigate();
-  const [login, setLogin] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +25,7 @@ function SignIn() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: login,
+          email: email,
           password: password
         })
       });
@@ -32,13 +33,16 @@ function SignIn() {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || 'Неверный логин или пароль');
+        // Используем formatHttpError для правильного форматирования ошибок
+        const errorMessage = formatHttpError(response, data);
+        throw new Error(errorMessage);
       }
 
 
       if (data.chat_data) {
         localStorage.setItem('chat_data', JSON.stringify(data.chat_data));
-        localStorage.setItem('username', data.username);
+        localStorage.setItem('email', data.email);
+        localStorage.setItem('nickname', data.nickname);
 
         window.dispatchEvent(new Event('chatDataUpdated'));
       }
@@ -69,9 +73,9 @@ function SignIn() {
             <label>Логин</label>
             <input 
               type="text" 
-              placeholder="Логин"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
+              placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
               autocomplete="off"
               required
             />

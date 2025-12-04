@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.crud.chat import get_chat_with_messages, get_or_create_active_chat, create_message
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email
 from src.db.crud.psychological import has_completed_profile, get_user_answers_count
 from src.db.session import get_db
 from src.schemas.chat import ChatResponse, MessageSchema
@@ -13,17 +13,17 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 async def get_chat_data_for_user(
     session: AsyncSession,
-    username: str,
+    email: str,
 ) -> ChatResponse:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
         )
-    
+
     # Проверяем, не забанен ли пользователь
-    if not user.is_active:
+    if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
@@ -96,15 +96,15 @@ async def get_chat_data_for_user(
 
 
 @router.get(
-    "/data/{username}",
+    "/data/{email}",
     response_model=ChatResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_chat_data(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
-    return await get_chat_data_for_user(session, username)
+    return await get_chat_data_for_user(session, email)
 
 
 class SendMessageRequest(BaseModel):
@@ -112,23 +112,23 @@ class SendMessageRequest(BaseModel):
 
 
 @router.post(
-    "/message/{username}",
+    "/message/{email}",
     response_model=MessageSchema,
     status_code=status.HTTP_201_CREATED,
 )
 async def send_message(
-    username: str,
+    email: str,
     request: SendMessageRequest,
     session: AsyncSession = Depends(get_db),
 ) -> MessageSchema:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
         )
     
-    if not user.is_active:
+    if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",

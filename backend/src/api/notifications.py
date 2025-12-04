@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from src.db.session import get_db
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email
 from src.db.crud import notifications as notifications_crud
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -19,19 +19,19 @@ class NotificationSchema(BaseModel):
     last_message_time: str
 
 
-@router.get("/{username}", response_model=list[NotificationSchema])
+@router.get("/{email}", response_model=list[NotificationSchema])
 async def get_notifications(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> list[NotificationSchema]:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
         )
     
-    if not user.is_active:
+    if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",

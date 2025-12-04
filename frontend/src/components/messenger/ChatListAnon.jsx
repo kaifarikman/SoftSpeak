@@ -6,17 +6,17 @@ import { logError, handleApiError } from '../../utils/errorHandler';
 import '../../css/components/ChatListAnon.css';
 import '../../css/components/MatchmakingButton.css';
 
-const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onChatsUpdate }) => {
+const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, email, onChatsUpdate }) => {
   const [localChats, setLocalChats] = useState(chats || []);
 
   useEffect(() => {
-    if (username) {
+    if (email) {
       loadChats();
 
       const interval = setInterval(loadChats, 300000);
       return () => clearInterval(interval);
     }
-  }, [username]);
+  }, [email]);
 
   useEffect(() => {
     if (Array.isArray(chats)) {
@@ -25,10 +25,10 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
   }, [chats]);
 
   const loadChats = async () => {
-    if (!username) return;
+    if (!email) return;
     
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chats/${username}`);
+      const response = await fetch(`${API_URL}/matchmaking/chats/${email}`);
       if (response.ok) {
         const data = await response.json();
 
@@ -54,7 +54,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
     
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chats/${username}`);
+      const response = await fetch(`${API_URL}/matchmaking/chats/${email}`);
       if (response.ok) {
         const data = await response.json();
         const formattedChats = data.map(chat => ({
@@ -81,7 +81,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
 
           console.log('Chat not found immediately, retrying in 500ms...');
           setTimeout(async () => {
-            const retryResponse = await fetch(`${API_URL}/matchmaking/chats/${username}`);
+            const retryResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
             if (retryResponse.ok) {
               const retryData = await retryResponse.json();
             const retryFormattedChats = retryData.map(chat => ({
@@ -114,7 +114,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, username, onC
   return (
     <div className="chat-list-anon">
       <MatchmakingButton 
-        username={username} 
+        email={email} 
         onMatchFound={handleMatchFound}
       />
       {localChats.length === 0 ? (

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from src.db.session import get_db
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email, get_user_by_nickname
 from src.db.crud import settings as settings_crud
 from src.schemas.chat import ChatResponse
 from src.api.chat import get_chat_data_for_user
@@ -12,23 +12,23 @@ from src.api.chat import get_chat_data_for_user
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-async def verify_user_active(username: str, session: AsyncSession) -> None:
+async def verify_user_active(email: str, session: AsyncSession) -> None:
     """Проверяет, что пользователь активен (не забанен). Выбрасывает HTTPException если забанен."""
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден",
         )
     
-    if not user.is_active:
+    if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
         )
 
-class UpdateUsernameRequest(BaseModel):
-    username: str = Field(..., min_length=3, max_length=32)
+class UpdateNicknameRequest(BaseModel):
+    nickname: str = Field(..., min_length=3, max_length=32)
 
 class UpdateBioRequest(BaseModel):
     bio: Optional[str] = Field(None, max_length=500)
@@ -73,17 +73,17 @@ class UserSettingsResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.put("/profile/username/{username}", response_model=SettingsResponse)
-async def update_username_endpoint(
-    username: str,
-    request: UpdateUsernameRequest,
+@router.put("/profile/nickname/{email}", response_model=SettingsResponse)
+async def update_nickname_endpoint(
+    email: str,
+    request: UpdateNicknameRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     success, error_message = await settings_crud.update_username(
-        session, user.id, request.username
+        session, user.id, request.nickname
     )
     
     if not success:
@@ -92,7 +92,7 @@ async def update_username_endpoint(
             message=error_message or "Ошибка обновления никнейма",
         )
     
-    chat_data = await get_chat_data_for_user(session, request.username)
+    chat_data = await get_chat_data_for_user(session, email)
     
     return SettingsResponse(
         success=True,
@@ -101,14 +101,14 @@ async def update_username_endpoint(
     )
 
 
-@router.put("/profile/bio/{username}", response_model=SettingsResponse)
+@router.put("/profile/bio/{email}", response_model=SettingsResponse)
 async def update_bio_endpoint(
-    username: str,
+    email: str,
     request: UpdateBioRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     success, error_message = await settings_crud.update_bio(
         session, user.id, request.bio
@@ -126,14 +126,14 @@ async def update_bio_endpoint(
     )
 
 
-@router.put("/notifications/{username}", response_model=SettingsResponse)
+@router.put("/notifications/{email}", response_model=SettingsResponse)
 async def update_notification_settings_endpoint(
-    username: str,
+    email: str,
     request: UpdateNotificationSettingsRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     updated_user = await settings_crud.update_notification_settings(
         session,
@@ -154,14 +154,14 @@ async def update_notification_settings_endpoint(
     )
 
 
-@router.put("/account/password/{username}", response_model=SettingsResponse)
+@router.put("/account/password/{email}", response_model=SettingsResponse)
 async def change_password_endpoint(
-    username: str,
+    email: str,
     request: ChangePasswordRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     if request.new_password != request.new_password_confirm:
         return SettingsResponse(
@@ -189,33 +189,33 @@ async def change_password_endpoint(
 
 
 
-@router.get("/blacklist/{username}", response_model=list[BlacklistUserResponse])
+@router.get("/blacklist/{email}", response_model=list[BlacklistUserResponse])
 async def get_blacklist_endpoint(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> list[BlacklistUserResponse]:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     blocked_users = await settings_crud.get_blacklist(session, user.id)
     
     return [
         BlacklistUserResponse(
             id=u.id,
-            username=u.username,
+            username=u.nickname,
         )
         for u in blocked_users
     ]
 
 
-@router.post("/blacklist/{username}", response_model=SettingsResponse)
+@router.post("/blacklist/{email}", response_model=SettingsResponse)
 async def add_to_blacklist_endpoint(
-    username: str,
+    email: str,
     request: AddToBlacklistRequest,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     success, error_message = await settings_crud.add_to_blacklist(
         session, user.id, request.username
@@ -233,14 +233,14 @@ async def add_to_blacklist_endpoint(
     )
 
 
-@router.delete("/blacklist/{username}", response_model=SettingsResponse)
+@router.delete("/blacklist/{email}", response_model=SettingsResponse)
 async def remove_from_blacklist_endpoint(
-    username: str,
+    email: str,
     blocked_username: str,
     session: AsyncSession = Depends(get_db),
 ) -> SettingsResponse:
-    await verify_user_active(username, session)
-    user = await get_user_by_username(session, username)
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
     
     success, error_message = await settings_crud.remove_from_blacklist(
         session, user.id, blocked_username
@@ -258,13 +258,13 @@ async def remove_from_blacklist_endpoint(
     )
 
 
-@router.get("/status/{username}")
+@router.get("/status/{email}")
 async def get_user_status(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ):
     """Проверка статуса пользователя (забанен ли он)"""
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -272,17 +272,18 @@ async def get_user_status(
         )
     
     return {
-        "is_active": user.is_active,
-        "username": user.username
+        "is_banned": user.is_banned,
+        "email": user.email,
+        "nickname": user.nickname
     }
 
 
-@router.get("/{username}", response_model=UserSettingsResponse)
+@router.get("/{email}", response_model=UserSettingsResponse)
 async def get_user_settings(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> UserSettingsResponse:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -290,14 +291,14 @@ async def get_user_settings(
         )
     
     # Проверяем, не забанен ли пользователь
-    if not user.is_active:
+    if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
         )
     
     return UserSettingsResponse(
-        username=user.username,
+        username=user.nickname,
         bio=user.bio,
         notification_anon_chats=user.notification_anon_chats,
         notification_open_chats=user.notification_open_chats,

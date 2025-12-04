@@ -14,11 +14,12 @@ const ChatArea = memo(({
   selectedChat,
   activeSection,
   chatData,
-  username,
+  email,
   onChatDataUpdate,
   onChatRevealed,
   isStandalone = false,
   onAnonChatExit,
+  onSectionChange,
 }) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -43,7 +44,7 @@ const ChatArea = memo(({
 
   useEffect(() => {
 
-    if (activeSection === 'bot' && chatData && chatData.ai === 'start_survey' && username) {
+    if (activeSection === 'bot' && chatData && chatData.ai === 'start_survey' && email) {
       setIsSurveyActive(true);
       connectSurveyWebSocket();
       
@@ -71,7 +72,7 @@ const ChatArea = memo(({
         wsRef.current = null;
       }
     }
-  }, [activeSection, chatData?.ai, username]);
+  }, [activeSection, chatData?.ai, email]);
 
   useEffect(() => {
     if (activeSection !== 'anon') {
@@ -82,7 +83,7 @@ const ChatArea = memo(({
 
 
   useEffect(() => {
-    if (selectedChat && selectedChat.id && username && (activeSection === 'anon' || activeSection === 'people')) {
+    if (selectedChat && selectedChat.id && email && (activeSection === 'anon' || activeSection === 'people')) {
       connectAnonymousChatWebSocket(selectedChat.id);
       anonChatIdRef.current = selectedChat.id;
 
@@ -106,10 +107,10 @@ const ChatArea = memo(({
       }
       anonChatIdRef.current = null;
     }
-  }, [activeSection, selectedChat?.id, username]);
+  }, [activeSection, selectedChat?.id, email]);
 
   const connectAnonymousChatWebSocket = (chatId) => {
-    if (!username || !chatId) return;
+    if (!email || !chatId) return;
     
     if (anonChatWsRef.current && anonChatWsRef.current.readyState === WebSocket.OPEN) {
       return;
@@ -118,7 +119,7 @@ const ChatArea = memo(({
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = protocol + '//' + host + '/api/matchmaking/chat/' + chatId + '/ws/' + username;
+    const wsUrl = protocol + '//' + host + '/api/matchmaking/chat/' + chatId + '/ws/' + email;
 
     const ws = new WebSocket(wsUrl);
     anonChatWsRef.current = ws;
@@ -152,7 +153,7 @@ const ChatArea = memo(({
           if (data.both_revealed && onChatRevealed) {
             const formattedChat = {
               id: data.chat_id,
-              name: data.other_user.username,
+              name: data.other_user.nickname || data.other_user.username,
               lastMessage: data.last_message || '',
               lastMessageTime: data.last_message_time
                 ? new Date(data.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -180,7 +181,7 @@ const ChatArea = memo(({
   };
 
   const connectSurveyWebSocket = () => {
-    if (!username || isConnectingRef.current) return;
+    if (!email || isConnectingRef.current) return;
     
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return;
@@ -189,7 +190,7 @@ const ChatArea = memo(({
     isConnectingRef.current = true;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = protocol + '//' + host + '/api/ws/survey/' + username;
+    const wsUrl = protocol + '//' + host + '/api/ws/survey/' + email;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -244,7 +245,7 @@ const ChatArea = memo(({
           
           setTimeout(async () => {
             try {
-              const response = await fetch(`${API_URL}/chat/data/${username}`);
+              const response = await fetch(`${API_URL}/chat/data/${email}`);
               if (checkBanStatus(response)) {
                 return; // Пользователь забанен
               }
@@ -252,6 +253,10 @@ const ChatArea = memo(({
                 const newChatData = await response.json();
                 if (onChatDataUpdate) {
                   onChatDataUpdate(newChatData);
+                }
+                // Если мы не в секции 'bot', автоматически переключаемся на неё
+                if (activeSection !== 'bot' && onSectionChange) {
+                  onSectionChange('bot');
                 }
               }
             } catch (err) {
@@ -344,10 +349,10 @@ const ChatArea = memo(({
   }, []);
 
   const loadConversationMessages = useCallback(async (chatId) => {
-    if (!username) return;
+    if (!email) return;
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${username}`);
+      const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${email}`);
       if (checkBanStatus(response)) {
         return; // Пользователь забанен
       }
@@ -401,7 +406,7 @@ const ChatArea = memo(({
         
 
         try {
-          const readResponse = await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${username}`, {
+          const readResponse = await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${email}`, {
             method: 'PUT',
           });
           if (checkBanStatus(readResponse)) {
@@ -419,7 +424,7 @@ const ChatArea = memo(({
     } catch (error) {
       setMessages([]);
     }
-  }, [username, mapIncomingMessage]);
+  }, [email, mapIncomingMessage]);
 
 
   useEffect(() => {
@@ -469,7 +474,7 @@ const ChatArea = memo(({
     } else {
       setMessages([]);
     }
-  }, [selectedChat, activeSection, chatData?.ai, username, loadConversationMessages]);
+  }, [selectedChat, activeSection, chatData?.ai, email, loadConversationMessages]);
 
 
 
@@ -519,13 +524,13 @@ const ChatArea = memo(({
     };
     setMessages(prev => [...prev, newMessage]);
 
-    if (username) {
+    if (email) {
       try {
         let response;
         
         if (activeSection === 'bot') {
 
-          response = await fetch(`${API_URL}/chat/message/${username}`, {
+          response = await fetch(`${API_URL}/chat/message/${email}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
@@ -546,7 +551,7 @@ const ChatArea = memo(({
 
             setTimeout(async () => {
               try {
-                const chatResponse = await fetch(`${API_URL}/chat/data/${username}`);
+                const chatResponse = await fetch(`${API_URL}/chat/data/${email}`);
                 if (checkBanStatus(chatResponse)) {
                   return; // Пользователь забанен
                 }
@@ -565,7 +570,7 @@ const ChatArea = memo(({
           }
         } else if ((activeSection === 'anon' || activeSection === 'people') && selectedChat && selectedChat.id) {
 
-          response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/message/${username}`, {
+          response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/message/${email}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
@@ -595,13 +600,14 @@ const ChatArea = memo(({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('username');
+    localStorage.removeItem('email');
+    localStorage.removeItem('nickname');
     localStorage.removeItem('chat_data');
     navigate('/signin');
   };
 
   const handleRevealChat = async () => {
-    if (!selectedChat || !username || isRevealing) {
+    if (!selectedChat || !email || isRevealing) {
       return;
     }
 
@@ -614,7 +620,7 @@ const ChatArea = memo(({
     setRevealError('');
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${username}`, {
+      const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${email}`, {
         method: 'POST',
       });
       
@@ -695,7 +701,7 @@ const ChatArea = memo(({
         {selectedChat && <ChatHeader chat={selectedChat} />}
         <SettingsContent
           selectedSetting={selectedChat}
-          username={username}
+          email={email}
           onChatDataUpdate={onChatDataUpdate}
         />
       </div>

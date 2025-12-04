@@ -32,7 +32,7 @@ function VerifyCode() {
       const response = await fetch(`${API_URL}/auth/email/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentLogin, code: code }),
+        body: JSON.stringify({ nickname: currentLogin, code: code }),
       });
 
       const data = await response.json();
@@ -43,7 +43,8 @@ function VerifyCode() {
 
       if (data.chat_data) {
         localStorage.setItem('chat_data', JSON.stringify(data.chat_data));
-        localStorage.setItem('username', currentLogin);
+        // Сохраняем nickname, email будет сохранен после подтверждения
+        localStorage.setItem('nickname', currentLogin);
 
         window.dispatchEvent(new Event('chatDataUpdated'));
       }

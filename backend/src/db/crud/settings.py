@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from src.db.models import User, Blacklist
 from src.core.security import verify_password, hash_password
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_nickname
 
 FORBIDDEN_USERNAMES = {
     "admin", "administrator", "root", "system", "support", "help",
@@ -17,20 +17,20 @@ FORBIDDEN_USERNAMES = {
 }
 
 
-async def update_username(session: AsyncSession, user_id: int, new_username: str) -> tuple[bool, Optional[str]]:
-    existing_user = await get_user_by_username(session, new_username)
+async def update_username(session: AsyncSession, user_id: int, new_nickname: str) -> tuple[bool, Optional[str]]:
+    existing_user = await get_user_by_nickname(session, new_nickname)
     if existing_user and existing_user.id != user_id:
         return False, "Никнейм занят"
     
-    if not new_username.replace('_', '').replace('-', '').isalnum():
+    if not new_nickname.replace('_', '').replace('-', '').isalnum():
         return False, "Никнейм может содержать только буквы, цифры, дефисы и подчеркивания"
     
-    if len(new_username) < 3 or len(new_username) > 32:
+    if len(new_nickname) < 3 or len(new_nickname) > 32:
         return False, "Никнейм должен быть от 3 до 32 символов"
     
-    username_lower = new_username.lower().strip()
+    nickname_lower = new_nickname.lower().strip()
     for forbidden in FORBIDDEN_USERNAMES:
-        if username_lower == forbidden.lower():
+        if nickname_lower == forbidden.lower():
             return False, f"Никнейм не может быть '{forbidden}'"
     
     user_stmt = select(User).where(User.id == user_id)
@@ -40,7 +40,7 @@ async def update_username(session: AsyncSession, user_id: int, new_username: str
     if not user:
         return False, "Пользователь не найден"
     
-    user.username = new_username
+    user.nickname = new_nickname
     await session.commit()
     return True, None
 
@@ -119,10 +119,10 @@ async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username
     if not user:
         return False, "Пользователь не найден"
     
-    if user.username == blocked_username:
+    if user.nickname == blocked_username:
         return False, "Нельзя заблокировать самого себя"
     
-    blocked_user = await get_user_by_username(session, blocked_username)
+    blocked_user = await get_user_by_nickname(session, blocked_username)
     if not blocked_user:
         return False, "Пользователь не найден"
     
@@ -148,7 +148,7 @@ async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username
 
 
 async def remove_from_blacklist(session: AsyncSession, user_id: int, blocked_username: str) -> tuple[bool, Optional[str]]:
-    blocked_user = await get_user_by_username(session, blocked_username)
+    blocked_user = await get_user_by_nickname(session, blocked_username)
     if not blocked_user:
         return False, "Пользователь не найден"
     

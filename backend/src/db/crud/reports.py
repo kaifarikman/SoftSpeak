@@ -151,7 +151,7 @@ async def ban_user_from_report(
     if not user:
         return False, "Пользователь не найден"
     
-    user.is_active = False
+    user.is_banned = True
     report.status = "banned"
     report.resolved_at = datetime.now(timezone.utc)
     report.resolved_by_admin_id = admin_id

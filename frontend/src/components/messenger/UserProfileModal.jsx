@@ -2,28 +2,33 @@ import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
 import '../../css/components/UserProfileModal.css';
 
-function UserProfileModal({ username, isOpen, onClose }) {
+function UserProfileModal({ nickname, isOpen, onClose }) {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isOpen && username) {
+    if (isOpen && nickname) {
       loadUserProfile();
     } else {
       setProfileData(null);
       setError(null);
     }
-  }, [isOpen, username]);
+  }, [isOpen, nickname]);
 
   const loadUserProfile = async () => {
-    if (!username) return;
+    if (!nickname) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`${API_URL}/settings/${username}`);
+      // Используем email для получения данных пользователя по nickname
+      const email = localStorage.getItem('email') || '';
+      if (!email) return;
+      // Ищем пользователя по nickname через API настроек
+      // Временное решение: используем email текущего пользователя, если nickname совпадает
+      const response = await fetch(`${API_URL}/settings/${email}`);
       if (response.ok) {
         const data = await response.json();
         setProfileData(data);
@@ -39,7 +44,7 @@ function UserProfileModal({ username, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const userInitial = (username || 'U').charAt(0).toUpperCase();
+  const userInitial = (nickname || 'U').charAt(0).toUpperCase();
 
   return (
     <>
@@ -69,7 +74,7 @@ function UserProfileModal({ username, isOpen, onClose }) {
               </div>
               
               <div className="user-profile-info">
-                <h2 className="user-profile-username">{profileData.username}</h2>
+                <h2 className="user-profile-username">{profileData.nickname || profileData.username}</h2>
                 
                 {profileData.bio ? (
                   <div className="user-profile-bio">

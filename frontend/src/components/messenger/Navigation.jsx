@@ -12,7 +12,7 @@ const NAV_SECTIONS = [
   { id: 'settings', icon: settingsIcon, title: 'Настройки' }
 ];
 
-function Navigation({ activeSection, setActiveSection, chatData, username, onNotificationClick }) {
+function Navigation({ activeSection, setActiveSection, chatData, email, onNotificationClick }) {
   const availableSections = useMemo(() => {
     return NAV_SECTIONS.filter(section => {
       if (!chatData) return true;
@@ -31,7 +31,8 @@ function Navigation({ activeSection, setActiveSection, chatData, username, onNot
     });
   }, [chatData]);
 
-  const userInitial = (username || 'U').charAt(0).toUpperCase();
+  const nickname = localStorage.getItem('nickname') || '';
+  const userInitial = (nickname || 'U').charAt(0).toUpperCase();
 
   return (
     <div className="navigation">
@@ -49,10 +50,10 @@ function Navigation({ activeSection, setActiveSection, chatData, username, onNot
       </div>
       <div className="nav-right">
         <NotificationIcon
-          username={username}
+          email={email}
           onNotificationClick={onNotificationClick}
         />
-        <div className="user-avatar" title={username || 'Профиль'}>
+        <div className="user-avatar" title={nickname || 'Профиль'}>
           <div className="avatar-circle">
             <span className="avatar-placeholder">{userInitial}</span>
           </div>

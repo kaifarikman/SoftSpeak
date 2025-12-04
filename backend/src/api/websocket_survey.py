@@ -8,7 +8,7 @@ from fastapi import WebSocket, WebSocketDisconnect, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.session import AsyncSessionLocal
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email
 from src.db.crud.psychological import (
     get_next_question_for_user,
     save_user_answer,
@@ -47,21 +47,21 @@ async def _retry_pending_profiles():
             queue_copy = _pending_profiles_queue.copy()
             _pending_profiles_queue.clear()
         
-        for user_id, username, timestamp in queue_copy:
+        for user_id, email, timestamp in queue_copy:
             try:
                 async with AsyncSessionLocal() as session:
-                    profile_created = await create_profile_with_embeddings(session, user_id, username)
+                    profile_created = await create_profile_with_embeddings(session, user_id, email)
                     if profile_created:
-                        logger.info(f"✓ Отложенный профиль успешно создан для {username}")
+                        logger.info(f"✓ Отложенный профиль успешно создан для {email}")
                     else:
                         if (datetime.now(timezone.utc) - timestamp).total_seconds() < 3600:
                             async with _get_queue_lock():
-                                _pending_profiles_queue.append((user_id, username, timestamp))
+                                _pending_profiles_queue.append((user_id, email, timestamp))
             except Exception as e:
-                logger.error(f"Ошибка при обработке отложенного профиля для {username}: {e}")
+                logger.error(f"Ошибка при обработке отложенного профиля для {email}: {e}")
                 if (datetime.now(timezone.utc) - timestamp).total_seconds() < 3600:
                     async with _get_queue_lock():
-                        _pending_profiles_queue.append((user_id, username, timestamp))
+                        _pending_profiles_queue.append((user_id, email, timestamp))
 
 
 _retry_task = None
@@ -74,9 +74,9 @@ def start_retry_task():
         logger.info("Запущена фоновая задача для обработки отложенных профилей")
 
 
-async def create_profile_with_embeddings(session: AsyncSession, user_id: int, username: str) -> bool:
+async def create_profile_with_embeddings(session: AsyncSession, user_id: int, email: str) -> bool:
     try:
-        logger.info(f"Начало создания профиля для {username}")
+        logger.info(f"Начало создания профиля для {email}")
         
         answers = await get_user_answers(session, user_id)
         if len(answers) < 10:
@@ -104,7 +104,7 @@ async def create_profile_with_embeddings(session: AsyncSession, user_id: int, us
                 if "ml сервис" in error_msg or "не удалось подключиться" in error_msg or "недоступен" in error_msg:
                     logger.warning(f"ML-сервис недоступен для ответа {answer.id}, добавляем в очередь")
                     async with _get_queue_lock():
-                        _pending_profiles_queue.append((user_id, username, datetime.now(timezone.utc)))
+                        _pending_profiles_queue.append((user_id, email, datetime.now(timezone.utc)))
                     start_retry_task()
                     return False
                 else:
@@ -115,10 +115,10 @@ async def create_profile_with_embeddings(session: AsyncSession, user_id: int, us
                 return False
         
         await session.commit()
-        logger.info(f"Все эмбеддинги созданы для {username}")
+        logger.info(f"Все эмбеддинги созданы для {email}")
         
         if len(embeddings) >= 10:
-            logger.info(f"Создание вектора профиля для {username}...")
+            logger.info(f"Создание вектора профиля для {email}...")
             profile_vector = await create_profile_vector(embeddings)
             
             old_profile = await get_psychological_profile(session, user_id)
@@ -127,14 +127,14 @@ async def create_profile_with_embeddings(session: AsyncSession, user_id: int, us
             
             await create_psychological_profile(session, user_id, profile_vector)
             await session.commit()
-            logger.info(f"✓ Профиль успешно создан для {username}")
+            logger.info(f"✓ Профиль успешно создан для {email}")
             return True
         else:
             logger.error(f"Недостаточно эмбеддингов: {len(embeddings)}/10")
             return False
             
     except Exception as e:
-        logger.error(f"Ошибка создания профиля для {username}: {e}", exc_info=True)
+        logger.error(f"Ошибка создания профиля для {email}: {e}", exc_info=True)
         return False
 
 
@@ -143,49 +143,49 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket, username: str):
+    async def connect(self, websocket: WebSocket, email: str):
         await websocket.accept()
-        self.active_connections[username] = websocket
+        self.active_connections[email] = websocket
 
-    def disconnect(self, username: str):
-        if username in self.active_connections:
-            del self.active_connections[username]
+    def disconnect(self, email: str):
+        if email in self.active_connections:
+            del self.active_connections[email]
 
-    async def send_personal_message(self, message: dict, username: str):
-        if username in self.active_connections:
-            websocket = self.active_connections[username]
+    async def send_personal_message(self, message: dict, email: str):
+        if email in self.active_connections:
+            websocket = self.active_connections[email]
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                print(f"Ошибка отправки сообщения пользователю {username}: {e}")
-                self.disconnect(username)
+                print(f"Ошибка отправки сообщения пользователю {email}: {e}")
+                self.disconnect(email)
 
 
 manager = ConnectionManager()
 
 
-async def websocket_survey_endpoint(websocket: WebSocket, username: str):
-    await manager.connect(websocket, username)
+async def websocket_survey_endpoint(websocket: WebSocket, email: str):
+    await manager.connect(websocket, email)
 
     async with AsyncSessionLocal() as session:
         try:
-            user = await get_user_by_username(session, username)
+            user = await get_user_by_email(session, email)
             if not user:
                 await websocket.send_json({
                     "type": "error",
                     "message": "Пользователь не найден"
                 })
-                manager.disconnect(username)
+                manager.disconnect(email)
                 return
 
             # Проверяем, не забанен ли пользователь
-            if not user.is_active:
-                logger.warning(f"Пользователь {username} забанен, отключение WebSocket survey")
+            if user.is_banned:
+                logger.warning(f"Пользователь {email} забанен, отключение WebSocket survey")
                 await websocket.send_json({
                     "type": "error",
                     "message": "Ваш аккаунт заблокирован администратором. Доступ запрещен."
                 })
-                manager.disconnect(username)
+                manager.disconnect(email)
                 await websocket.close(code=4003, reason="Аккаунт заблокирован")
                 return
 
@@ -242,7 +242,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         "type": "error",
                         "message": "Нет доступных вопросов для опроса. Обратитесь к администратору."
                     })
-                    manager.disconnect(username)
+                    manager.disconnect(email)
                     try:
                         await websocket.close(code=1000)
                     except:
@@ -251,17 +251,17 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                 
                 profile_completed = await has_completed_profile(session, user.id)
                 if not profile_completed and answers_count >= 10:
-                    logger.info(f"Восстановление: создание профиля для пользователя {username}")
+                    logger.info(f"Восстановление: создание профиля для пользователя {email}")
                     
-                    profile_created = await create_profile_with_embeddings(session, user.id, username)
+                    profile_created = await create_profile_with_embeddings(session, user.id, email)
                     
                     if profile_created:
                         user.messengers_enabled = True
                         user.ai_enabled = False  # Отключаем AI чат после завершения опроса
                         await session.commit()
-                        logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {username}")
+                        logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {email}")
                     else:
-                        logger.error(f"✗ Не удалось создать профиль для {username}")
+                        logger.error(f"✗ Не удалось создать профиль для {email}")
                     
                     try:
                         chat = await get_or_create_active_chat(session, user.id)
@@ -283,7 +283,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                             )
                         
                         await session.commit()
-                        logger.info(f"Вопросы и ответы сохранены в чат для пользователя {username}")
+                        logger.info(f"Вопросы и ответы сохранены в чат для пользователя {email}")
                     except Exception as e:
                         logger.error(f"Ошибка сохранения вопросов и ответов в чат: {e}", exc_info=True)
                 
@@ -292,7 +292,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         "type": "survey_completed",
                         "message": "Опрос завершен! Ваш психологический портрет создан."
                     })
-                    manager.disconnect(username)
+                    manager.disconnect(email)
                     try:
                         await websocket.close(code=1000)
                     except:
@@ -303,7 +303,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         "type": "error",
                         "message": f"Ошибка: отвечено {answers_count} из 10 вопросов, но следующий вопрос не найден. Возможно, в базе недостаточно активных вопросов или не удалось создать эмбеддинги."
                     })
-                    manager.disconnect(username)
+                    manager.disconnect(email)
                     try:
                         await websocket.close(code=1000)
                     except:
@@ -340,7 +340,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         embedding=None, 
                     )
                     await session.commit()
-                    logger.info(f"Ответ сохранен для пользователя {username}, вопрос {question_id}")
+                    logger.info(f"Ответ сохранен для пользователя {email}, вопрос {question_id}")
 
                     result = await get_next_question_for_user(session, user.id)
                     if result:
@@ -366,13 +366,13 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         profile_completed = await has_completed_profile(session, user.id)
                         if not profile_completed:
                             answers = await get_user_answers(session, user.id)
-                            logger.info(f"Опрос завершен для пользователя {username}, ответов: {len(answers)}")
+                            logger.info(f"Опрос завершен для пользователя {email}, ответов: {len(answers)}")
                             
                             if len(answers) >= 10:
-                                logger.info(f"Создание профиля для {username}")
+                                logger.info(f"Создание профиля для {email}")
                                 
                                 try:
-                                    profile_created = await create_profile_with_embeddings(session, user.id, username)
+                                    profile_created = await create_profile_with_embeddings(session, user.id, email)
                                 except RuntimeError as e:
                                     error_msg = str(e).lower()
                                     if "ml сервис" in error_msg or "не удалось подключиться" in error_msg:
@@ -380,21 +380,21 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                                             "type": "error",
                                             "message": "Сервис создания профиля временно недоступен. Ваши ответы сохранены, профиль будет создан автоматически, когда сервис станет доступен."
                                         })
-                                        logger.warning(f"ML-сервис недоступен для {username}, ответы сохранены")
+                                        logger.warning(f"ML-сервис недоступен для {email}, ответы сохранены")
                                     profile_created = False
                                 
                                 if profile_created:
                                     user.messengers_enabled = True
                                     user.ai_enabled = False  # Отключаем AI чат после завершения опроса
                                     await session.commit()
-                                    logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {username}")
+                                    logger.info(f"✓ Профиль создан, мессенджеры активированы, AI чат отключен для {email}")
                                 else:
-                                    logger.error(f"✗ Не удалось создать профиль для {username}")
+                                    logger.error(f"✗ Не удалось создать профиль для {email}")
                                     await websocket.send_json({
                                         "type": "error",
                                         "message": "Не удалось создать психологический профиль. ML сервис недоступен."
                                     })
-                                    manager.disconnect(username)
+                                    manager.disconnect(email)
                                     return
                             
                             try:
@@ -417,7 +417,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                                     )
                                 
                                 await session.commit()
-                                logger.info(f"Вопросы и ответы сохранены в чат для пользователя {username}")
+                                logger.info(f"Вопросы и ответы сохранены в чат для пользователя {email}")
                             except Exception as e:
                                 logger.error(f"Ошибка сохранения вопросов и ответов в чат: {e}", exc_info=True)
                         
@@ -425,7 +425,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                             "type": "survey_completed",
                             "message": "Опрос завершен! Ваш психологический портрет создан."
                         })
-                        manager.disconnect(username)
+                        manager.disconnect(email)
                         try:
                             await websocket.close(code=1000)
                         except:
@@ -458,7 +458,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                             "type": "survey_completed",
                             "message": "Опрос завершен"
                         })
-                        manager.disconnect(username)
+                        manager.disconnect(email)
                         try:
                             await websocket.close(code=1000)
                         except:
@@ -466,19 +466,19 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
                         break
 
         except WebSocketDisconnect:
-            logger.info(f"WebSocket отключен для пользователя {username} (опрос)")
-            manager.disconnect(username)
+            logger.info(f"WebSocket отключен для пользователя {email} (опрос)")
+            manager.disconnect(email)
             await session.rollback()
             return
         except Exception as e:
-            logger.error(f"Ошибка в WebSocket опроса для {username}: {e}", exc_info=True)
+            logger.error(f"Ошибка в WebSocket опроса для {email}: {e}", exc_info=True)
             try:
                 await websocket.send_json({
                     "type": "error",
                     "message": f"Ошибка сервера: {str(e)}"
                 })
             except Exception:
-                logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {username}")
+                logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {email}")
             await session.rollback()
             manager.disconnect(username)
             return
@@ -486,11 +486,11 @@ async def websocket_survey_endpoint(websocket: WebSocket, username: str):
             try:
                 manager.disconnect(username)
             except Exception as e:
-                logger.error(f"Ошибка при отключении пользователя {username} из менеджера опроса: {e}")
+                logger.error(f"Ошибка при отключении пользователя {email} из менеджера опроса: {e}")
             
             try:
                 if websocket.client_state.name != "DISCONNECTED":
                     await websocket.close(code=1000)
             except Exception as e:
-                logger.warning(f"Ошибка при закрытии WebSocket для {username}: {e}")
+                logger.warning(f"Ошибка при закрытии WebSocket для {email}: {e}")
 

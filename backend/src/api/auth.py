@@ -7,6 +7,8 @@ from src.db.crud.auth import (
     authenticate_user,
     confirm_email_verification_code,
     issue_email_verification_code,
+    get_user_by_email,
+    get_user_by_nickname,
 )
 from src.api.chat import get_chat_data_for_user
 from src.schemas.auth import (
@@ -43,37 +45,25 @@ async def login(
     request_data: LoginRequest,
     session: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    from src.db.crud.auth import get_user_by_username
-    from src.core.security import verify_password
-    
-    # Сначала проверяем существование пользователя и его статус
-    user = await get_user_by_username(session, request_data.username)
-    
+    # Используем authenticate_user, который проверяет email, пароль, is_banned и is_active
+    user = await authenticate_user(
+        session,
+        request_data.email,
+        request_data.password.get_secret_value(),
+    )
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
-        )
-    
-    # Проверяем, не забанен ли пользователь
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
-        )
-    
-    # Проверяем пароль
-    if not verify_password(request_data.password.get_secret_value(), user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
+            detail="Неверный email или пароль",
         )
 
-    chat_data = await get_chat_data_for_user(session, user.username)
+    chat_data = await get_chat_data_for_user(session, user.email)
 
     return LoginResponse(
-        username=user.username,
-        message=f"Добро пожаловать, {user.full_name or user.username}!",
+        nickname=user.nickname,
+        email=user.email,
+        message=f"Добро пожаловать, {user.full_name or user.nickname}!",
         chat_data=chat_data.model_dump(),
     )
 
@@ -88,11 +78,9 @@ async def request_email_verification(
     request_data: EmailVerificationRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationResponse:
-    from src.db.crud.auth import get_user_by_username
-    
     # Проверяем, не забанен ли пользователь перед запросом кода
-    user_check = await get_user_by_username(session, request_data.username)
-    if user_check and not user_check.is_active:
+    user_check = await get_user_by_nickname(session, request_data.nickname)
+    if user_check and user_check.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
@@ -101,7 +89,7 @@ async def request_email_verification(
     try:
         _, verification_code = await issue_email_verification_code(
             session,
-            username=request_data.username,
+            nickname=request_data.nickname,
             email=request_data.email,
             raw_password=request_data.password.get_secret_value(),
         )
@@ -128,11 +116,9 @@ async def confirm_email(
     request_data: EmailVerificationConfirmRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationConfirmResponse:
-    from src.db.crud.auth import get_user_by_username
-    
     # Проверяем, не забанен ли пользователь перед подтверждением email
-    user_check = await get_user_by_username(session, request_data.username)
-    if user_check and not user_check.is_active:
+    user_check = await get_user_by_nickname(session, request_data.nickname)
+    if user_check and user_check.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
@@ -140,7 +126,7 @@ async def confirm_email(
     
     user = await confirm_email_verification_code(
         session,
-        username=request_data.username,
+        nickname=request_data.nickname,
         code=request_data.code,
     )
 
@@ -150,7 +136,7 @@ async def confirm_email(
             detail="Неверный или просроченный код подтверждения.",
         )
 
-    chat_data = await get_chat_data_for_user(session, user.username)
+    chat_data = await get_chat_data_for_user(session, user.email)
 
     return EmailVerificationConfirmResponse(
         message="Email подтвержден. Теперь вы можете войти по логину и паролю.",

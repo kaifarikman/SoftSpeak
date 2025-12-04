@@ -3,20 +3,21 @@ from pydantic import BaseModel, EmailStr, SecretStr, Field
 
 class LoginRequest(BaseModel):
 
-    username: str
+    email: EmailStr
     password: SecretStr
 
 
 class LoginResponse(BaseModel):
 
-    username: str
+    nickname: str
+    email: EmailStr
     message: str = "Authenticated"
     chat_data: dict | None = None
 
 
 class EmailVerificationRequest(BaseModel):
 
-    username: str
+    nickname: str
     email: EmailStr
     password: SecretStr = Field(..., min_length=8)
 
@@ -28,7 +29,7 @@ class EmailVerificationResponse(BaseModel):
 
 class EmailVerificationConfirmRequest(BaseModel):
 
-    username: str
+    nickname: str
     code: str
 
 

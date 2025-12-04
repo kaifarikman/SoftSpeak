@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from src.db.session import get_db
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email
 from src.db.crud import reports as reports_crud
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -47,7 +47,7 @@ class ReportCreateResponse(BaseModel):
 @router.post("", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_report(
     request: CreateReportRequest,
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> ReportCreateResponse:
     if request.reason not in REPORT_REASONS:
@@ -62,7 +62,7 @@ async def create_report(
             detail="Для причины 'другое' необходимо указать описание",
         )
     
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,10 +116,10 @@ async def create_report(
 @router.delete("/{report_id}", status_code=status.HTTP_200_OK)
 async def cancel_report(
     report_id: int,
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -146,10 +146,10 @@ async def cancel_report(
 
 @router.get("/my", response_model=list[ReportResponse])
 async def get_my_reports(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> list[ReportResponse]:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

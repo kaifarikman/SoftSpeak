@@ -3,7 +3,7 @@ import { API_URL } from '../../config';
 import NotificationDropdown from './NotificationDropdown';
 import '../../css/components/NotificationIcon.css';
 
-function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate }) {
+function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -11,14 +11,14 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
   const dropdownRef = useRef(null);
 
   const loadNotifications = useCallback(async () => {
-    if (!username) {
-      console.log('NotificationIcon: username не передан');
+    if (!email) {
+      console.log('NotificationIcon: email не передан');
       return;
     }
 
     try {
-      console.log('NotificationIcon: Загрузка уведомлений для', username);
-      const response = await fetch(`${API_URL}/notifications/${username}`);
+      console.log('NotificationIcon: Загрузка уведомлений для', email);
+      const response = await fetch(`${API_URL}/notifications/${email}`);
       if (response.ok) {
         const data = await response.json();
         console.log('NotificationIcon: Получены уведомления', data);
@@ -32,13 +32,13 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     } catch (err) {
       console.error('NotificationIcon: Ошибка загрузки уведомлений:', err);
     }
-  }, [username]);
+  }, [email]);
 
   useEffect(() => {
-    console.log('NotificationIcon: useEffect запущен, username:', username);
+    console.log('NotificationIcon: useEffect запущен, email:', email);
     
-    if (!username) {
-      console.log('NotificationIcon: username отсутствует, пропускаем инициализацию');
+    if (!email) {
+      console.log('NotificationIcon: email отсутствует, пропускаем инициализацию');
       return;
     }
 
@@ -48,11 +48,11 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/api/matchmaking/ws/${username}`;
+    const wsUrl = `${protocol}//${host}/api/matchmaking/ws/${email}`;
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log('NotificationIcon: WebSocket для уведомлений подключен для', username);
+      console.log('NotificationIcon: WebSocket для уведомлений подключен для', email);
       loadNotifications();
     };
 
@@ -116,17 +116,17 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     wsRef.current.onclose = (event) => {
       console.log('NotificationIcon: WebSocket для уведомлений отключен. Код:', event.code, 'Причина:', event.reason);
       // Переподключение только если это не было намеренное закрытие
-      if (event.code !== 1000 && username) {
+      if (event.code !== 1000 && email) {
       setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.CLOSED && username) {
+        if (wsRef.current?.readyState === WebSocket.CLOSED && email) {
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           const host = window.location.host;
-          const wsUrl = `${protocol}//${host}/api/matchmaking/ws/${username}`;
+          const wsUrl = `${protocol}//${host}/api/matchmaking/ws/${email}`;
           console.log('NotificationIcon: Переподключение WebSocket...');
           wsRef.current = new WebSocket(wsUrl);
           
           wsRef.current.onopen = () => {
-            console.log('NotificationIcon: WebSocket переподключен для', username);
+            console.log('NotificationIcon: WebSocket переподключен для', email);
             loadNotifications();
           };
           
@@ -177,14 +177,14 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
             
             wsRef.current.onerror = (error) => {
               console.error('NotificationIcon: WebSocket ошибка при переподключении:', error);
-            };
+          };
         }
         }, 500); // Уменьшили задержку переподключения
       }
     };
 
     const interval = setInterval(() => {
-      if (username) {
+      if (email) {
         loadNotifications();
       }
     }, 5000);
@@ -196,7 +196,7 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
       window.notificationUpdateCallback = null;
       clearInterval(interval);
     };
-  }, [username, loadNotifications]);
+  }, [email, loadNotifications]);
 
   useEffect(() => {
     const total = notifications.reduce((sum, notif) => sum + notif.unread_count, 0);
@@ -236,7 +236,7 @@ function NotificationIcon({ username, onNotificationClick, onNotificationsUpdate
     loadNotifications();
   };
 
-  console.log('NotificationIcon: Рендеринг компонента, username =', username);
+  console.log('NotificationIcon: Рендеринг компонента, email =', email);
 
   return (
     <div className="notification-container" data-testid="notification-container">

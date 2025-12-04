@@ -20,11 +20,11 @@ FORBIDDEN_USERNAMES = {
 }
 
 
-async def get_user_by_username(
+async def get_user_by_nickname(
     session: AsyncSession,
-    username: str,
+    nickname: str,
 ) -> Optional[User]:
-    stmt = select(User).where(User.username == username)
+    stmt = select(User).where(User.nickname == nickname)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -37,13 +37,18 @@ async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]
 
 async def authenticate_user(
     session: AsyncSession,
-    username: str,
+    email: str,
     password: str,
 ) -> Optional[User]:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         return None
     
+    # Проверяем, не забанен ли пользователь
+    if user.is_banned:
+        return None
+    
+    # Проверяем, подтвержден ли email
     if not user.is_active:
         return None
 
@@ -64,16 +69,16 @@ def _generate_verification_code() -> str:
 async def issue_email_verification_code(
     session: AsyncSession,
     *,
-    username: str,
+    nickname: str,
     email: str,
     raw_password: str,
 ) -> Tuple[User, EmailVerificationCode]:
-    username_lower = username.lower().strip()
+    nickname_lower = nickname.lower().strip()
     for forbidden in FORBIDDEN_USERNAMES:
-        if username_lower == forbidden.lower():
+        if nickname_lower == forbidden.lower():
             raise ValueError(f"Никнейм не может быть '{forbidden}'")
 
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_nickname(session, nickname)
 
     existing_email_owner = await get_user_by_email(session, email)
     if existing_email_owner and (not user or existing_email_owner.id != user.id):
@@ -83,20 +88,21 @@ async def issue_email_verification_code(
 
     if user:
         if user.is_active:
-            raise ValueError(f"Пользователь с именем '{username}' уже существует и подтвержден. Пожалуйста, войдите в систему.")
+            raise ValueError(f"Пользователь с никнеймом '{nickname}' уже существует и подтвержден. Пожалуйста, войдите в систему.")
         
-        # Проверяем, не забанен ли пользователь (если у него есть email, значит он был активен ранее)
-        if not user.is_active and user.email:
+        # Проверяем, не забанен ли пользователь
+        if user.is_banned:
             raise ValueError("Ваш аккаунт заблокирован администратором. Доступ запрещен.")
 
         user.email = email
         user.password_hash = password_hash
     else:
         user = User(
-            username=username,
+            nickname=nickname,
             email=email,
             password_hash=password_hash,
             is_active=False,
+            is_banned=False,
             ai_enabled=True,
             messengers_enabled=False,
             settings_enabled=True,
@@ -126,11 +132,15 @@ async def issue_email_verification_code(
 async def confirm_email_verification_code(
     session: AsyncSession,
     *,
-    username: str,
+    nickname: str,
     code: str,
 ) -> Optional[User]:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_nickname(session, nickname)
     if not user:
+        return None
+    
+    # Проверяем, не забанен ли пользователь
+    if user.is_banned:
         return None
 
     now = datetime.now(timezone.utc)

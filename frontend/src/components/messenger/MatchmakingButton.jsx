@@ -23,7 +23,7 @@ const throttle = (func, delay) => {
   };
 };
 
-const MatchmakingButton = memo(({ username, onMatchFound }) => {
+const MatchmakingButton = memo(({ email, onMatchFound }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
   const [error, setError] = useState(null);
@@ -41,7 +41,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
 
   useEffect(() => {
 
-    if (username) {
+    if (email) {
       loadStatus();
     }
 
@@ -59,13 +59,13 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
       }
       isConnectingRef.current = false;
     };
-  }, [username]);
+  }, [email]);
 
   const loadStatus = async () => {
-    if (!username) return;
+    if (!email) return;
     
     try {
-      const response = await fetch(`${API_URL}/matchmaking/status/${username}`);
+      const response = await fetch(`${API_URL}/matchmaking/status/${email}`);
       if (response.ok) {
         const data = await response.json();
         setIsSearching(data.is_searching);
@@ -79,7 +79,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
   };
 
   const connectWebSocket = () => {
-    if (!username || isConnectingRef.current) {
+    if (!email || isConnectingRef.current) {
       return;
     }
 
@@ -99,7 +99,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = protocol + '//' + host + '/api/matchmaking/ws/' + username;
+    const wsUrl = protocol + '//' + host + '/api/matchmaking/ws/' + email;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -182,7 +182,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
   };
 
   const handleStartMatchmaking = async () => {
-    if (!username) {
+    if (!email) {
       setError('Пользователь не найден');
       return;
     }
@@ -190,7 +190,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/start/${username}`, {
+      const response = await fetch(`${API_URL}/matchmaking/start/${email}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
   };
 
   const handleStopMatchmaking = async () => {
-    if (!username) return;
+    if (!email) return;
 
     try {
 
@@ -246,7 +246,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
         wsRef.current.send(JSON.stringify({ type: 'stop_search' }));
       }
 
-      const response = await fetch(`${API_URL}/matchmaking/stop/${username}`, {
+      const response = await fetch(`${API_URL}/matchmaking/stop/${email}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +305,7 @@ const MatchmakingButton = memo(({ username, onMatchFound }) => {
       <button 
         className="matchmaking-button start"
         onClick={handleStartMatchmaking}
-        disabled={!username}
+        disabled={!email}
       >
         Смэтчиться
       </button>

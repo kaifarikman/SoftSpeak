@@ -11,7 +11,7 @@ from src.db.crud.psychological import (
     has_completed_profile,
     get_psychological_profile as get_user_psychological_profile_crud,
 )
-from src.db.crud.auth import get_user_by_username
+from src.db.crud.auth import get_user_by_email
 from src.schemas.psychological import (
     NextQuestionResponse,
     AnswerRequest,
@@ -24,12 +24,12 @@ from src.services.vector_utils import create_profile_vector, create_embedding
 router = APIRouter(prefix="/psychological", tags=["psychological"])
 
 
-@router.get("/next-question/{username}", response_model=NextQuestionResponse)
+@router.get("/next-question/{email}", response_model=NextQuestionResponse)
 async def get_next_question(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> NextQuestionResponse:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -76,13 +76,13 @@ async def get_next_question(
     )
 
 
-@router.post("/answer/{username}", response_model=UserAnswerSchema)
+@router.post("/answer/{email}", response_model=UserAnswerSchema)
 async def submit_answer(
-    username: str,
+    email: str,
     request: AnswerRequest,
     session: AsyncSession = Depends(get_db),
 ) -> UserAnswerSchema:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -120,12 +120,12 @@ async def submit_answer(
     return UserAnswerSchema.model_validate(answer)
 
 
-@router.get("/status/{username}")
+@router.get("/status/{email}")
 async def get_profile_status(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ):
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,12 +142,12 @@ async def get_profile_status(
     }
 
 
-@router.get("/profile/{username}", response_model=PsychologicalProfileSchema)
+@router.get("/profile/{email}", response_model=PsychologicalProfileSchema)
 async def get_psychological_profile(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ) -> PsychologicalProfileSchema:
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -164,12 +164,12 @@ async def get_psychological_profile(
     return PsychologicalProfileSchema.model_validate(profile)
 
 
-@router.get("/profile/{username}/vector")
+@router.get("/profile/{email}/vector")
 async def get_profile_vector(
-    username: str,
+    email: str,
     session: AsyncSession = Depends(get_db),
 ):
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -184,7 +184,7 @@ async def get_profile_vector(
         )
     
     return {
-        "username": username,
+        "email": email,
         "user_id": user.id,
         "vector_length": len(profile.profile_vector),
         "vector": profile.profile_vector,

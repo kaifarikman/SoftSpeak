@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
 import '../../css/components/SettingsContent.css';
 
-const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
+const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
@@ -19,18 +19,18 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
 
   useEffect(() => {
-    if (username) {
+    if (email) {
       loadUserData();
       if (selectedSetting?.name === 'Черный список') {
         loadBlacklist();
       }
     }
-  }, [username, selectedSetting]);
+  }, [email, selectedSetting]);
 
   const loadUserData = async () => {
-    console.log('Loading user data for username:', username);
+    console.log('Loading user data for email:', email);
     try {
-      const url = `${API_URL}/settings/${username}`;
+      const url = `${API_URL}/settings/${email}`;
       console.log('Fetching:', url);
       const response = await fetch(url);
       console.log('Response status:', response.status);
@@ -40,7 +40,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
         console.log('Loaded user data:', data);
         setFormData(prev => ({
           ...prev,
-          username: data.username || username,
+          username: data.nickname || data.username || localStorage.getItem('nickname') || '',
           bio: data.bio || '',
           notification_anon_chats: data.notification_anon_chats ?? true,
           notification_open_chats: data.notification_open_chats ?? true,
@@ -54,9 +54,9 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   };
 
   const loadBlacklist = async () => {
-    console.log('Loading blacklist for username:', username);
+    console.log('Loading blacklist for email:', email);
     try {
-      const url = `${API_URL}/settings/blacklist/${username}`;
+      const url = `${API_URL}/settings/blacklist/${email}`;
       console.log('Fetching blacklist:', url);
       const response = await fetch(url);
       console.log('Blacklist response status:', response.status);
@@ -96,10 +96,10 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/profile/username/${username}`, {
+      const response = await fetch(`${API_URL}/settings/profile/nickname/${email}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: formData.username }),
+        body: JSON.stringify({ nickname: formData.username }),
       });
 
       const data = await response.json();
@@ -109,7 +109,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
           onChatDataUpdate(data.chat_data);
         }
 
-        localStorage.setItem('username', formData.username);
+        localStorage.setItem('nickname', formData.username);
       } else {
         showMessage(data.message || 'Никнейм занят', 'error');
       }
@@ -123,7 +123,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   const handleUpdateBio = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/profile/bio/${username}`, {
+      const response = await fetch(`${API_URL}/settings/profile/bio/${email}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bio: formData.bio || null }),
@@ -148,7 +148,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
     console.log('Updating notifications:', field, value);
     setLoading(true);
     try {
-      const url = `${API_URL}/settings/notifications/${username}`;
+      const url = `${API_URL}/settings/notifications/${email}`;
       console.log('Updating notifications at:', url);
       const response = await fetch(url, {
         method: 'PUT',
@@ -193,7 +193,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/account/password/${username}`, {
+      const response = await fetch(`${API_URL}/settings/account/password/${email}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +223,8 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('username');
+    localStorage.removeItem('email');
+    localStorage.removeItem('nickname');
     localStorage.removeItem('chat_data');
     window.location.href = '/signin';
   };
@@ -231,23 +232,24 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
 
 
   const handleAddToBlacklist = async () => {
-    const usernameToBlock = blacklistInput.trim();
+    const nicknameToBlock = blacklistInput.trim();
 
-    if (!usernameToBlock) {
-      showMessage('Введите username пользователя', 'error');
+    if (!nicknameToBlock) {
+      showMessage('Введите никнейм пользователя', 'error');
       return;
     }
-    if (usernameToBlock === username) {
+    const nickname = localStorage.getItem('nickname') || '';
+    if (nicknameToBlock === nickname) {
       showMessage('Нельзя заблокировать свой аккаунт', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/blacklist/${username}`, {
+      const response = await fetch(`${API_URL}/settings/blacklist/${email}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameToBlock }),
+        body: JSON.stringify({ username: nicknameToBlock }),
       });
 
       const data = await response.json();
@@ -268,13 +270,13 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
   const handleRemoveFromBlacklist = async (blockedUsername) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/blacklist/${username}?blocked_username=${blockedUsername}`, {
+      const response = await fetch(`${API_URL}/settings/blacklist/${email}?blocked_username=${blockedUsername}`, {
         method: 'DELETE',
       });
 
       const data = await response.json();
       if (data.success) {
-        setBlacklist(prev => prev.filter(u => u.username !== blockedUsername));
+        setBlacklist(prev => prev.filter(u => (u.nickname || u.username) !== blockedUsername));
         showMessage('Пользователь удален из черного списка', 'success');
       } else {
         showMessage(data.message || 'Ошибка удаления', 'error');
@@ -426,7 +428,7 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
                   type="text"
                   value={blacklistInput}
                   onChange={(e) => setBlacklistInput(e.target.value)}
-                  placeholder="@username"
+                  placeholder="@никнейм"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -443,28 +445,31 @@ const SettingsContent = ({ selectedSetting, username, onChatDataUpdate }) => {
             
             {blacklist.length === 0 ? null : (
               <div className="blacklist-items">
-                {blacklist.map((user) => (
+                {blacklist.map((user) => {
+                  const userNickname = user.nickname || user.username || '';
+                  return (
                   <div key={user.id} className="blacklist-item">
-                    <div className="blacklist-user-info" title={user.username}>
+                      <div className="blacklist-user-info" title={userNickname}>
                       <div className="blacklist-avatar placeholder">
-                        <span>{user.username?.charAt(0)?.toUpperCase()}</span>
+                          <span>{userNickname?.charAt(0)?.toUpperCase()}</span>
                       </div>
                       <div className="blacklist-text">
                         <span className="blacklist-username">
-                          {user.username.length > 24 ? `${user.username.slice(0, 24)}…` : user.username}
+                            {userNickname.length > 24 ? `${userNickname.slice(0, 24)}…` : userNickname}
                         </span>
                         <span className="blacklist-status">Заблокирован</span>
                       </div>
                     </div>
                     <button
-                      onClick={() => handleRemoveFromBlacklist(user.username)}
+                        onClick={() => handleRemoveFromBlacklist(userNickname)}
                       disabled={loading}
                       className="remove-button"
                     >
                       Разблокировать
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
