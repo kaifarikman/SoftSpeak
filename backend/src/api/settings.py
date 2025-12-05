@@ -73,6 +73,33 @@ class UserSettingsResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class PublicProfileResponse(BaseModel):
+    nickname: str
+    bio: Optional[str] = None
+
+
+@router.get("/profile/by-nickname/{nickname}", response_model=PublicProfileResponse)
+async def get_public_profile_by_nickname(
+    nickname: str,
+    session: AsyncSession = Depends(get_db),
+) -> PublicProfileResponse:
+    """Получить публичный профиль пользователя по никнейму."""
+    from src.db.crud.auth import get_user_by_nickname
+    
+    user = await get_user_by_nickname(session, nickname)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+    
+    return PublicProfileResponse(
+        nickname=user.nickname,
+        bio=user.bio,
+    )
+
+
 @router.put("/profile/nickname/{email}", response_model=SettingsResponse)
 async def update_nickname_endpoint(
     email: str,

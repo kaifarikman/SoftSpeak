@@ -307,7 +307,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
         onClick={handleStartMatchmaking}
         disabled={!email}
       >
-        Смэтчиться
+        Найти собеседника
       </button>
       {error && (
         <p className="error-message" style={{ color: '#f44336', fontSize: '12px', marginTop: '10px' }}>

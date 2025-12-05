@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
-from sqlalchemy import Select, and_, select
+from sqlalchemy import Select, and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -94,6 +94,39 @@ async def issue_email_verification_code(
         if user.is_banned:
             raise ValueError("Ваш аккаунт заблокирован администратором. Доступ запрещен.")
 
+        # Проверяем кулдаун - нельзя запрашивать код чаще чем раз в 60 секунд
+        cooldown_seconds = 60
+        now = datetime.now(timezone.utc)
+        cooldown_check = await session.execute(
+            select(EmailVerificationCode)
+            .where(
+                and_(
+                    EmailVerificationCode.user_id == user.id,
+                    EmailVerificationCode.is_used.is_(False),
+                )
+            )
+            .order_by(EmailVerificationCode.id.desc())
+            .limit(1)
+        )
+        last_code = cooldown_check.scalar_one_or_none()
+        if last_code:
+            # Вычисляем время создания кода (expires_at - ttl)
+            code_created_at = last_code.expires_at - timedelta(minutes=settings.verification_code_ttl_min)
+            if (now - code_created_at).total_seconds() < cooldown_seconds:
+                raise ValueError(f"Подождите {cooldown_seconds} секунд перед повторным запросом кода")
+        
+        # Инвалидируем все предыдущие неиспользованные коды пользователя
+        await session.execute(
+            update(EmailVerificationCode)
+            .where(
+                and_(
+                    EmailVerificationCode.user_id == user.id,
+                    EmailVerificationCode.is_used.is_(False)
+                )
+            )
+            .values(is_used=True)
+        )
+
         user.email = email
         user.password_hash = password_hash
     else:
@@ -114,10 +147,12 @@ async def issue_email_verification_code(
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.verification_code_ttl_min
     )
+    now = datetime.now(timezone.utc)
 
     verification_code = EmailVerificationCode(
         user_id=user.id,
         code=_generate_verification_code(),
+        created_at=now,
         expires_at=expires_at,
         is_used=False,
     )

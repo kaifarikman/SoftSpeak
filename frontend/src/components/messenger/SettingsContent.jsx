@@ -386,18 +386,21 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
                 <input
                   type="password"
                   placeholder="Старый пароль"
+                  autoComplete="new-password"
                   value={formData.old_password}
                   onChange={(e) => setFormData(prev => ({ ...prev, old_password: e.target.value }))}
                 />
                 <input
                   type="password"
                   placeholder="Новый пароль"
+                  autoComplete="new-password"
                   value={formData.new_password}
                   onChange={(e) => setFormData(prev => ({ ...prev, new_password: e.target.value }))}
                 />
                 <input
                   type="password"
                   placeholder="Новый пароль еще раз"
+                  autoComplete="new-password"
                   value={formData.new_password_confirm}
                   onChange={(e) => setFormData(prev => ({ ...prev, new_password_confirm: e.target.value }))}
                 />

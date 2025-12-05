@@ -52,6 +52,8 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, email, onChat
   const handleMatchFound = async (chatId) => {
     console.log('Match found! Chat ID:', chatId);
     
+    // Очищаем выбранный чат перед загрузкой нового
+    setSelectedChat(null);
 
     try {
       const response = await fetch(`${API_URL}/matchmaking/chats/${email}`);

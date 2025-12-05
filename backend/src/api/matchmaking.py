@@ -872,6 +872,7 @@ async def get_anonymous_chat_messages(
         "messages": messages,
         "name": other_user.nickname if chat.is_public else other_alias,
         "is_blocked": chat.is_blocked,
+        "is_other_user_banned": other_user.is_banned,
     }
 
 
@@ -1063,7 +1064,7 @@ async def reveal_chat(
     
     await chat_manager.send_to_user_in_chat(
         chat_id,
-        username,
+        email,
         {
             "type": "new_message",
             "message": build_message_payload(reveal_message, current_user_id=user.id, is_mine_override=True),
@@ -1072,7 +1073,7 @@ async def reveal_chat(
     
     await chat_manager.send_to_user_in_chat(
         chat_id,
-        other_user.username,
+        other_user.email,
         {
             "type": "new_message",
             "message": build_message_payload(reveal_message, current_user_id=other_user.id, is_mine_override=False),
@@ -1112,7 +1113,7 @@ async def reveal_chat(
             "last_message_time": last_message_time,
         }
 
-        await chat_manager.send_to_user_in_chat(chat_id, username, chat_data_for_user)
+        await chat_manager.send_to_user_in_chat(chat_id, email, chat_data_for_user)
         await chat_manager.send_to_user_in_chat(chat_id, other_user.email, chat_data_for_other)
 
         return {
@@ -1130,7 +1131,7 @@ async def reveal_chat(
     else:
         await chat_manager.send_to_user_in_chat(
             chat_id,
-            other_user.username,
+            other_user.email,
             {
                 "type": "reveal_request",
                 "chat_id": chat.id,

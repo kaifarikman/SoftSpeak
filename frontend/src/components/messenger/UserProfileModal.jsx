@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../../config';
 import '../../css/components/UserProfileModal.css';
 
@@ -7,6 +7,37 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const loadUserProfile = useCallback(async () => {
+    if (!nickname) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Получаем публичный профиль пользователя по nickname
+      const response = await fetch(`${API_URL}/settings/profile/by-nickname/${encodeURIComponent(nickname)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfileData(data);
+      } else {
+        // Если не удалось загрузить, показываем хотя бы nickname
+        setProfileData({
+          nickname: nickname,
+          bio: null
+        });
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки профиля:', err);
+      // Показываем хотя бы nickname при ошибке
+      setProfileData({
+        nickname: nickname,
+        bio: null
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [nickname]);
+
   useEffect(() => {
     if (isOpen && nickname) {
       loadUserProfile();
@@ -14,33 +45,7 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
       setProfileData(null);
       setError(null);
     }
-  }, [isOpen, nickname]);
-
-  const loadUserProfile = async () => {
-    if (!nickname) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Используем email для получения данных пользователя по nickname
-      const email = localStorage.getItem('email') || '';
-      if (!email) return;
-      // Ищем пользователя по nickname через API настроек
-      // Временное решение: используем email текущего пользователя, если nickname совпадает
-      const response = await fetch(`${API_URL}/settings/${email}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProfileData(data);
-      } else {
-        setError('Не удалось загрузить профиль');
-      }
-    } catch (err) {
-      setError('Ошибка загрузки профиля');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isOpen, nickname, loadUserProfile]);
 
   if (!isOpen) return null;
 

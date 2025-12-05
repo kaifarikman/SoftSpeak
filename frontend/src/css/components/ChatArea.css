@@ -118,3 +118,10 @@
   border-left: 3px solid #fbbf24;
   padding-left: 24px;
 }
+
+.chat-info-message.banned {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid #ef4444;
+  padding-left: 24px;
+}

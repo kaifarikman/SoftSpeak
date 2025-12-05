@@ -70,10 +70,10 @@ function SignIn() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Логин</label>
+            <label>Почта</label>
             <input 
               type="text" 
-              placeholder="Email"
+              placeholder="Адрес электронной почты"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
               autocomplete="off"

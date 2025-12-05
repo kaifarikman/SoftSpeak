@@ -70,7 +70,12 @@ function SignUp() {
       }
 
 
-      navigate('/verify', { state: { login } });
+      // Сохраняем данные для возможной повторной отправки кода
+      localStorage.setItem('pending_nickname', login.trim());
+      localStorage.setItem('pending_email', email.trim());
+      localStorage.setItem('pending_password', password);
+
+      navigate('/verify', { state: { login: email.trim() } });
     } catch (err) {
       console.error(err);
       setError(err.message || 'Не удалось отправить код');
@@ -98,10 +103,10 @@ function SignUp() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Логин</label>
+            <label>Никнейм</label>
             <input
               type="text"
-              placeholder="Логин"
+              placeholder="Никнейм"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               autocomplete="off"

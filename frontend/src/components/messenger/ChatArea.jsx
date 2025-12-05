@@ -33,6 +33,7 @@ const ChatArea = memo(({
   const [profileUsername, setProfileUsername] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [chatBlocked, setChatBlocked] = useState(false);
+  const [otherUserBanned, setOtherUserBanned] = useState(false);
   const wsRef = useRef(null);
   const anonChatWsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -246,7 +247,7 @@ const ChatArea = memo(({
           setTimeout(async () => {
             try {
               const response = await fetch(`${API_URL}/chat/data/${email}`);
-              if (checkBanStatus(response)) {
+              if (await checkBanStatus(response)) {
                 return; // Пользователь забанен
               }
               if (response.ok) {
@@ -353,7 +354,7 @@ const ChatArea = memo(({
 
     try {
       const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${email}`);
-      if (checkBanStatus(response)) {
+      if (await checkBanStatus(response)) {
         return; // Пользователь забанен
       }
       if (response.ok) {
@@ -370,6 +371,10 @@ const ChatArea = memo(({
 
         if (data.is_blocked !== undefined) {
           setChatBlocked(data.is_blocked);
+        }
+        
+        if (data.is_other_user_banned !== undefined) {
+          setOtherUserBanned(data.is_other_user_banned);
         }
         
 
@@ -409,7 +414,7 @@ const ChatArea = memo(({
           const readResponse = await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${email}`, {
             method: 'PUT',
           });
-          if (checkBanStatus(readResponse)) {
+          if (await checkBanStatus(readResponse)) {
             return; // Пользователь забанен
           }
           if (window.notificationUpdateCallback) {
@@ -536,7 +541,7 @@ const ChatArea = memo(({
             body: JSON.stringify({ text })
           });
           
-          if (checkBanStatus(response)) {
+          if (await checkBanStatus(response)) {
             setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
             return; // Пользователь забанен
           }
@@ -552,7 +557,7 @@ const ChatArea = memo(({
             setTimeout(async () => {
               try {
                 const chatResponse = await fetch(`${API_URL}/chat/data/${email}`);
-                if (checkBanStatus(chatResponse)) {
+                if (await checkBanStatus(chatResponse)) {
                   return; // Пользователь забанен
                 }
                 if (chatResponse.ok) {
@@ -576,7 +581,7 @@ const ChatArea = memo(({
             body: JSON.stringify({ text })
           });
           
-          if (checkBanStatus(response)) {
+          if (await checkBanStatus(response)) {
             setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
             return; // Пользователь забанен
           }
@@ -624,17 +629,49 @@ const ChatArea = memo(({
         method: 'POST',
       });
       
-      if (checkBanStatus(response)) {
+      if (await checkBanStatus(response)) {
         return; // Пользователь забанен
       }
       
-      const data = await response.json().catch(() => null);
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // Если не удалось распарсить JSON, это может быть ошибка 500
+        if (response.status === 500) {
+          throw new Error('Ошибка сервера при раскрытии профиля. Попробуйте позже.');
+        }
+        throw new Error('Не удалось обработать ответ сервера');
+      }
 
-      if (!response.ok || !data) {
+      if (!response.ok) {
+        // Обрабатываем различные статусы ошибок
+        if (response.status === 500) {
+          throw new Error('Ошибка сервера при раскрытии профиля. Попробуйте позже.');
+        } else if (response.status === 404) {
+          throw new Error('Чат не найден');
+        } else if (response.status === 403) {
+          throw new Error('Доступ запрещен');
+        } else {
         throw new Error((data && data.detail) || 'Не удалось отправить запрос на раскрытие');
+        }
+      }
+
+      if (!data) {
+        throw new Error('Пустой ответ от сервера');
       }
 
       if (data.status === 'revealed' && data.both_revealed) {
+        // Перезагружаем данные чата после успешного reveal
+        try {
+          const chatResponse = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/${email}`);
+          if (chatResponse.ok) {
+            const chatData = await chatResponse.json();
+            setChatInfo(chatData);
+          }
+        } catch (reloadError) {
+          console.error('Ошибка перезагрузки данных чата:', reloadError);
+        }
 
         const formattedChat = {
           id: data.chat.id,
@@ -649,7 +686,6 @@ const ChatArea = memo(({
           onChatRevealed(formattedChat);
         }
       } else if (data.status === 'pending') {
-
         const systemMessage = {
           id: 'system-pending-' + Date.now(),
           text: '✓ ' + data.message,
@@ -660,6 +696,7 @@ const ChatArea = memo(({
         setMessages(prev => [...prev, systemMessage]);
       }
     } catch (error) {
+      console.error('Ошибка при reveal:', error);
       setRevealError(error.message || 'Не удалось отправить запрос на раскрытие');
     } finally {
       setIsRevealing(false);
@@ -720,6 +757,16 @@ const ChatArea = memo(({
       );
     }
     
+    if (activeSection === 'settings') {
+      return (
+        <div className="chat-area">
+          <div className="empty-state">
+            <p>Выберите настройку</p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="chat-area">
         <div className="empty-state">
@@ -728,7 +775,6 @@ const ChatArea = memo(({
       </div>
     );
   }
-
   const isSurveyCompleted = chatData && Array.isArray(chatData.ai) && chatData.ai.length > 0;
   
   // Определяем, завершен ли опрос бота (есть история сообщений и messengers доступны)
@@ -794,11 +840,17 @@ const ChatArea = memo(({
           ⚠️ Чат заблокирован из-за жалобы. Отправка сообщений недоступна до рассмотрения администратором.
         </div>
       )}
+      {otherUserBanned && !chatBlocked && (
+        <div className="chat-info-message banned">
+          ⛔ Собеседник заблокирован администратором. Отправка сообщений недоступна.
+        </div>
+      )}
       <MessageList messages={messages} />
       <MessageInput 
         onSend={handleSendMessage} 
         disabled={
           chatBlocked ||
+          otherUserBanned ||
           (activeSection === 'bot' && chatData && (
             chatData.ai === false || 
             isBotSurveyCompleted
@@ -807,6 +859,8 @@ const ChatArea = memo(({
         placeholder={
           chatBlocked 
             ? "Чат заблокирован. Отправка сообщений недоступна."
+            : otherUserBanned
+            ? "Собеседник заблокирован. Отправка сообщений недоступна."
             : isBotSurveyCompleted
             ? "Нельзя написать сообщение. Опрос завершен."
             : undefined

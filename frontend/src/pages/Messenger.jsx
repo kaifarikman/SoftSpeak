@@ -448,8 +448,10 @@ const getActiveChatData = () => {
               onAnonChatExit={() => {
                 setSelectedChatAnon(null);
               }}
-              onChatRevealed={(publicChat) => {
+              onChatRevealed={async (publicChat) => {
+                // Удаляем чат из анонимных
                 setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
+                // Добавляем в публичные
                 setChatsPeople(prev => {
                   const filtered = prev.filter(chat => chat.id !== publicChat.id);
                   return [publicChat, ...filtered];
@@ -457,6 +459,26 @@ const getActiveChatData = () => {
                 setSelectedChatAnon(null);
                 setSelectedChatPeople(publicChat);
                 setActiveSection('people');
+                // Перезагружаем списки чатов для синхронизации
+                try {
+                  await fetchPublicChats();
+                  const anonResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+                  if (anonResponse.ok) {
+                    const anonData = await anonResponse.json();
+                    const formattedAnon = anonData.map(chat => ({
+                      id: chat.id,
+                      name: chat.name,
+                      lastMessage: chat.last_message || '',
+                      lastMessageTime: chat.last_message_time
+                        ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                        : '',
+                      unreadCount: chat.unread_count || 0,
+                    }));
+                    setChatsAnon(formattedAnon);
+                  }
+                } catch (err) {
+                  logError(err, 'Messenger onChatRevealed refresh');
+                }
               }}
               onSectionChange={handleSectionChange}
             />

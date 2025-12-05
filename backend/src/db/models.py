@@ -94,6 +94,11 @@ class EmailVerificationCode(Base):
         index=True,
     )
     code: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=False, 
+        default=lambda: datetime.now(timezone.utc)
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
 

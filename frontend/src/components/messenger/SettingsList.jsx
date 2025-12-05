@@ -32,9 +32,13 @@ function SettingsList({settings, selectedChat, setSelectedChat }) {
               onClick={() => setSelectedChat(setting)}
             />
           ))
+        ) : searchQuery ? (
+          <div className="empty-state empty-state-card">
+            <p>Настройка не найдена</p>
+          </div>
         ) : (
           <div className="empty-state empty-state-card">
-            <p>Выберите чат, чтобы начать общение</p>
+            <p>Выберите настройку</p>
           </div>
         )}
       </div>

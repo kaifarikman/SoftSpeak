@@ -336,8 +336,8 @@ async def get_all_reports(
             created_at=report.created_at.isoformat(),
             resolved_at=report.resolved_at.isoformat() if report.resolved_at else None,
             resolved_by_admin_id=report.resolved_by_admin_id,
-            reporter_username=reporter.username if reporter else None,
-            reported_user_username=reported_user.username if reported_user else None,
+            reporter_username=reporter.nickname if reporter else None,
+            reported_user_username=reported_user.nickname if reported_user else None,
         ))
     
     return result

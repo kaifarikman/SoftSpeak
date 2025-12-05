@@ -90,7 +90,7 @@ async def get_unread_notifications(
         public_chats_data = public_chats_result.all()
         
         for chat, other_user in public_chats_data:
-            chat_name = other_user.username if other_user else "Собеседник"
+            chat_name = other_user.nickname if other_user else "Собеседник"
             
             unread_messages = [
                 msg for msg in chat.messages

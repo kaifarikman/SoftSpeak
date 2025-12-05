@@ -23,16 +23,18 @@ function VerifyCode() {
     setError('');
     setLoading(true);
     try {
-
-      const currentLogin = login;
+      // Получаем nickname из localStorage (это важно, так как login - это email)
+      const pendingNickname = localStorage.getItem('pending_nickname');
+      const currentEmail = login; // login - это email
       
-
-      localStorage.clear();
+      if (!pendingNickname) {
+        throw new Error('Не удалось найти данные регистрации. Вернитесь к регистрации.');
+      }
 
       const response = await fetch(`${API_URL}/auth/email/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: currentLogin, code: code }),
+        body: JSON.stringify({ nickname: pendingNickname, code: code }),
       });
 
       const data = await response.json();
@@ -40,18 +42,15 @@ function VerifyCode() {
         throw new Error(data.detail || 'Неверный или просроченный код');
       }
 
-
-      if (data.chat_data) {
-        localStorage.setItem('chat_data', JSON.stringify(data.chat_data));
-        // Сохраняем nickname, email будет сохранен после подтверждения
-        localStorage.setItem('nickname', currentLogin);
-
-        window.dispatchEvent(new Event('chatDataUpdated'));
-      }
-
-
+      // Очищаем временные данные регистрации
+      localStorage.removeItem('pending_nickname');
+      localStorage.removeItem('pending_email');
+      localStorage.removeItem('pending_password');
+      
+      // НЕ сохраняем chat_data и другие данные - пользователь должен войти отдельно
+      // Перенаправляем на страницу входа, где пользователь войдет по email и password
       setTimeout(() => {
-        navigate('/home', { replace: true });
+        navigate('/signin', { replace: true });
       }, 100);
     } catch (err) {
       setError(err.message || 'Ошибка при подтверждении');
@@ -65,12 +64,39 @@ function VerifyCode() {
     setError('');
     setLoading(true);
     try {
+      // Получаем сохраненные данные регистрации
+      const pendingNickname = localStorage.getItem('pending_nickname');
+      const pendingEmail = localStorage.getItem('pending_email') || login; // login - это email
+      const pendingPassword = localStorage.getItem('pending_password');
 
-
-
+      if (!pendingPassword || !pendingNickname) {
       setError('Для повторной отправки кода вернитесь к регистрации');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/auth/email/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickname: pendingNickname,
+          email: pendingEmail,
+          password: pendingPassword
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({ detail: 'Не удалось отправить код' }));
+        throw new Error(data.detail || 'Не удалось отправить код');
+      }
+
+      setError('');
+      // Показываем сообщение об успехе через временное сообщение
+      const successMsg = 'Код отправлен повторно';
+      setError(successMsg);
+      setTimeout(() => setError(''), 3000);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Не удалось отправить код');
     } finally {
       setLoading(false);
     }
@@ -93,7 +119,7 @@ function VerifyCode() {
         <h1>Подтверждение</h1>
 
         <p className="subtitle" style={{ marginTop: 20 }}>
-          На <b>{login}</b> отправлен код подтверждения.
+          На <b>«{login}»</b> отправлен код подтверждения.
         </p>
 
         <form onSubmit={handleSubmit}>

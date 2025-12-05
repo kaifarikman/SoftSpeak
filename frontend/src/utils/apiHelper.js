@@ -3,6 +3,17 @@
  */
 
 /**
+ * Проверяет, содержит ли ответ сообщение о бане
+ * @param {object} data - Объект с данными ответа
+ * @returns {boolean}
+ */
+const isBanMessage = (data) => {
+  if (!data || !data.detail) return false;
+  const detail = String(data.detail).toLowerCase();
+  return detail.includes('заблокирован') || detail.includes('забанен') || detail.includes('banned');
+};
+
+/**
  * Выполняет fetch запрос и проверяет статус 403 (бан)
  * @param {string} url - URL для запроса
  * @param {object} options - Опции для fetch
@@ -12,22 +23,37 @@ export const fetchWithBanCheck = async (url, options = {}) => {
   const response = await fetch(url, options);
   
   if (response.status === 403) {
-    // Пользователь забанен - отправляем событие
-    window.dispatchEvent(new Event('userBanned'));
+    try {
+      const clone = response.clone();
+      const data = await clone.json();
+      if (isBanMessage(data)) {
+        window.dispatchEvent(new Event('userBanned'));
+      }
+    } catch (e) {
+      // Ошибка парсинга - не бан
+    }
   }
   
   return response;
 };
 
 /**
- * Обрабатывает ответ API и проверяет статус 403
+ * Обрабатывает ответ API и проверяет статус 403 на бан
  * @param {Response} response - Ответ от сервера
- * @returns {boolean} - true если пользователь забанен
+ * @returns {Promise<boolean>} - true если пользователь забанен
  */
-export const checkBanStatus = (response) => {
+export const checkBanStatus = async (response) => {
   if (response.status === 403) {
-    window.dispatchEvent(new Event('userBanned'));
-    return true;
+    try {
+      const clone = response.clone();
+      const data = await clone.json();
+      if (isBanMessage(data)) {
+        window.dispatchEvent(new Event('userBanned'));
+        return true;
+      }
+    } catch (e) {
+      // Ошибка парсинга - не считаем баном
+    }
   }
   return false;
 };
