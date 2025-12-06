@@ -1,13 +1,16 @@
 
 html {
- 
   -webkit-font-smoothing: antialiased;
   box-sizing: border-box;
+  overflow: hidden !important;
+  height: 100%;
 }
 
 body {
   margin: 0;
   padding: 0;
+  overflow: hidden !important;
+  height: 100%;
 }
 
 *,
@@ -299,14 +302,16 @@ select.form-control {
   min-height: 100vh;
   background: #0f1117;
   color: #ffffff;
+  overflow: hidden !important;
 }
 
 .messenger-body {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow: hidden !important;
   margin-top: 0;
   z-index: 0;
+  min-height: 0;
 }
 
 /* Когда активен бот, messenger-body становится контейнером для ChatArea или WelcomeScreen */
@@ -334,8 +339,9 @@ select.form-control {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   height: calc(100vh - 80px);
-  overflow: hidden;
+  overflow: hidden !important;
   background: #0f1117;
   margin-left: 380px;
 }

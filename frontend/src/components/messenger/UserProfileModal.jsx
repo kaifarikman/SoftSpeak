@@ -8,18 +8,30 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
   const [error, setError] = useState(null);
 
   const loadUserProfile = useCallback(async () => {
-    if (!nickname) return;
+    if (!nickname) {
+      console.warn('UserProfileModal: nickname не предоставлен');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
       // Получаем публичный профиль пользователя по nickname
-      const response = await fetch(`${API_URL}/settings/profile/by-nickname/${encodeURIComponent(nickname)}`);
+      const url = `${API_URL}/settings/profile/by-nickname/${encodeURIComponent(nickname)}`;
+      console.log('UserProfileModal: Загрузка профиля для', nickname, 'URL:', url);
+      
+      const response = await fetch(url);
+      console.log('UserProfileModal: Ответ сервера', response.status, response.statusText);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('UserProfileModal: Данные профиля получены', data);
         setProfileData(data);
       } else {
+        const errorText = await response.text();
+        console.error('UserProfileModal: Ошибка загрузки профиля', response.status, errorText);
+        setError(`Не удалось загрузить профиль: ${response.status}`);
         // Если не удалось загрузить, показываем хотя бы nickname
         setProfileData({
           nickname: nickname,
@@ -27,7 +39,8 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
         });
       }
     } catch (err) {
-      console.error('Ошибка загрузки профиля:', err);
+      console.error('UserProfileModal: Ошибка загрузки профиля:', err);
+      setError('Ошибка при загрузке профиля');
       // Показываем хотя бы nickname при ошибке
       setProfileData({
         nickname: nickname,

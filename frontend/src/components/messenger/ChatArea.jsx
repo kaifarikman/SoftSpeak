@@ -867,7 +867,7 @@ const ChatArea = memo(({
         }
       />
       <UserProfileModal
-        username={profileUsername}
+        nickname={profileUsername}
         isOpen={showUserProfile}
         onClose={handleCloseProfile}
       />

@@ -4,7 +4,9 @@
   flex-direction: column;
   background: #0f1117;
   height: 100%;
-  overflow: hidden;
+  min-height: 0;
+  overflow: hidden !important;
+  position: relative;
 }
 
 .chat-area-standalone {
@@ -106,6 +108,7 @@
   font-size: 14px;
   color: #94a3b8;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .chat-info-message.error {
