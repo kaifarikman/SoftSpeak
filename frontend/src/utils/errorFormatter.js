@@ -70,13 +70,21 @@ function getErrorMessage(errorType, errorMsg, fieldName) {
       return `${fieldName} обязателен`;
     
     case 'value_error':
-      if (errorMsg.includes('email') || errorMsg.includes('EmailStr')) {
+      // Если сообщение содержит информацию о доступных ящиках, возвращаем его как есть
+      if (errorMsg && (errorMsg.includes('Доступные ящики') || errorMsg.includes('mail.ru') || errorMsg.includes('yandex.ru') || errorMsg.includes('gmail.com'))) {
+        return errorMsg;
+      }
+      if (errorMsg && (errorMsg.includes('email') || errorMsg.includes('EmailStr'))) {
         return `Неверный формат ${fieldName.toLowerCase()}`;
       }
-      if (errorMsg.includes('min_length')) {
+      if (errorMsg && errorMsg.includes('min_length')) {
         const match = errorMsg.match(/min_length=(\d+)/);
         const minLength = match ? match[1] : '8';
         return `${fieldName} должен быть не менее ${minLength} символов`;
+      }
+      // Если сообщение уже на русском и понятное, возвращаем его
+      if (errorMsg && typeof errorMsg === 'string' && errorMsg.length > 0) {
+        return errorMsg;
       }
       return `Неверное значение ${fieldName.toLowerCase()}`;
     

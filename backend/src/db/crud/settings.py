@@ -1,9 +1,8 @@
-from typing import Optional, List
-from sqlalchemy import select, and_
+from typing import Optional
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from src.db.models import User, Blacklist
+from src.db.models import User
 from src.core.security import verify_password, hash_password
 from src.db.crud.auth import get_user_by_nickname
 
@@ -111,71 +110,4 @@ async def change_password(
     return True, None
 
 
-async def add_to_blacklist(session: AsyncSession, user_id: int, blocked_username: str) -> tuple[bool, Optional[str]]:
-    user_stmt = select(User).where(User.id == user_id)
-    user_result = await session.execute(user_stmt)
-    user = user_result.scalar_one_or_none()
-    
-    if not user:
-        return False, "Пользователь не найден"
-    
-    if user.nickname == blocked_username:
-        return False, "Нельзя заблокировать самого себя"
-    
-    blocked_user = await get_user_by_nickname(session, blocked_username)
-    if not blocked_user:
-        return False, "Пользователь не найден"
-    
-    existing_stmt = select(Blacklist).where(
-        and_(
-            Blacklist.user_id == user_id,
-            Blacklist.blocked_user_id == blocked_user.id
-        )
-    )
-    existing_result = await session.execute(existing_stmt)
-    existing = existing_result.scalar_one_or_none()
-    
-    if existing:
-        return False, "Пользователь уже в черном списке"
-    
-    blacklist_entry = Blacklist(
-        user_id=user_id,
-        blocked_user_id=blocked_user.id,
-    )
-    session.add(blacklist_entry)
-    await session.commit()
-    return True, None
-
-
-async def remove_from_blacklist(session: AsyncSession, user_id: int, blocked_username: str) -> tuple[bool, Optional[str]]:
-    blocked_user = await get_user_by_nickname(session, blocked_username)
-    if not blocked_user:
-        return False, "Пользователь не найден"
-    
-    stmt = select(Blacklist).where(
-        and_(
-            Blacklist.user_id == user_id,
-            Blacklist.blocked_user_id == blocked_user.id
-        )
-    )
-    result = await session.execute(stmt)
-    blacklist_entry = result.scalar_one_or_none()
-    
-    if not blacklist_entry:
-        return False, "Пользователь не найден в черном списке"
-    
-    await session.delete(blacklist_entry)
-    await session.commit()
-    return True, None
-
-
-async def get_blacklist(session: AsyncSession, user_id: int) -> List[User]:
-    stmt = (
-        select(User)
-        .join(Blacklist, User.id == Blacklist.blocked_user_id)
-        .where(Blacklist.user_id == user_id)
-        .order_by(Blacklist.created_at.desc())
-    )
-    result = await session.execute(stmt)
-    return list(result.scalars().all())
 

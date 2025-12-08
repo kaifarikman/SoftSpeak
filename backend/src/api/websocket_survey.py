@@ -195,7 +195,7 @@ async def websocket_survey_endpoint(websocket: WebSocket, email: str):
                     "type": "survey_completed",
                     "message": "Опрос уже завершен"
                 })
-                manager.disconnect(username)
+                manager.disconnect(email)
                 return
 
             answers = await get_user_answers(session, user.id)
@@ -282,6 +282,13 @@ async def websocket_survey_endpoint(websocket: WebSocket, email: str):
                                 is_from_user=True
                             )
                         
+                        # Добавляем сообщение о завершении опроса в БД
+                        await create_message(
+                            session,
+                            chat.id,
+                            "Опрос завершен! Ваш психологический портрет создан.",
+                            is_from_user=False
+                        )
                         await session.commit()
                         logger.info(f"Вопросы и ответы сохранены в чат для пользователя {email}")
                     except Exception as e:
@@ -416,6 +423,13 @@ async def websocket_survey_endpoint(websocket: WebSocket, email: str):
                                         is_from_user=True
                                     )
                                 
+                                # Добавляем сообщение о завершении опроса в БД
+                                await create_message(
+                                    session,
+                                    chat.id,
+                                    "Опрос завершен! Ваш психологический портрет создан.",
+                                    is_from_user=False
+                                )
                                 await session.commit()
                                 logger.info(f"Вопросы и ответы сохранены в чат для пользователя {email}")
                             except Exception as e:
@@ -480,11 +494,11 @@ async def websocket_survey_endpoint(websocket: WebSocket, email: str):
             except Exception:
                 logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {email}")
             await session.rollback()
-            manager.disconnect(username)
+            manager.disconnect(email)
             return
         finally:
             try:
-                manager.disconnect(username)
+                manager.disconnect(email)
             except Exception as e:
                 logger.error(f"Ошибка при отключении пользователя {email} из менеджера опроса: {e}")
             

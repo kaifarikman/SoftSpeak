@@ -12,7 +12,6 @@ from src.db.models import (
     AnonymousMessage,
     User,
     PsychologicalProfile,
-    Blacklist,
 )
 from src.db.crud import random_names
 from src.services.vector_utils import find_best_match
@@ -130,29 +129,8 @@ async def find_match(
     
     logger.info(f"find_match: Найдено {len(queue_entries)} пользователей в очереди")
 
-    blocked_by_user_stmt = select(Blacklist.blocked_user_id).where(
-        Blacklist.user_id == user_id
-    )
-    blocked_by_user_result = await session.execute(blocked_by_user_stmt)
-    blocked_by_user_ids = {row[0] for row in blocked_by_user_result.all()}
-    
-    blocked_user_stmt = select(Blacklist.user_id).where(
-        Blacklist.blocked_user_id == user_id
-    )
-    blocked_user_result = await session.execute(blocked_user_stmt)
-    blocked_user_ids = {row[0] for row in blocked_user_result.all()}
-    
-    all_blocked_ids = blocked_by_user_ids | blocked_user_ids
-    
-    if all_blocked_ids:
-        logger.info(f"find_match: Исключаем {len(all_blocked_ids)} заблокированных пользователей для {user_id}")
-
     other_users = []
     for entry in queue_entries:
-        if entry.user.id in all_blocked_ids:
-            logger.debug(f"find_match: Пропускаем пользователя {entry.user.id} - он в черном списке")
-            continue
-            
         if entry.user and entry.user.psychological_profile and entry.user.messengers_enabled:
             other_users.append({
                 'id': entry.user.id,

@@ -7,6 +7,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/app"
+    
+    # Режим разработки: True = MailHog, False = реальный SMTP
+    dev_mode: bool = True
 
     jwt_secret: str = Field(
         ...,

@@ -10,9 +10,45 @@ function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const validateEmailDomain = (email) => {
+    const allowedDomains = [
+      'yandex.ru', 'yandex.com', 'ya.ru',
+      'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
+      'gmail.com'
+    ];
+    const domain = email.toLowerCase().split('@')[1];
+    return allowedDomains.includes(domain);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!email || !email.trim()) {
+      setError('Пожалуйста, введите адрес электронной почты');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Пожалуйста, введите корректный адрес электронной почты');
+      return;
+    }
+
+    if (!validateEmailDomain(email)) {
+      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+      return;
+    }
+
+    if (!password || !password.trim()) {
+      setError('Пожалуйста, введите пароль');
+      return;
+    }
+
     setLoading(true);
 
     try {

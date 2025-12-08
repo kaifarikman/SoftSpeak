@@ -17,6 +17,49 @@ function SignUp() {
     return re.test(email);
   };
 
+  const validateEmailDomain = (email) => {
+    if (!email || !email.includes('@')) {
+      return true; // Пока не введен @, не проверяем
+    }
+    const allowedDomains = [
+      'yandex.ru', 'yandex.com', 'ya.ru',
+      'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
+      'gmail.com'
+    ];
+    const parts = email.toLowerCase().split('@');
+    if (parts.length !== 2 || !parts[1]) {
+      return true; // Некорректный формат, но не показываем ошибку домена
+    }
+    const domain = parts[1];
+    return allowedDomains.includes(domain);
+  };
+
+  const handleEmailChange = (e) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    
+    // Очищаем ошибку, если пользователь начал исправлять
+    if (error && error.includes('Доступные ящики')) {
+      setError('');
+    }
+    
+    // Проверяем домен в реальном времени, если email содержит @
+    if (newEmail && newEmail.includes('@')) {
+      if (validateEmail(newEmail) && !validateEmailDomain(newEmail)) {
+        setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+      } else if (error && error.includes('Доступные ящики')) {
+        setError('');
+      }
+    }
+  };
+
+  const handleEmailBlur = (e) => {
+    const emailValue = e.target.value.trim();
+    if (emailValue && validateEmail(emailValue) && !validateEmailDomain(emailValue)) {
+      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -34,6 +77,11 @@ function SignUp() {
 
     if (!validateEmail(email)) {
       setError('Пожалуйста, введите корректный адрес электронной почты');
+      return;
+    }
+
+    if (!validateEmailDomain(email)) {
+      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
       return;
     }
     
@@ -120,7 +168,8 @@ function SignUp() {
               type="email"
               placeholder="Адрес электронной почты"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
               autocomplete="off"
               required
             />

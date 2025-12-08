@@ -44,25 +44,10 @@ class ChangePasswordRequest(BaseModel):
     new_password_confirm: str
 
 
-class AddToBlacklistRequest(BaseModel):
-    username: str
-
-
-class RemoveFromBlacklistRequest(BaseModel):
-    username: str
-
-
 class SettingsResponse(BaseModel):
     success: bool
     message: str
     chat_data: Optional[dict] = None
-
-class BlacklistUserResponse(BaseModel):
-    id: int
-    username: str
-
-    class Config:
-        from_attributes = True
 
 class UserSettingsResponse(BaseModel):
     username: str
@@ -214,75 +199,6 @@ async def change_password_endpoint(
         message="Пароль изменен",
     )
 
-
-
-@router.get("/blacklist/{email}", response_model=list[BlacklistUserResponse])
-async def get_blacklist_endpoint(
-    email: str,
-    session: AsyncSession = Depends(get_db),
-) -> list[BlacklistUserResponse]:
-    await verify_user_active(email, session)
-    user = await get_user_by_email(session, email)
-    
-    blocked_users = await settings_crud.get_blacklist(session, user.id)
-    
-    return [
-        BlacklistUserResponse(
-            id=u.id,
-            username=u.nickname,
-        )
-        for u in blocked_users
-    ]
-
-
-@router.post("/blacklist/{email}", response_model=SettingsResponse)
-async def add_to_blacklist_endpoint(
-    email: str,
-    request: AddToBlacklistRequest,
-    session: AsyncSession = Depends(get_db),
-) -> SettingsResponse:
-    await verify_user_active(email, session)
-    user = await get_user_by_email(session, email)
-    
-    success, error_message = await settings_crud.add_to_blacklist(
-        session, user.id, request.username
-    )
-    
-    if not success:
-        return SettingsResponse(
-            success=False,
-            message=error_message or "Ошибка добавления в черный список",
-        )
-    
-    return SettingsResponse(
-        success=True,
-        message="Пользователь добавлен в черный список",
-    )
-
-
-@router.delete("/blacklist/{email}", response_model=SettingsResponse)
-async def remove_from_blacklist_endpoint(
-    email: str,
-    blocked_username: str,
-    session: AsyncSession = Depends(get_db),
-) -> SettingsResponse:
-    await verify_user_active(email, session)
-    user = await get_user_by_email(session, email)
-    
-    success, error_message = await settings_crud.remove_from_blacklist(
-        session, user.id, blocked_username
-    )
-    
-    if not success:
-        return SettingsResponse(
-            success=False,
-            message=error_message or "Ошибка удаления из черного списка",
-        )
-    
-    return SettingsResponse(
-        success=True,
-        message="Пользователь удален из черного списка",
-    )
 
 
 @router.get("/status/{email}")

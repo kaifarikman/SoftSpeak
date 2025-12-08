@@ -229,137 +229,6 @@
 }
 
 
-.blacklist-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.blacklist-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background-color: #1a1d29;
-  border-radius: 12px;
-  border: 1px solid #2a2d3a;
-  gap: 16px;
-  transition: all 0.2s ease;
-}
-
-.blacklist-item:hover {
-  background-color: #1f2230;
-  border-color: #3a3d4a;
-}
-
-.blacklist-user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.blacklist-avatar {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background-color: #1f2230;
-  border: 2px solid #2a2d3a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  color: #94a3b8;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-
-.blacklist-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.blacklist-username {
-  font-size: 15px;
-  color: #ffffff;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.blacklist-status {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.remove-button {
-  padding: 10px 18px;
-  background-color: #dc2626;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-
-.remove-button:hover:not(:disabled) {
-  background-color: #b91c1c;
-}
-
-.remove-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.blacklist-input-group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.blacklist-input-group input {
-  flex: 1;
-  padding: 12px 16px;
-  border-radius: 10px;
-  border: 1px solid #2a2d3a;
-  background: #1f2230;
-  color: #fff;
-  font-size: 16px;
-  transition: all 0.2s ease;
-}
-
-.blacklist-input-group input:focus {
-  outline: none;
-  border-color: #3a3d4a;
-  background: #252835;
-  box-shadow: 0 0 0 2px rgba(58, 61, 74, 0.2);
-}
-
-.blacklist-input-group button {
-  padding: 12px 20px;
-  background: #3b82f6;
-  border-radius: 10px;
-  border: none;
-  color: #fff;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.blacklist-input-group button:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
-}
-
-.blacklist-input-group button:active {
-  transform: translateY(0);
-}
-
 .settings-content-empty {
   min-height: 100%;
   display: flex;
@@ -408,8 +277,7 @@
     flex-direction: column;
   }
 
-  .settings-field-row button,
-  .blacklist-input-group button {
+  .settings-field-row button {
     width: 100%;
   }
 

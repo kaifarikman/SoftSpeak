@@ -141,7 +141,6 @@ function Messenger() {
     { id: 1, name: "Профиль" },
     { id: 2, name: "Уведомления" },
     { id: 3, name: "Аккаунт" },
-    { id: 4, name: "Черный список" }
   ];
   
   const [chatsPeople, setChatsPeople] = useState([]);

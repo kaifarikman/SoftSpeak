@@ -33,12 +33,42 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    body = await request.body()
-    logger.error(f"Validation error: {exc.errors()}")
-    logger.error(f"Request body: {body.decode() if body else 'Empty'}")
+    errors = exc.errors()
+    logger.error(f"Validation error: {errors}")
+    
+    # Форматируем ошибки для клиента
+    formatted_errors = []
+    for error in errors:
+        # Извлекаем сообщение об ошибке
+        msg = error.get("msg", "")
+        # Если msg - это список или словарь, извлекаем строку
+        if isinstance(msg, (list, tuple)) and len(msg) > 0:
+            msg = str(msg[0])
+        elif isinstance(msg, dict):
+            # Если это словарь, пытаемся извлечь сообщение
+            msg = msg.get("msg", str(msg))
+        else:
+            msg = str(msg)
+        
+        # Извлекаем ctx (контекст ошибки), если есть
+        ctx = error.get("ctx", {})
+        if ctx and isinstance(ctx, dict):
+            # Если в ctx есть информация об ошибке, используем её
+            if "error" in ctx:
+                error_obj = ctx["error"]
+                if isinstance(error_obj, Exception):
+                    msg = str(error_obj)
+        
+        error_dict = {
+            "loc": list(error.get("loc", [])),
+            "msg": msg,
+            "type": str(error.get("type", "validation_error"))
+        }
+        formatted_errors.append(error_dict)
+    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors(), "body": body.decode() if body else "Empty"},
+        content={"detail": formatted_errors},
     )
 
 

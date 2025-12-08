@@ -14,16 +14,11 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     new_password: '',
     new_password_confirm: '',
   });
-  const [blacklist, setBlacklist] = useState([]);
-  const [blacklistInput, setBlacklistInput] = useState('');
 
 
   useEffect(() => {
     if (email) {
       loadUserData();
-      if (selectedSetting?.name === 'Черный список') {
-        loadBlacklist();
-      }
     }
   }, [email, selectedSetting]);
 
@@ -50,26 +45,6 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
       }
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
-    }
-  };
-
-  const loadBlacklist = async () => {
-    console.log('Loading blacklist for email:', email);
-    try {
-      const url = `${API_URL}/settings/blacklist/${email}`;
-      console.log('Fetching blacklist:', url);
-      const response = await fetch(url);
-      console.log('Blacklist response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Loaded blacklist:', data);
-        setBlacklist(data);
-      } else {
-        console.error('Failed to load blacklist:', response.status, await response.text());
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки черного списка:', error);
     }
   };
 
@@ -231,65 +206,6 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 
 
 
-  const handleAddToBlacklist = async () => {
-    const nicknameToBlock = blacklistInput.trim();
-
-    if (!nicknameToBlock) {
-      showMessage('Введите никнейм пользователя', 'error');
-      return;
-    }
-    const nickname = localStorage.getItem('nickname') || '';
-    if (nicknameToBlock === nickname) {
-      showMessage('Нельзя заблокировать свой аккаунт', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/settings/blacklist/${email}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: nicknameToBlock }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showMessage('Пользователь добавлен в черный список', 'success');
-        setBlacklistInput('');
-        loadBlacklist();
-      } else {
-        showMessage(data.message || 'Ошибка добавления в черный список', 'error');
-      }
-    } catch (error) {
-      showMessage('Ошибка добавления в черный список', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveFromBlacklist = async (blockedUsername) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/settings/blacklist/${email}?blocked_username=${blockedUsername}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setBlacklist(prev => prev.filter(u => (u.nickname || u.username) !== blockedUsername));
-        showMessage('Пользователь удален из черного списка', 'success');
-      } else {
-        showMessage(data.message || 'Ошибка удаления', 'error');
-      }
-    } catch (error) {
-      showMessage('Ошибка удаления из черного списка', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
   if (!selectedSetting) {
     return (
       <div className="settings-content settings-content-empty">
@@ -415,66 +331,6 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
                 Выйти из аккаунта
               </button>
             </div>
-          </div>
-        );
-
-      case 'Черный список':
-        return (
-          <div className="settings-section">
-            {renderAlert()}
-            <h2>Черный список</h2>
-            
-            <div className="settings-field">
-              <label>Добавить пользователя в черный список</label>
-              <div className="blacklist-input-group">
-                <input
-                  type="text"
-                  value={blacklistInput}
-                  onChange={(e) => setBlacklistInput(e.target.value)}
-                  placeholder="@никнейм"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddToBlacklist();
-                    }
-                  }}
-                />
-                <button onClick={handleAddToBlacklist} disabled={loading}>
-                  Добавить
-                </button>
-              </div>
-              <p className="field-hint">Пользователь не сможет отправлять вам сообщения и видеть вас в поиске.</p>
-            </div>
-            
-            {blacklist.length === 0 ? null : (
-              <div className="blacklist-items">
-                {blacklist.map((user) => {
-                  const userNickname = user.nickname || user.username || '';
-                  return (
-                  <div key={user.id} className="blacklist-item">
-                      <div className="blacklist-user-info" title={userNickname}>
-                      <div className="blacklist-avatar placeholder">
-                          <span>{userNickname?.charAt(0)?.toUpperCase()}</span>
-                      </div>
-                      <div className="blacklist-text">
-                        <span className="blacklist-username">
-                            {userNickname.length > 24 ? `${userNickname.slice(0, 24)}…` : userNickname}
-                        </span>
-                        <span className="blacklist-status">Заблокирован</span>
-                      </div>
-                    </div>
-                    <button
-                        onClick={() => handleRemoveFromBlacklist(userNickname)}
-                      disabled={loading}
-                      className="remove-button"
-                    >
-                      Разблокировать
-                    </button>
-                  </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         );
 

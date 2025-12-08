@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, ARRAY, Float, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, ARRAY, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -58,18 +58,6 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         uselist=False,
-    )
-    blocked_users: Mapped[list["Blacklist"]] = relationship(
-        "Blacklist",
-        foreign_keys="Blacklist.user_id",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    blocked_by_users: Mapped[list["Blacklist"]] = relationship(
-        "Blacklist",
-        foreign_keys="Blacklist.blocked_user_id",
-        back_populates="blocked_user",
-        cascade="all, delete-orphan",
     )
     reports_made: Mapped[list["Report"]] = relationship(
         "Report",
@@ -300,30 +288,6 @@ class MatchmakingQueue(Base):
     is_searching: Mapped[bool] = mapped_column(Boolean, default=True)
 
     user: Mapped["User"] = relationship(back_populates="matchmaking_queue")
-
-
-class Blacklist(Base):
-    __tablename__ = "blacklist"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-    )
-    blocked_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-
-    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="blocked_users")
-    blocked_user: Mapped["User"] = relationship("User", foreign_keys=[blocked_user_id], back_populates="blocked_by_users")
-
-    __table_args__ = (
-        UniqueConstraint('user_id', 'blocked_user_id', name='uq_blacklist_user_blocked'),
-    )
 
 
 class Report(Base):

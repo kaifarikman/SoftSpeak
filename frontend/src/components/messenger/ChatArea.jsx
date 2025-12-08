@@ -825,7 +825,7 @@ const ChatArea = memo(({
         onBack={showAnonBackButton ? onAnonChatExit : undefined}
         onNameClick={isPublicChat ? handleOpenProfile : undefined}
         onReportClick={
-          (selectedChat?.id || (activeSection === 'anon' && anonChatIdRef.current)) 
+          activeSection !== 'bot' && (selectedChat?.id || (activeSection === 'anon' && anonChatIdRef.current)) 
             ? handleOpenReport 
             : undefined
         }
