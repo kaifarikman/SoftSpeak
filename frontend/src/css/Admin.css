@@ -1,3 +1,9 @@
+/* Отключаем overflow: hidden для админки */
+html.admin-page,
+body.admin-page {
+  overflow: auto !important;
+  height: auto !important;
+}
 
 .admin-layout {
   min-height: 100vh;

@@ -20,6 +20,17 @@ function Admin() {
   const [reportMessages, setReportMessages] = useState([]);
   const [reportStatusFilter, setReportStatusFilter] = useState('pending');
 
+  // Отключаем overflow: hidden для админки
+  useEffect(() => {
+    document.documentElement.classList.add('admin-page');
+    document.body.classList.add('admin-page');
+    
+    return () => {
+      document.documentElement.classList.remove('admin-page');
+      document.body.classList.remove('admin-page');
+    };
+  }, []);
+
   useEffect(() => {
     if (token) {
       loadAllData();
