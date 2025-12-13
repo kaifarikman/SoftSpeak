@@ -40,11 +40,27 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
   ).current;
 
   useEffect(() => {
-
     if (email) {
-      loadStatus();
+      // Восстанавливаем состояние из localStorage
+      const savedState = localStorage.getItem(`matchmaking_${email}`);
+      if (savedState) {
+        try {
+          const { isSearching: savedIsSearching } = JSON.parse(savedState);
+          if (savedIsSearching) {
+            setIsSearching(true);
+            loadStatus();
+            connectWebSocket();
+          } else {
+            loadStatus();
+          }
+        } catch (e) {
+          // Если ошибка парсинга, просто загружаем статус
+          loadStatus();
+        }
+      } else {
+        loadStatus();
+      }
     }
-
 
     return () => {
       if (wsRef.current) {
@@ -60,6 +76,13 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
       isConnectingRef.current = false;
     };
   }, [email]);
+
+  // Сохраняем состояние поиска в localStorage
+  useEffect(() => {
+    if (email) {
+      localStorage.setItem(`matchmaking_${email}`, JSON.stringify({ isSearching }));
+    }
+  }, [isSearching, email]);
 
   const loadStatus = async () => {
     if (!email) return;

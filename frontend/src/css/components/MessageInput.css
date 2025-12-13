@@ -11,7 +11,8 @@
 
 .message-input {
   flex: 1;
-  height: 68px;
+  min-height: 68px;
+  max-height: 200px;
   max-width: 100%;
   outline: none;
   background-color: #161828;
@@ -25,6 +26,10 @@
   border-radius: 18px;
   padding: 18px 20px;
   transition: border 0.2s ease, box-shadow 0.2s ease;
+  resize: none;
+  overflow-y: auto;
+  font-family: inherit;
+  line-height: 1.5;
 }
 
 .message-input:focus {

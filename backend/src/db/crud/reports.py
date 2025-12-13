@@ -199,3 +199,24 @@ async def reject_report(
     
     return True, None
 
+
+async def unban_user(
+    session: AsyncSession,
+    user_id: int,
+    admin_id: int,
+) -> Tuple[bool, Optional[str]]:
+    user_stmt = select(User).where(User.id == user_id)
+    user_result = await session.execute(user_stmt)
+    user = user_result.scalar_one_or_none()
+    
+    if not user:
+        return False, "Пользователь не найден"
+    
+    if not user.is_banned:
+        return False, "Пользователь не забанен"
+    
+    user.is_banned = False
+    await session.commit()
+    
+    return True, None
+

@@ -17,6 +17,7 @@ const ChatArea = memo(({
   email,
   onChatDataUpdate,
   onChatRevealed,
+  onChatsUpdate,
   isStandalone = false,
   onAnonChatExit,
   onSectionChange,
@@ -685,6 +686,28 @@ const ChatArea = memo(({
         if (onChatRevealed) {
           onChatRevealed(formattedChat);
         }
+        
+        // Обновляем список чатов после успешного reveal
+        if (onChatsUpdate && activeSection === 'anon') {
+          try {
+            const chatsResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+            if (chatsResponse.ok) {
+              const chatsData = await chatsResponse.json();
+              const formattedChats = chatsData.map(chat => ({
+                id: chat.id,
+                name: chat.name || 'Собеседник',
+                lastMessage: chat.last_message || '',
+                lastMessageTime: chat.last_message_time
+                  ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                  : '',
+                unreadCount: chat.unread_count || 0,
+              }));
+              onChatsUpdate(formattedChats);
+            }
+          } catch (reloadError) {
+            console.error('Ошибка обновления списка чатов после reveal:', reloadError);
+          }
+        }
       } else if (data.status === 'pending') {
         const systemMessage = {
           id: 'system-pending-' + Date.now(),
@@ -782,6 +805,11 @@ const ChatArea = memo(({
     Array.isArray(chatData.ai) && 
     chatData.ai.length > 0 && 
     chatData.messengers === true;
+  
+  // Проверяем наличие ошибки "Нет доступных вопросов для опроса"
+  const hasNoQuestionsError = messages.some(msg => 
+    msg.isError && msg.text && msg.text.includes('Нет доступных вопросов для опроса')
+  );
 
   // Отладка для понимания состояния
   if (activeSection === 'bot' && chatData) {
@@ -851,13 +879,16 @@ const ChatArea = memo(({
         disabled={
           chatBlocked ||
           otherUserBanned ||
+          hasNoQuestionsError ||
           (activeSection === 'bot' && chatData && (
             chatData.ai === false || 
             isBotSurveyCompleted
           ))
         }
         placeholder={
-          chatBlocked 
+          hasNoQuestionsError
+            ? "Нет доступных вопросов для опроса. Обратитесь к администратору."
+            : chatBlocked 
             ? "Чат заблокирован. Отправка сообщений недоступна."
             : otherUserBanned
             ? "Собеседник заблокирован. Отправка сообщений недоступна."

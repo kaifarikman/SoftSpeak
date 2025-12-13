@@ -19,6 +19,8 @@ function Admin() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportMessages, setReportMessages] = useState([]);
   const [reportStatusFilter, setReportStatusFilter] = useState('pending');
+  const [bannedUsers, setBannedUsers] = useState([]);
+  const [showBannedUsers, setShowBannedUsers] = useState(false);
 
   // Отключаем overflow: hidden для админки
   useEffect(() => {
@@ -35,8 +37,11 @@ function Admin() {
     if (token) {
       loadAllData();
       loadReports();
+      if (showBannedUsers) {
+        loadBannedUsers();
+      }
     }
-  }, [token, reportStatusFilter]);
+  }, [token, reportStatusFilter, showBannedUsers]);
 
   const loadReports = async () => {
     try {
@@ -81,6 +86,38 @@ function Admin() {
         loadReports();
         setSelectedReport(null);
         setReportMessages([]);
+      } else {
+        const data = await response.json();
+        setPanelMessage({ type: 'error', message: data.detail || 'Ошибка' });
+      }
+    } catch (err) {
+      setPanelMessage({ type: 'error', message: err.message });
+    }
+  };
+
+  const loadBannedUsers = async () => {
+    try {
+      const response = await authorizedFetch('/admin/users/banned');
+      if (response.ok) {
+        const data = await response.json();
+        setBannedUsers(data);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки забаненных пользователей:', err);
+    }
+  };
+
+  const handleUnbanUser = async (userId) => {
+    if (!confirm('Разблокировать пользователя?')) {
+      return;
+    }
+    try {
+      const response = await authorizedFetch(`/admin/users/${userId}/unban`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setPanelMessage({ type: 'success', message: 'Пользователь разблокирован' });
+        loadBannedUsers();
       } else {
         const data = await response.json();
         setPanelMessage({ type: 'error', message: data.detail || 'Ошибка' });
@@ -548,19 +585,60 @@ function Admin() {
           <div className="reports-filter">
             <button
               className={`admin-btn ${reportStatusFilter === 'pending' ? 'primary' : 'ghost'}`}
-              onClick={() => setReportStatusFilter('pending')}
+              onClick={() => {
+                setReportStatusFilter('pending');
+                setShowBannedUsers(false);
+              }}
             >
               Ожидают ({reports.filter(r => r.status === 'pending').length})
             </button>
             <button
               className={`admin-btn ${reportStatusFilter === '' ? 'primary' : 'ghost'}`}
-              onClick={() => setReportStatusFilter('')}
+              onClick={() => {
+                setReportStatusFilter('');
+                setShowBannedUsers(false);
+              }}
             >
               Все ({reports.length})
             </button>
+            <button
+              className={`admin-btn ${showBannedUsers ? 'primary' : 'ghost'}`}
+              onClick={() => {
+                setShowBannedUsers(true);
+                setReportStatusFilter('');
+                setSelectedReport(null);
+              }}
+            >
+              Забаненные ({bannedUsers.length})
+            </button>
           </div>
           <div className="reports-list">
-            {reports.length === 0 ? (
+            {showBannedUsers ? (
+              bannedUsers.length === 0 ? (
+                <p className="empty-placeholder">Нет забаненных пользователей</p>
+              ) : (
+                bannedUsers.map((user) => (
+                  <div key={user.id} className="report-item">
+                    <div className="report-header">
+                      <span className="report-reason">{user.nickname}</span>
+                      <span className="report-status banned">Забанен</span>
+                    </div>
+                    <div className="report-info">
+                      <span>Email: {user.email}</span>
+                      <span>ID: {user.id}</span>
+                    </div>
+                    <div className="report-actions" style={{ marginTop: '10px' }}>
+                      <button
+                        className="admin-btn primary"
+                        onClick={() => handleUnbanUser(user.id)}
+                      >
+                        Разблокировать
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : reports.length === 0 ? (
               <p className="empty-placeholder">Нет жалоб</p>
             ) : (
               reports.map((report) => (

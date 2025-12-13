@@ -479,6 +479,7 @@ const getActiveChatData = () => {
                   logError(err, 'Messenger onChatRevealed refresh');
                 }
               }}
+              onChatsUpdate={setChatsAnon}
               onSectionChange={handleSectionChange}
             />
           )}

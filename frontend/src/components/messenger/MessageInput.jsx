@@ -16,7 +16,7 @@ function MessageInput({
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !disabled) {
       e.preventDefault();
       handleSubmit(e);
@@ -25,14 +25,15 @@ function MessageInput({
 
   return (
     <form className="message-input-container" onSubmit={handleSubmit}>
-      <input
-        type="text"
+      <textarea
         placeholder={placeholder || "Введите сообщение"}
         className="message-input"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onKeyPress={handleKeyPress}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
+        rows={1}
+        style={{ resize: 'none', overflow: 'hidden', minHeight: '68px' }}
       />
       <button type="submit" className="send-button" disabled={disabled || !text.trim()}>
         <span className="send-button-icon"></span>

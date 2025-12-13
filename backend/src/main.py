@@ -39,6 +39,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Форматируем ошибки для клиента
     formatted_errors = []
     for error in errors:
+        # Извлекаем тип ошибки и локацию
+        error_type = str(error.get("type", "validation_error")).strip()
+        loc = list(error.get("loc", []))
+        # Берем последний элемент из loc (это имя поля)
+        field_name = str(loc[-1]).strip() if loc and len(loc) > 0 else ""
+        
         # Извлекаем сообщение об ошибке
         msg = error.get("msg", "")
         # Если msg - это список или словарь, извлекаем строку
@@ -59,13 +65,23 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 if isinstance(error_obj, Exception):
                     msg = str(error_obj)
         
+        # Специальная обработка для ошибок длины никнейма (ПОСЛЕ обработки ctx)
+        # Проверяем и по типу ошибки, и по имени поля (без учета регистра для надежности)
+        if error_type == "string_too_long" and field_name.lower() == "nickname":
+            msg = "Слишком длинный nickname"
+        elif error_type == "string_too_short" and field_name.lower() == "nickname":
+            min_length = ctx.get("min_length", 3) if isinstance(ctx, dict) else 3
+            msg = f"Никнейм должен быть не менее {min_length} символов"
+        
         error_dict = {
-            "loc": list(error.get("loc", [])),
+            "loc": loc,
             "msg": msg,
-            "type": str(error.get("type", "validation_error"))
+            "type": error_type
         }
         formatted_errors.append(error_dict)
-    
+    print(
+        formatted_errors
+    )
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": formatted_errors},

@@ -1,4 +1,5 @@
 from typing import Optional
+import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,20 +18,29 @@ FORBIDDEN_USERNAMES = {
 
 
 async def update_username(session: AsyncSession, user_id: int, new_nickname: str) -> tuple[bool, Optional[str]]:
-    existing_user = await get_user_by_nickname(session, new_nickname)
-    if existing_user and existing_user.id != user_id:
-        return False, "Никнейм занят"
+    # Обрезаем пробелы в начале и конце
+    new_nickname = new_nickname.strip()
     
-    if not new_nickname.replace('_', '').replace('-', '').isalnum():
-        return False, "Никнейм может содержать только буквы, цифры, дефисы и подчеркивания"
+    # Проверяем валидацию ПЕРЕД проверкой занятости
+    if not re.match(r'^[a-zA-Zа-яА-ЯёЁ0-9_-]+$', new_nickname):
+        return False, "Никнейм может содержать только английские и русские буквы, цифры, дефисы и подчеркивания"
     
-    if len(new_nickname) < 3 or len(new_nickname) > 32:
-        return False, "Никнейм должен быть от 3 до 32 символов"
+    if len(new_nickname) < 3:
+        return False, "Никнейм должен быть не менее 3 символов"
     
-    nickname_lower = new_nickname.lower().strip()
+    if len(new_nickname) > 15:
+        return False, "Слишком длинный nickname"
+    
+    # Проверка запрещенных никнеймов
+    nickname_lower = new_nickname.lower()
     for forbidden in FORBIDDEN_USERNAMES:
         if nickname_lower == forbidden.lower():
             return False, f"Никнейм не может быть '{forbidden}'"
+    
+    # Теперь проверяем занятость (после обрезки и валидации)
+    existing_user = await get_user_by_nickname(session, new_nickname)
+    if existing_user and existing_user.id != user_id:
+        return False, "Никнейм занят"
     
     user_stmt = select(User).where(User.id == user_id)
     user_result = await session.execute(user_stmt)
@@ -45,8 +55,8 @@ async def update_username(session: AsyncSession, user_id: int, new_nickname: str
 
 
 async def update_bio(session: AsyncSession, user_id: int, bio: Optional[str]) -> tuple[bool, Optional[str]]:
-    if bio and len(bio) > 500:
-        return False, "Информация о себе не может быть длиннее 500 символов"
+    if bio and len(bio) > 100:
+        return False, "Информация о себе не может быть длиннее 100 символов"
     
     if bio and any(ord(char) < 32 and char not in '\n\r\t' for char in bio):
         return False, "Недопустимые символы в тексте"

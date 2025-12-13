@@ -28,10 +28,10 @@ async def verify_user_active(email: str, session: AsyncSession) -> None:
         )
 
 class UpdateNicknameRequest(BaseModel):
-    nickname: str = Field(..., min_length=3, max_length=32)
+    nickname: str = Field(..., min_length=3, max_length=15)
 
 class UpdateBioRequest(BaseModel):
-    bio: Optional[str] = Field(None, max_length=500)
+    bio: Optional[str] = Field(None, max_length=100)
 
 class UpdateNotificationSettingsRequest(BaseModel):
     notification_anon_chats: Optional[bool] = None

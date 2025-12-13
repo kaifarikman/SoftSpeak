@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
+import { formatHttpError } from '../../utils/errorFormatter';
 import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
@@ -73,9 +74,26 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     try {
       const response = await fetch(`${API_URL}/settings/profile/nickname/${email}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ nickname: formData.username }),
       });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // Если ответ не JSON, используем текст
+          const text = await response.text();
+          errorData = { detail: text || 'Ошибка обновления никнейма' };
+        }
+        const errorMessage = formatHttpError(response, errorData);
+        showMessage(errorMessage, 'error');
+        return;
+      }
 
       const data = await response.json();
       if (data.success) {
@@ -86,7 +104,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 
         localStorage.setItem('nickname', formData.username);
       } else {
-        showMessage(data.message || 'Никнейм занят', 'error');
+        showMessage(data.message || 'Ошибка обновления никнейма', 'error');
       }
     } catch (error) {
       showMessage('Ошибка обновления никнейма', 'error');
@@ -180,7 +198,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        showMessage('Пароль изменён. Войдите снова для продолжения.', 'success');
+        showMessage('Пароль изменён.', 'success');
         setFormData(prev => ({
           ...prev,
           old_password: '',

@@ -40,7 +40,7 @@ class LoginResponse(BaseModel):
 
 class EmailVerificationRequest(BaseModel):
 
-    nickname: str
+    nickname: str = Field(..., min_length=3, max_length=15)
     email: EmailStr
     password: SecretStr = Field(..., min_length=8)
     

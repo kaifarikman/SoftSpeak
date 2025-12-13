@@ -420,6 +420,58 @@ async def ban_user_from_report(
     )
 
 
+@router.post("/users/{user_id}/unban", response_model=AdminActionResponse)
+async def unban_user_endpoint(
+    user_id: int,
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+) -> AdminActionResponse:
+    from src.core.config import settings
+    from src.db.crud.auth import get_user_by_nickname
+    from src.db.crud import reports as reports_crud
+    
+    admin_user = await get_user_by_nickname(session, settings.admin_username)
+    admin_id = admin_user.id if admin_user else None
+    
+    success, error_message = await reports_crud.unban_user(
+        session,
+        user_id=user_id,
+        admin_id=admin_id,
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message or "Ошибка разблокировки пользователя",
+        )
+    
+    return AdminActionResponse(
+        success=True,
+        message="Пользователь разблокирован",
+    )
+
+
+@router.get("/users/banned", response_model=list[dict])
+async def get_banned_users(
+    session: AsyncSession = Depends(get_db),
+    _token: str = Depends(get_admin_token),
+):
+    from src.db.models import User
+    stmt = select(User).where(User.is_banned.is_(True)).order_by(User.id.desc())
+    result = await session.execute(stmt)
+    users = result.scalars().all()
+    
+    return [
+        {
+            "id": user.id,
+            "nickname": user.nickname,
+            "email": user.email,
+            "is_banned": user.is_banned,
+        }
+        for user in users
+    ]
+
+
 @router.post("/reports/{report_id}/reject", response_model=AdminActionResponse)
 async def reject_report(
     report_id: int,

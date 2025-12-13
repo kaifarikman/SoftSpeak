@@ -73,6 +73,22 @@ async def issue_email_verification_code(
     email: str,
     raw_password: str,
 ) -> Tuple[User, EmailVerificationCode]:
+    import re
+    
+    # Обрезаем пробелы в начале и конце
+    nickname = nickname.strip()
+    
+    # Валидация символов никнейма
+    if not re.match(r'^[a-zA-Zа-яА-ЯёЁ0-9_-]+$', nickname):
+        raise ValueError("Никнейм может содержать только английские и русские буквы, цифры, дефисы и подчеркивания")
+    
+    # Валидация длины никнейма
+    if len(nickname) < 3:
+        raise ValueError("Никнейм должен быть не менее 3 символов")
+    
+    if len(nickname) > 15:
+        raise ValueError("Слишком длинный nickname")
+    
     nickname_lower = nickname.lower().strip()
     for forbidden in FORBIDDEN_USERNAMES:
         if nickname_lower == forbidden.lower():
@@ -81,8 +97,15 @@ async def issue_email_verification_code(
     user = await get_user_by_nickname(session, nickname)
 
     existing_email_owner = await get_user_by_email(session, email)
-    if existing_email_owner and (not user or existing_email_owner.id != user.id):
-        raise ValueError("Почта уже используется другим аккаунтом.")
+    if existing_email_owner:
+        # Если пользователь с таким никнеймом не найден (новый аккаунт)
+        if not user:
+            raise ValueError("Такая почта уже используется.")
+        # Если пользователь с таким никнеймом найден, но это другой пользователь
+        elif existing_email_owner.id != user.id:
+            raise ValueError("Такая почта уже используется.")
+        # Если это тот же пользователь (existing_email_owner.id == user.id), 
+        # разрешаем повторный запрос кода (продолжаем выполнение)
 
     password_hash = hash_password(raw_password)
 

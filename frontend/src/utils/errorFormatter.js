@@ -64,10 +64,50 @@ function getFieldName(field) {
  * @returns {string} - Читаемое сообщение об ошибке
  */
 function getErrorMessage(errorType, errorMsg, fieldName) {
+  // Если сообщение уже на русском (пришло с бэкенда), возвращаем его как есть
+  if (errorMsg && typeof errorMsg === 'string' && 
+      (errorMsg.includes('Слишком длинный') || 
+       errorMsg.includes('должен быть не менее') ||
+       errorMsg.includes('Никнейм'))) {
+    return errorMsg;
+  }
+  
+  // Нормализуем тип ошибки (на случай если приходит с пробелами или в другом формате)
+  const normalizedType = String(errorType).toLowerCase().trim();
+  
+  // Специальная обработка для ошибок длины никнейма (приоритетная проверка)
+  if (fieldName === 'Никнейм') {
+    if (normalizedType === 'string_too_long' || 
+        errorMsg?.includes('at most 15') || 
+        errorMsg?.includes('max_length') ||
+        errorMsg?.includes('should have at most')) {
+      return 'Слишком длинный nickname';
+    }
+    if (normalizedType === 'string_too_short' || 
+        errorMsg?.includes('at least') || 
+        errorMsg?.includes('min_length') ||
+        errorMsg?.includes('should have at least')) {
+      const match = errorMsg?.match(/at least (\d+)|min_length[=:](\d+)/);
+      const minLength = match ? (match[1] || match[2]) : '3';
+      return `Никнейм должен быть не менее ${minLength} символов`;
+    }
+  }
+  
   // Обработка различных типов ошибок
-  switch (errorType) {
+  switch (normalizedType) {
     case 'missing':
       return `${fieldName} обязателен`;
+    
+    case 'string_too_long':
+      return fieldName === 'Никнейм' ? 'Слишком длинный nickname' : `${fieldName} слишком длинный`;
+    
+    case 'string_too_short':
+      if (fieldName === 'Никнейм') {
+        const match = errorMsg?.match(/at least (\d+)|min_length[=:](\d+)/);
+        const minLength = match ? (match[1] || match[2]) : '3';
+        return `Никнейм должен быть не менее ${minLength} символов`;
+      }
+      return `${fieldName} слишком короткий`;
     
     case 'value_error':
       // Если сообщение содержит информацию о доступных ящиках, возвращаем его как есть
@@ -76,6 +116,12 @@ function getErrorMessage(errorType, errorMsg, fieldName) {
       }
       if (errorMsg && (errorMsg.includes('email') || errorMsg.includes('EmailStr'))) {
         return `Неверный формат ${fieldName.toLowerCase()}`;
+      }
+      if (errorMsg && errorMsg.includes('max_length')) {
+        if (fieldName === 'Никнейм') {
+          return 'Слишком длинный nickname';
+        }
+        return `${fieldName} слишком длинный`;
       }
       if (errorMsg && errorMsg.includes('min_length')) {
         const match = errorMsg.match(/min_length=(\d+)/);
@@ -107,7 +153,17 @@ function getErrorMessage(errorType, errorMsg, fieldName) {
         if (errorMsg.includes('not a valid')) {
           return `Неверный формат ${fieldName.toLowerCase()}`;
         }
-        if (errorMsg.includes('length')) {
+        if (errorMsg.includes('length') || errorMsg.includes('max_length') || errorMsg.includes('min_length')) {
+          // Если это ошибка max_length для nickname
+          if (errorMsg.includes('max_length') && fieldName === 'Никнейм') {
+            return 'Слишком длинный nickname';
+          }
+          // Если это ошибка min_length для nickname
+          if (errorMsg.includes('min_length') && fieldName === 'Никнейм') {
+            const match = errorMsg.match(/min_length=(\d+)/);
+            const minLength = match ? match[1] : '3';
+            return `Никнейм должен быть не менее ${minLength} символов`;
+          }
           return `Неверная длина ${fieldName.toLowerCase()}`;
         }
         // Если сообщение понятное, возвращаем его
