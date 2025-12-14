@@ -1,166 +1,162 @@
 # SoftSpeak
 
-Платформа анонимных чатов с автоматическим подбором собеседников на основе психологического профиля. Состоит из трех сервисов: backend (FastAPI), frontend (React), ML (embeddings + matching).
+Платформа для анонимных чатов с автоматическим подбором собеседников на основе психологического профиля.
 
-## Функционал
+## Описание
 
-**Auth & Registration**
-- Email verification (MailHog для разработки)
-- JWT-токены
-- Автоматическое приветствие от бота после регистрации
+SoftSpeak позволяет пользователям общаться анонимно с автоматически подобранными собеседниками. Система использует машинное обучение для создания векторных профилей пользователей на основе их ответов на психологические вопросы и подбора наиболее совместимых пар.
 
-**Psychological Profiling**
-- WebSocket-опрос для новых пользователей
-- Векторные профили через `intfloat/multilingual-e5-base`
-- ML-матчинг по косинусной близости
-
-**Anonymous Chats**
-- Мгновенный поиск собеседника
-- Случайные алиасы из БД ("Смелый Сокол", и т.д.)
-- Двухсторонняя логика: оба пользователя должны согласиться для перехода в публичный чат
-- Отправка фото/видео (опционально в настройках)
-- WebSocket для сообщений в реальном времени
-
-**Public Chats**
-- Автоматический перенос из анонимных при обоюдном согласии
-- Отображение реальных имен и аватаров
-- Сохранение истории сообщений
-
-**Settings**
-- Avatar, bio, username
-- Уведомления
-- Медиа (фото/видео)
-- Смена пароля
-- Черный список
-
-**Admin Panel**
-- Управление вопросами опроса
-- CRUD для случайных имен (прилагательные, существительные)
-- Статистика
-
-## Стек
+## Технологический стек
 
 - **Backend**: FastAPI, SQLAlchemy, Alembic, PostgreSQL
 - **Frontend**: React 18, Vite, Nginx
-- **ML**: PyTorch, sentence-transformers
-- **Infra**: Docker Compose, MailHog
-
-```
-Browser → Nginx → /api → Backend → PostgreSQL / ML
-                  /ws → WebSocket
-                  /static → uploads (avatars, media)
-```
+- **ML Service**: PyTorch, sentence-transformers
+- **Infrastructure**: Docker Compose
 
 ## Быстрый старт
 
+### Требования
+
+- Docker и Docker Compose
+- Git
+
+### Установка
+
+1. Клонируйте репозиторий:
 ```bash
-git clone <repo-url>
+git clone <repository-url>
 cd SoftSpeak
 ```
 
-Создайте `.env` (см. `.env.example`):
+2. Создайте файл `.env` в корне проекта:
 ```env
 POSTGRES_USER=softspeak_user
 POSTGRES_PASSWORD=softspeak_pass
 POSTGRES_DB=softspeak_db
-JWT_SECRET=your-secret-key-min-32-chars
+JWT_SECRET=your-secret-key-minimum-32-characters-long
 ML_MODEL_NAME=intfloat/multilingual-e5-base
+DEV_MODE=true
 ```
 
-Запуск:
+3. Запустите проект:
 ```bash
 docker-compose up -d --build
 ```
 
-ML-сервис скачает ~500 МБ модели при первом старте (5-10 минут).
+При первом запуске ML-сервис скачает модель (~500 МБ), это может занять 5-10 минут.
 
-**Доступ:**
-- http://localhost:3000 — фронт
-- http://localhost:3000/admin — админка (admin/admin)
-- http://localhost:8000/docs — Swagger
-- http://localhost:8025 — MailHog
+### Доступ к сервисам
 
-## Команды
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API документация: http://localhost:8000/docs
+- Admin панель: http://localhost:3000/admin (admin/admin)
+- MailHog (разработка): http://localhost:8025
+
+## Основные команды
 
 ```bash
-# Остановить
+# Запуск всех сервисов
+docker-compose up -d
+
+# Остановка всех сервисов
 docker-compose down
 
-# Сбросить БД
-docker-compose down -v && docker volume rm softspeak_postgres_data || true
-
-# Пересобрать
-docker-compose up -d --build backend
-
-# Логи
+# Просмотр логов
 docker-compose logs -f backend
 
-# Миграции
+# Пересборка конкретного сервиса
+docker-compose up -d --build backend
+
+# Выполнение миграций
 docker-compose exec backend alembic upgrade head
+
+# Сброс базы данных
+docker-compose down -v
 ```
 
 ## Переменные окружения
 
-Основные:
-- `POSTGRES_*` — настройки БД
-- `JWT_SECRET` — ключ токенов (32+ символа)
-- `SMTP_*` — email для прода
-- `ML_MODEL_NAME` — модель эмбеддингов
-- `ADMIN_USERNAME` — имя пользователя админки (по умолчанию: admin)
-- `ADMIN_PASSWORD` — пароль админки (по умолчанию: admin)
-- `ADMIN_TOKEN` — токен для доступа к админ-API (по умолчанию: admin_token_secret_change_in_production)
+### База данных
+- `POSTGRES_USER` - пользователь PostgreSQL
+- `POSTGRES_PASSWORD` - пароль PostgreSQL
+- `POSTGRES_DB` - имя базы данных
 
-Полный список в `.env.example`.
+### Безопасность
+- `JWT_SECRET` - секретный ключ для JWT токенов (минимум 32 символа)
+- `ADMIN_USERNAME` - имя пользователя админ-панели
+- `ADMIN_PASSWORD` - пароль админ-панели
+- `ADMIN_TOKEN` - токен для админ API
 
-## Структура
+### Email (продакшен)
+- `DEV_MODE` - режим разработки (true/false)
+- `EMAIL_FROM` - email отправителя
+- `SMTP_HOST` - SMTP сервер
+- `SMTP_PORT` - SMTP порт
+- `SMTP_USER` - SMTP пользователь
+- `SMTP_PASSWORD` - SMTP пароль
+- `SMTP_USE_TLS` - использовать TLS
+
+### ML Service
+- `ML_MODEL_NAME` - название модели для эмбеддингов
+
+## Структура проекта
 
 ```
-backend/src/
-├── api/          auth, matchmaking, chat, settings, admin
-├── db/           models, crud operations
-├── core/         config, security, email
-└── schemas/      pydantic models
-
-frontend/src/
-├── components/   messenger UI (ChatArea, MessageInput, etc.)
-├── pages/        Landing, SignIn, Messenger, Admin
-├── context/      ChatDataContext
-└── css/          styles
-
-ml/services/      embeddings, matching, cosine distance
+SoftSpeak/
+├── backend/          # FastAPI backend
+│   ├── src/
+│   │   ├── api/     # API endpoints
+│   │   ├── db/      # Models и CRUD операции
+│   │   ├── core/    # Конфигурация, безопасность
+│   │   └── schemas/ # Pydantic схемы
+│   └── Dockerfile
+├── frontend/         # React frontend
+│   ├── src/
+│   │   ├── components/  # React компоненты
+│   │   ├── pages/       # Страницы приложения
+│   │   └── utils/       # Утилиты
+│   └── Dockerfile
+├── ml/               # ML сервис
+│   ├── services/    # Embeddings и matching
+│   └── Dockerfile
+└── docker-compose.yml
 ```
 
-**Backend ключевые файлы:**
-- `api/matchmaking.py` — WebSocket matchmaking, reveal logic, media upload
-- `db/models.py` — User, AnonymousChat, Message, Question, RandomName*
-- `db/crud/matchmaking.py` — find_match, reveal_anonymous_chat
+## Основной функционал
 
-**Frontend ключевые файлы:**
-- `components/messenger/ChatArea.jsx` — WebSocket чат
-- `context/ChatDataContext.jsx` — глобальное состояние
-- `pages/Admin.jsx` — админка вопросов и алиасов
+### Аутентификация
+- Регистрация с подтверждением email
+- JWT токены для авторизации
+- Автоматическое приветствие от бота после регистрации
 
-**ML:**
-- `services/embedding.py` — векторизация текста
-- `services/matching.py` — подбор по косинусной близости
+### Психологический профиль
+- WebSocket опрос для новых пользователей
+- Создание векторных профилей через ML модель
+- Автоматический подбор собеседников по совместимости
 
-## Основные потоки
+### Анонимные чаты
+- Мгновенный поиск собеседника
+- Случайные алиасы для пользователей
+- WebSocket для сообщений в реальном времени
+- Отправка медиа файлов
 
-**Регистрация:**
-1. Email verification (код в MailHog)
-2. Автовход после подтверждения
-3. Приветственное сообщение от бота
-4. WebSocket-опрос
-5. Сохранение векторного профиля
+### Публичные чаты
+- Переход из анонимных чатов при обоюдном согласии
+- Отображение реальных имен и аватаров
+- Сохранение истории сообщений
 
-**Matchmaking:**
-1. Кнопка "Смэтчиться" → в очередь
-2. ML-сервис вычисляет совместимость
-3. Создание анонимного чата
-4. WebSocket уведомления обоим пользователям
+### Настройки
+- Профиль пользователя (аватар, био, никнейм)
+- Настройки уведомлений
+- Управление медиа
+- Черный список
 
-**Reveal:**
-1. Один пользователь жмет "Раскрыться"
-2. WebSocket-запрос второму
-3. Второй соглашается
-4. Чат переносится в публичные с реальными именами
+### Админ панель
+- Управление вопросами опроса
+- Управление случайными именами
+- Просмотр статистики
+
+## Лицензия
+
+Проект находится в разработке.
