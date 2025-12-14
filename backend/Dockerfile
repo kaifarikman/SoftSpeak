@@ -1,29 +1,31 @@
 FROM python:3.11-slim
 
-WORKDIR /app
-
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-RUN pip install uv
+WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
-COPY uv.lock ./
+ENV PYTHONUNBUFFERED=1
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface
+ENV HF_HUB_DISABLE_PROGRESS_BARS=1
+ENV HF_HUB_DOWNLOAD_TIMEOUT=1800
+ENV TRANSFORMERS_OFFLINE=0
 
-# Install dependencies
-RUN uv sync --frozen
+RUN mkdir -p /app/.cache/huggingface
 
-# Copy application code
+RUN pip install --no-cache-dir --upgrade pip && \
+    (pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu || \
+     pip install --no-cache-dir torch torchvision)
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# Expose port
-EXPOSE 8000
+EXPOSE 8001
 
-# Run the application
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
