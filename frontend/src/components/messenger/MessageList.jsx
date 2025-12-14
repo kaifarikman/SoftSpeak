@@ -15,12 +15,12 @@ function MessageList({ messages }) {
     const currentCount = messages.length;
     const previousCount = previousMessagesCountRef.current;
     
-    // Если это первая загрузка (сообщения загружаются сразу), устанавливаем прокрутку в начало
+
     if (isInitialLoadRef.current && currentCount > 0) {
       isInitialLoadRef.current = false;
       previousMessagesCountRef.current = currentCount;
-      // При первой загрузке прокручиваем вверх (к началу), чтобы заголовок был виден
-      // Используем requestAnimationFrame для установки прокрутки после рендеринга
+
+
       requestAnimationFrame(() => {
         if (messageListRef.current) {
           messageListRef.current.scrollTop = 0;
@@ -29,7 +29,7 @@ function MessageList({ messages }) {
       return;
     }
     
-    // Прокручиваем только если добавлено новое сообщение
+
     if (currentCount > previousCount) {
       scrollToBottom();
     }
@@ -37,7 +37,7 @@ function MessageList({ messages }) {
     previousMessagesCountRef.current = currentCount;
   }, [messages]);
 
-  // Сбрасываем флаг начальной загрузки при смене чата (когда сообщения очищаются)
+
   useEffect(() => {
     if (messages.length === 0) {
       isInitialLoadRef.current = true;

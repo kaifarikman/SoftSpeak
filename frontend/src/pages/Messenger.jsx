@@ -48,7 +48,7 @@ function Messenger() {
 
   }, []);
 
-  // Функция проверки статуса пользователя
+
   const checkUserStatus = useCallback(async () => {
     const email = localStorage.getItem('email');
     if (!email) return;
@@ -60,30 +60,30 @@ function Messenger() {
         if (data.is_banned) {
           setIsBanned(true);
           window.dispatchEvent(new Event('userBanned'));
-          return true; // Пользователь забанен
+          return true;
         } else {
           setIsBanned(false);
           return false;
         }
       } else if (response.status === 403) {
-        // Пользователь забанен
+
         setIsBanned(true);
         window.dispatchEvent(new Event('userBanned'));
         return true;
       } else {
-        // Другая ошибка, но не бан
+
         setIsBanned(false);
         return false;
       }
     } catch (error) {
       console.error('Ошибка проверки статуса пользователя:', error);
-      // При ошибке не блокируем доступ, но логируем
+
       setIsBanned(false);
       return false;
     }
   }, []);
 
-  // Обработчик события бана из других компонентов
+
   useEffect(() => {
     const handleBanned = () => {
       setIsBanned(true);
@@ -100,22 +100,22 @@ function Messenger() {
       return;
     }
     
-    // Проверяем статус пользователя при загрузке страницы
+
     checkUserStatus().finally(() => {
       setIsCheckingBan(false);
     });
     
-    // Проверяем статус периодически (каждые 10 секунд для более быстрого обнаружения бана)
+
     const interval = setInterval(() => {
       checkUserStatus();
     }, 10000);
     
-    // Проверяем статус при возврате фокуса на окно
+
     const handleFocus = () => {
       checkUserStatus();
     };
     
-    // Проверяем статус при видимости страницы
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         checkUserStatus();
@@ -161,7 +161,7 @@ function Messenger() {
     try {
       const response = await fetch(`${API_URL}/matchmaking/public-chats/${email}`);
       if (response.status === 403) {
-        // Пользователь забанен
+
         setIsBanned(true);
         window.dispatchEvent(new Event('userBanned'));
         return;
@@ -211,7 +211,7 @@ function Messenger() {
       });
       
       if (response.status === 403) {
-        // Пользователь забанен
+
         setIsBanned(true);
         return;
       }
@@ -265,9 +265,9 @@ function Messenger() {
   const handleSectionChange = (newSection) => {
 
     if (chatData) {
-      // Разрешаем переход к боту из любой секции, даже если опрос завершен
-      // Блокировка ввода будет обработана в ChatArea через isBotSurveyCompleted
-      // Блокируем только если AI полностью отключен (chatData.ai === false и нет истории)
+
+
+
       if (newSection === 'bot' && chatData.ai === false && (!Array.isArray(chatData.ai) || chatData.ai.length === 0)) {
         return;
       }
@@ -379,12 +379,12 @@ const getActiveChatData = () => {
     activeSection === 'bot' ||
     (activeSection === 'anon' && Boolean(selectedChatAnon));
 
-  // Показываем overlay если пользователь забанен
+
   if (isBanned) {
     return <BannedOverlay />;
   }
 
-  // Показываем загрузку пока проверяем статус
+
   if (isCheckingBan) {
     return (
       <div style={{ 
@@ -416,7 +416,7 @@ const getActiveChatData = () => {
           </div>
         )}
         {activeSection === 'bot' ? (
-          // Для бота ChatArea рендерится напрямую в messenger-body без обертки messenger-chat
+
           showWelcomeScreen ? (
             <WelcomeScreen email={email} onSelectSection={handleSectionChange} />
           ) : (
@@ -448,9 +448,9 @@ const getActiveChatData = () => {
                 setSelectedChatAnon(null);
               }}
               onChatRevealed={async (publicChat) => {
-                // Удаляем чат из анонимных
+
                 setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
-                // Добавляем в публичные
+
                 setChatsPeople(prev => {
                   const filtered = prev.filter(chat => chat.id !== publicChat.id);
                   return [publicChat, ...filtered];
@@ -458,7 +458,7 @@ const getActiveChatData = () => {
                 setSelectedChatAnon(null);
                 setSelectedChatPeople(publicChat);
                 setActiveSection('people');
-                // Перезагружаем списки чатов для синхронизации
+
                 try {
                   await fetchPublicChats();
                   const anonResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);

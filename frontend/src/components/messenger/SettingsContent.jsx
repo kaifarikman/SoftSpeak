@@ -86,7 +86,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
         try {
           errorData = await response.json();
         } catch (e) {
-          // Если ответ не JSON, используем текст
+
           const text = await response.text();
           errorData = { detail: text || 'Ошибка обновления никнейма' };
         }

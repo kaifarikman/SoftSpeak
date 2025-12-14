@@ -1,19 +1,14 @@
 from __future__ import annotations
-
 import random
 import logging
 from typing import Optional
-
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.db.models import RandomNameAdjective, RandomNameNoun
 
 logger = logging.getLogger(__name__)
-
 _cached_adjectives: Optional[list[str]] = None
 _cached_nouns: Optional[list[str]] = None
-
 DEFAULT_ADJECTIVES = [
     "Смелый",
     "Весёлый",
@@ -22,15 +17,7 @@ DEFAULT_ADJECTIVES = [
     "Отважный",
     "Игривый",
 ]
-
-DEFAULT_NOUNS = [
-    "Сокол",
-    "Енот",
-    "Феникс",
-    "Лис",
-    "Комета",
-    "Тигр",
-]
+DEFAULT_NOUNS = ["Сокол", "Енот", "Феникс", "Лис", "Комета", "Тигр"]
 
 
 async def _load_active_words(session: AsyncSession, model) -> list[str]:
@@ -44,7 +31,9 @@ async def _get_cached_adjectives(session: AsyncSession) -> list[str]:
     global _cached_adjectives
     if _cached_adjectives is None:
         _cached_adjectives = await _load_active_words(session, RandomNameAdjective)
-        logger.info(f"Загружено {len(_cached_adjectives)} активных прилагательных в кэш")
+        logger.info(
+            f"Загружено {len(_cached_adjectives)} активных прилагательных в кэш"
+        )
     return _cached_adjectives
 
 
@@ -78,7 +67,6 @@ async def _get_random_word(session: AsyncSession, model) -> str | None:
         result = await session.execute(stmt)
         obj = result.scalar_one_or_none()
         return obj.text if obj else None
-    
     if words:
         return random.choice(words)
     return None
@@ -87,12 +75,10 @@ async def _get_random_word(session: AsyncSession, model) -> str | None:
 async def generate_random_alias(session: AsyncSession) -> str:
     adjective = await _get_random_word(session, RandomNameAdjective)
     noun = await _get_random_word(session, RandomNameNoun)
-
     if not adjective:
         adjective = random.choice(DEFAULT_ADJECTIVES)
     if not noun:
         noun = random.choice(DEFAULT_NOUNS)
-
     return f"{adjective} {noun}"
 
 
@@ -108,7 +94,9 @@ async def list_nouns(session: AsyncSession) -> list[RandomNameNoun]:
     return list(result.scalars().all())
 
 
-async def get_adjective(session: AsyncSession, word_id: int) -> RandomNameAdjective | None:
+async def get_adjective(
+    session: AsyncSession, word_id: int
+) -> RandomNameAdjective | None:
     result = await session.execute(
         select(RandomNameAdjective).where(RandomNameAdjective.id == word_id)
     )
@@ -126,13 +114,13 @@ async def create_adjective(session: AsyncSession, text: str) -> RandomNameAdject
     normalized = text.strip()
     if not normalized:
         raise ValueError("Текст не может быть пустым")
-
     existing = await session.execute(
-        select(RandomNameAdjective).where(func.lower(RandomNameAdjective.text) == normalized.lower())
+        select(RandomNameAdjective).where(
+            func.lower(RandomNameAdjective.text) == normalized.lower()
+        )
     )
     if existing.scalar_one_or_none():
         raise ValueError("Такое прилагательное уже существует")
-
     word = RandomNameAdjective(text=normalized)
     session.add(word)
     await session.commit()
@@ -145,13 +133,13 @@ async def create_noun(session: AsyncSession, text: str) -> RandomNameNoun:
     normalized = text.strip()
     if not normalized:
         raise ValueError("Текст не может быть пустым")
-
     existing = await session.execute(
-        select(RandomNameNoun).where(func.lower(RandomNameNoun.text) == normalized.lower())
+        select(RandomNameNoun).where(
+            func.lower(RandomNameNoun.text) == normalized.lower()
+        )
     )
     if existing.scalar_one_or_none():
         raise ValueError("Такое существительное уже существует")
-
     word = RandomNameNoun(text=normalized)
     session.add(word)
     await session.commit()
@@ -210,4 +198,3 @@ async def delete_noun(session: AsyncSession, word: RandomNameNoun) -> None:
     await session.delete(word)
     await session.commit()
     _invalidate_cache()
-

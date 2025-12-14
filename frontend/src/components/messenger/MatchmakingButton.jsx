@@ -41,7 +41,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
 
   useEffect(() => {
     if (email) {
-      // Восстанавливаем состояние из localStorage
+
       const savedState = localStorage.getItem(`matchmaking_${email}`);
       if (savedState) {
         try {
@@ -54,7 +54,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
             loadStatus();
           }
         } catch (e) {
-          // Если ошибка парсинга, просто загружаем статус
+
           loadStatus();
         }
       } else {
@@ -77,7 +77,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
     };
   }, [email]);
 
-  // Сохраняем состояние поиска в localStorage
+
   useEffect(() => {
     if (email) {
       localStorage.setItem(`matchmaking_${email}`, JSON.stringify({ isSearching }));

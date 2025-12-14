@@ -9,8 +9,7 @@ def verify_admin(username: str, password: str) -> bool:
     expected_password = settings.admin_password
     result = username == expected_username and password == expected_password
     logger.info(
-        f"Admin login attempt: username='{username}' (expected='{expected_username}'), "
-        f"password match={password == expected_password}, result={result}"
+        f"Admin login attempt: username='{username}' (expected='{expected_username}'), password match={password == expected_password}, result={result}"
     )
     return result
 
@@ -21,4 +20,3 @@ def verify_admin_token(token: str) -> bool:
 
 def get_admin_token() -> str:
     return settings.admin_token
-

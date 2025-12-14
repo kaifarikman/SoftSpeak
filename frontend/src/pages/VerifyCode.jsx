@@ -23,9 +23,9 @@ function VerifyCode() {
     setError('');
     setLoading(true);
     try {
-      // Получаем nickname из localStorage (это важно, так как login - это email)
+
       const pendingNickname = localStorage.getItem('pending_nickname');
-      const currentEmail = login; // login - это email
+      const currentEmail = login;
       
       if (!pendingNickname) {
         throw new Error('Не удалось найти данные регистрации. Вернитесь к регистрации.');
@@ -42,13 +42,13 @@ function VerifyCode() {
         throw new Error(data.detail || 'Неверный или просроченный код');
       }
 
-      // Очищаем временные данные регистрации
+
       localStorage.removeItem('pending_nickname');
       localStorage.removeItem('pending_email');
       localStorage.removeItem('pending_password');
       
-      // НЕ сохраняем chat_data и другие данные - пользователь должен войти отдельно
-      // Перенаправляем на страницу входа, где пользователь войдет по email и password
+
+
       setTimeout(() => {
         navigate('/signin', { replace: true });
       }, 100);
@@ -64,9 +64,9 @@ function VerifyCode() {
     setError('');
     setLoading(true);
     try {
-      // Получаем сохраненные данные регистрации
+
       const pendingNickname = localStorage.getItem('pending_nickname');
-      const pendingEmail = localStorage.getItem('pending_email') || login; // login - это email
+      const pendingEmail = localStorage.getItem('pending_email') || login;
       const pendingPassword = localStorage.getItem('pending_password');
 
       if (!pendingPassword || !pendingNickname) {
@@ -91,7 +91,7 @@ function VerifyCode() {
       }
 
       setError('');
-      // Показываем сообщение об успехе через временное сообщение
+
       const successMsg = 'Код отправлен повторно';
       setError(successMsg);
       setTimeout(() => setError(''), 3000);

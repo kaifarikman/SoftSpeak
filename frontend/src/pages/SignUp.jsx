@@ -19,7 +19,7 @@ function SignUp() {
 
   const validateEmailDomain = (email) => {
     if (!email || !email.includes('@')) {
-      return true; // Пока не введен @, не проверяем
+      return true;
     }
     const allowedDomains = [
       'yandex.ru', 'yandex.com', 'ya.ru',
@@ -28,7 +28,7 @@ function SignUp() {
     ];
     const parts = email.toLowerCase().split('@');
     if (parts.length !== 2 || !parts[1]) {
-      return true; // Некорректный формат, но не показываем ошибку домена
+      return true;
     }
     const domain = parts[1];
     return allowedDomains.includes(domain);
@@ -38,12 +38,12 @@ function SignUp() {
     const newEmail = e.target.value;
     setEmail(newEmail);
     
-    // Очищаем ошибку, если пользователь начал исправлять
+
     if (error && error.includes('Доступные ящики')) {
       setError('');
     }
     
-    // Проверяем домен в реальном времени, если email содержит @
+
     if (newEmail && newEmail.includes('@')) {
       if (validateEmail(newEmail) && !validateEmailDomain(newEmail)) {
         setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
@@ -64,7 +64,7 @@ function SignUp() {
     e.preventDefault();
     setError('');
     
-    // Проверка на пустые поля
+
     if (!login || !login.trim()) {
       setError('Пожалуйста, введите логин');
       return;
@@ -112,13 +112,13 @@ function SignUp() {
       if (!response.ok) {
         const data = await response.json();
         console.error('Ошибка регистрации:', data);
-        // Используем formatHttpError для правильного форматирования ошибок
+
         const errorMessage = formatHttpError(response, data);
         throw new Error(errorMessage);
       }
 
 
-      // Сохраняем данные для возможной повторной отправки кода
+
       localStorage.setItem('pending_nickname', login.trim());
       localStorage.setItem('pending_email', email.trim());
       localStorage.setItem('pending_password', password);

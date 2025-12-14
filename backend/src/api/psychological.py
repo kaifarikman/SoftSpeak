@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.db.session import get_db
 from src.db.crud.psychological import (
     get_next_question_for_user,
@@ -26,16 +25,13 @@ router = APIRouter(prefix="/psychological", tags=["psychological"])
 
 @router.get("/next-question/{email}", response_model=NextQuestionResponse)
 async def get_next_question(
-    email: str,
-    session: AsyncSession = Depends(get_db),
+    email: str, session: AsyncSession = Depends(get_db)
 ) -> NextQuestionResponse:
     user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    
     if await has_completed_profile(session, user.id):
         return NextQuestionResponse(
             question=None,
@@ -43,9 +39,7 @@ async def get_next_question(
             total_questions=10,
             is_completed=True,
         )
-    
     result = await get_next_question_for_user(session, user.id)
-    
     if result is None:
         answers = await get_user_answers(session, user.id)
         if len(answers) >= 10:
@@ -53,21 +47,16 @@ async def get_next_question(
             if embeddings:
                 profile_vector = await create_profile_vector(embeddings)
                 await create_psychological_profile(session, user.id, profile_vector)
-                
                 user.messengers_enabled = True
                 await session.commit()
-        
         return NextQuestionResponse(
             question=None,
             current_question_number=10,
             total_questions=10,
             is_completed=True,
         )
-    
     question, current_number, total_count = result
-    
     await session.refresh(question, ["category"])
-    
     return NextQuestionResponse(
         question=QuestionWithCategorySchema.model_validate(question),
         current_question_number=current_number,
@@ -78,33 +67,21 @@ async def get_next_question(
 
 @router.post("/answer/{email}", response_model=UserAnswerSchema)
 async def submit_answer(
-    email: str,
-    request: AnswerRequest,
-    session: AsyncSession = Depends(get_db),
+    email: str, request: AnswerRequest, session: AsyncSession = Depends(get_db)
 ) -> UserAnswerSchema:
     user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    
     if await has_completed_profile(session, user.id):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Профиль уже завершен",
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Профиль уже завершен"
         )
-    
     embedding_list = await create_embedding(request.answer_text)
-    
     answer = await save_user_answer(
-        session,
-        user.id,
-        request.question_id,
-        request.answer_text,
-        embedding_list,
+        session, user.id, request.question_id, request.answer_text, embedding_list
     )
-    
     answers_count = await get_user_answers_count(session, user.id)
     if answers_count >= 10:
         answers = await get_user_answers(session, user.id)
@@ -112,29 +89,21 @@ async def submit_answer(
         if embeddings:
             profile_vector = await create_profile_vector(embeddings)
             await create_psychological_profile(session, user.id, profile_vector)
-            
             user.messengers_enabled = True
-            user.ai_enabled = False  # Отключаем AI чат после завершения опроса
+            user.ai_enabled = False
             await session.commit()
-    
     return UserAnswerSchema.model_validate(answer)
 
 
 @router.get("/status/{email}")
-async def get_profile_status(
-    email: str,
-    session: AsyncSession = Depends(get_db),
-):
+async def get_profile_status(email: str, session: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    
     answers_count = await get_user_answers_count(session, user.id)
     is_completed = await has_completed_profile(session, user.id)
-    
     return {
         "answers_count": answers_count,
         "is_completed": is_completed,
@@ -144,45 +113,35 @@ async def get_profile_status(
 
 @router.get("/profile/{email}", response_model=PsychologicalProfileSchema)
 async def get_psychological_profile(
-    email: str,
-    session: AsyncSession = Depends(get_db),
+    email: str, session: AsyncSession = Depends(get_db)
 ) -> PsychologicalProfileSchema:
     user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    
     profile = await get_user_psychological_profile_crud(session, user.id)
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Психологический профиль не найден. Пройдите опрос.",
         )
-    
     return PsychologicalProfileSchema.model_validate(profile)
 
 
 @router.get("/profile/{email}/vector")
-async def get_profile_vector(
-    email: str,
-    session: AsyncSession = Depends(get_db),
-):
+async def get_profile_vector(email: str, session: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(session, email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    
     profile = await get_user_psychological_profile_crud(session, user.id)
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Психологический профиль не найден. Пройдите опрос.",
         )
-    
     return {
         "email": email,
         "user_id": user.id,
@@ -190,4 +149,3 @@ async def get_profile_vector(
         "vector": profile.profile_vector,
         "completed_at": profile.completed_at.isoformat(),
     }
-

@@ -1,56 +1,38 @@
 from __future__ import annotations
-
 from email.message import EmailMessage
 import logging
 from typing import NamedTuple
-
 import anyio
 import smtplib
 import ssl
-
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class SmtpConfig(NamedTuple):
-    """Конфигурация SMTP сервера."""
     host: str
     port: int
-    use_ssl: bool  # True = SSL (465), False = STARTTLS (587)
+    use_ssl: bool
 
 
-# Конфигурации SMTP серверов для разных провайдеров
 SMTP_CONFIGS = {
-    # Yandex (SSL на порту 465)
     "yandex.ru": SmtpConfig("smtp.yandex.ru", 465, True),
     "yandex.com": SmtpConfig("smtp.yandex.ru", 465, True),
     "ya.ru": SmtpConfig("smtp.yandex.ru", 465, True),
-    
-    # Mail.ru (SSL на порту 465)
     "mail.ru": SmtpConfig("smtp.mail.ru", 465, True),
     "inbox.ru": SmtpConfig("smtp.mail.ru", 465, True),
     "list.ru": SmtpConfig("smtp.mail.ru", 465, True),
     "bk.ru": SmtpConfig("smtp.mail.ru", 465, True),
-    
-    # Gmail (STARTTLS на порту 587)
     "gmail.com": SmtpConfig("smtp.gmail.com", 587, False),
 }
 
 
 def _get_smtp_config_for_email(email: str) -> SmtpConfig:
-    """Получает конфигурацию SMTP на основе домена отправителя."""
     domain = email.lower().split("@")[-1]
-    
     if domain in SMTP_CONFIGS:
         return SMTP_CONFIGS[domain]
-    
-    # Fallback на настройки из конфига
-    return SmtpConfig(
-        settings.smtp_host,
-        settings.smtp_port,
-        not settings.smtp_use_tls  # smtp_use_tls=True означает STARTTLS, use_ssl=False
-    )
+    return SmtpConfig(settings.smtp_host, settings.smtp_port, not settings.smtp_use_tls)
 
 
 def _build_message(subject: str, body: str, recipient: str) -> EmailMessage:
@@ -67,42 +49,103 @@ async def send_email_async(subject: str, body: str, recipient: str) -> None:
 
     def _send(msg: EmailMessage) -> None:
         if settings.dev_mode:
-            # Режим разработки - MailHog (без SSL/TLS)
             logger.info(f"[DEV] Отправка email через MailHog на {recipient}")
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            with smtplib.SMTP(
+                settings.smtp_host, settings.smtp_port, timeout=30
+            ) as server:
                 server.send_message(msg)
         else:
-            # Продакшен - реальный SMTP
             smtp_config = _get_smtp_config_for_email(settings.email_from)
             logger.info(
-                f"[PROD] Отправка email через {smtp_config.host}:{smtp_config.port} "
-                f"(SSL={smtp_config.use_ssl}) на {recipient}"
+                f"[PROD] Отправка email через {smtp_config.host}:{smtp_config.port} (SSL={smtp_config.use_ssl}) на {recipient}"
             )
-            
+            if not settings.smtp_user or not settings.smtp_password:
+                raise ValueError(
+                    "SMTP_USER и SMTP_PASSWORD должны быть установлены для отправки email в продакшене"
+                )
             if smtp_config.use_ssl:
-                # SSL соединение (порт 465) - Yandex, Mail.ru
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(smtp_config.host, smtp_config.port, context=context) as server:
-                    if settings.smtp_user and settings.smtp_password:
+                success = False
+                last_error = None
+                try:
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP_SSL(
+                        smtp_config.host, smtp_config.port, context=context, timeout=30
+                    ) as server:
                         server.login(settings.smtp_user, settings.smtp_password)
-                    server.send_message(msg)
+                        server.send_message(msg)
+                        logger.info(
+                            f"Email успешно отправлен на {recipient} (SSL с проверкой сертификата)"
+                        )
+                        success = True
+                except Exception as e:
+                    last_error = e
+                    logger.warning(
+                        f"Не удалось подключиться через SSL с проверкой сертификата: {e}"
+                    )
+                if not success:
+                    try:
+                        context = ssl.create_default_context()
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
+                        with smtplib.SMTP_SSL(
+                            smtp_config.host,
+                            smtp_config.port,
+                            context=context,
+                            timeout=30,
+                        ) as server:
+                            server.login(settings.smtp_user, settings.smtp_password)
+                            server.send_message(msg)
+                            logger.info(
+                                f"Email успешно отправлен на {recipient} (SSL без проверки сертификата)"
+                            )
+                            success = True
+                    except Exception as e:
+                        last_error = e
+                        logger.warning(
+                            f"Не удалось подключиться через SSL без проверки сертификата: {e}"
+                        )
+                if not success and smtp_config.host == "smtp.yandex.ru":
+                    try:
+                        logger.info(
+                            "Попытка подключения через STARTTLS на порту 587..."
+                        )
+                        context = ssl.create_default_context()
+                        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=30) as server:
+                            server.starttls(context=context)
+                            server.login(settings.smtp_user, settings.smtp_password)
+                            server.send_message(msg)
+                            logger.info(
+                                f"Email успешно отправлен на {recipient} (STARTTLS на 587)"
+                            )
+                            success = True
+                    except Exception as e:
+                        last_error = e
+                        logger.warning(f"Не удалось подключиться через STARTTLS: {e}")
+                if not success:
+                    error_msg = f"Не удалось отправить email через {smtp_config.host}:{smtp_config.port}. Последняя ошибка: {last_error}"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
             else:
-                # STARTTLS соединение (порт 587) - Gmail
-                with smtplib.SMTP(smtp_config.host, smtp_config.port) as server:
-                    server.starttls(context=ssl.create_default_context())
-                    if settings.smtp_user and settings.smtp_password:
+                try:
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP(
+                        smtp_config.host, smtp_config.port, timeout=30
+                    ) as server:
+                        server.starttls(context=context)
                         server.login(settings.smtp_user, settings.smtp_password)
-                    server.send_message(msg)
+                        server.send_message(msg)
+                        logger.info(
+                            f"Email успешно отправлен на {recipient} (STARTTLS)"
+                        )
+                except Exception as e:
+                    error_msg = f"Не удалось отправить email через STARTTLS {smtp_config.host}:{smtp_config.port}: {e}"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
 
     await anyio.to_thread.run_sync(_send, message, cancellable=True)
 
 
 async def send_verification_code_email(email: str, code: str) -> None:
     subject = "SoftSpeak: код подтверждения регистрации"
-    body = (
-        f"Здравствуйте!\n\n"
-        f"Ваш код подтверждения для регистрации в SoftSpeak: {code}\n"
-        f"Он будет действителен в течение {settings.verification_code_ttl_min} минут.\n\n"
-        f"Если вы не запрашивали код, просто проигнорируйте это письмо."
-    )
+    body = f"Здравствуйте!\n\nВаш код подтверждения для регистрации в SoftSpeak: {code}\nОн будет действителен в течение {settings.verification_code_ttl_min} минут.\n\nЕсли вы не запрашивали код, просто проигнорируйте это письмо."
     await send_email_async(subject, body, email)

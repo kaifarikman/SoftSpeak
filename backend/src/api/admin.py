@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.core.admin_auth import verify_admin, verify_admin_token, get_admin_token
 from src.db.session import get_db
 from src.db.crud.psychological import (
@@ -32,18 +31,13 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def get_admin_token(authorization: str | None = Header(None)) -> str:
     if not authorization:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Требуется авторизация",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется авторизация"
         )
-    
     token = authorization.replace("Bearer ", "").strip()
-    
     if not verify_admin_token(token):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный токен",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный токен"
         )
-    
     return token
 
 
@@ -51,21 +45,18 @@ def get_admin_token(authorization: str | None = Header(None)) -> str:
 async def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
     if not verify_admin(request.username, request.password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль"
         )
-    
     from src.core.admin_auth import get_admin_token as get_token_from_settings
+
     return AdminLoginResponse(
-        message="Успешный вход в админку",
-        token=get_token_from_settings(),
+        message="Успешный вход в админку", token=get_token_from_settings()
     )
 
 
 @router.get("/categories", response_model=list[CategorySchema])
 async def get_categories(
-    session: AsyncSession = Depends(get_db),
-    _token: str = Depends(get_admin_token),
+    session: AsyncSession = Depends(get_db), _token: str = Depends(get_admin_token)
 ):
     categories = await get_all_categories(session)
     return [CategorySchema.model_validate(cat) for cat in categories]
@@ -78,9 +69,7 @@ async def create_category(
     _token: str = Depends(get_admin_token),
 ):
     category = Category(
-        name=request.name,
-        description=request.description,
-        order=request.order,
+        name=request.name, description=request.description, order=request.order
     )
     session.add(category)
     await session.commit()
@@ -107,10 +96,8 @@ async def create_question(
     category = await get_category_by_id(session, request.category_id)
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Категория не найдена",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Категория не найдена"
         )
-    
     question = Question(
         category_id=request.category_id,
         text=request.text,
@@ -133,17 +120,14 @@ async def update_question(
     question = await get_question_by_id(session, question_id)
     if not question:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Вопрос не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Вопрос не найден"
         )
-    
     if request.text is not None:
         question.text = request.text
     if request.order is not None:
         question.order = request.order
     if request.is_active is not None:
         question.is_active = request.is_active
-    
     await session.commit()
     await session.refresh(question)
     return QuestionSchema.model_validate(question)
@@ -158,10 +142,8 @@ async def delete_question(
     question = await get_question_by_id(session, question_id)
     if not question:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Вопрос не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Вопрос не найден"
         )
-    
     await session.delete(question)
     await session.commit()
     return {"message": "Вопрос удален"}
@@ -169,8 +151,7 @@ async def delete_question(
 
 @router.get("/random-names/adjectives", response_model=list[RandomWordSchema])
 async def list_random_adjectives(
-    session: AsyncSession = Depends(get_db),
-    _token: str = Depends(get_admin_token),
+    session: AsyncSession = Depends(get_db), _token: str = Depends(get_admin_token)
 ):
     words = await random_names_crud.list_adjectives(session)
     return [RandomWordSchema.model_validate(word) for word in words]
@@ -198,13 +179,12 @@ async def update_random_adjective(
 ):
     word = await random_names_crud.get_adjective(session, word_id)
     if not word:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено"
+        )
     try:
         updated = await random_names_crud.update_adjective(
-            session,
-            word,
-            text=request.text,
-            is_active=request.is_active,
+            session, word, text=request.text, is_active=request.is_active
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -219,15 +199,16 @@ async def delete_random_adjective(
 ):
     word = await random_names_crud.get_adjective(session, word_id)
     if not word:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Прилагательное не найдено"
+        )
     await random_names_crud.delete_adjective(session, word)
     return {"message": "Прилагательное удалено"}
 
 
 @router.get("/random-names/nouns", response_model=list[RandomWordSchema])
 async def list_random_nouns(
-    session: AsyncSession = Depends(get_db),
-    _token: str = Depends(get_admin_token),
+    session: AsyncSession = Depends(get_db), _token: str = Depends(get_admin_token)
 ):
     words = await random_names_crud.list_nouns(session)
     return [RandomWordSchema.model_validate(word) for word in words]
@@ -255,13 +236,12 @@ async def update_random_noun(
 ):
     word = await random_names_crud.get_noun(session, word_id)
     if not word:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено"
+        )
     try:
         updated = await random_names_crud.update_noun(
-            session,
-            word,
-            text=request.text,
-            is_active=request.is_active,
+            session, word, text=request.text, is_active=request.is_active
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -276,7 +256,9 @@ async def delete_random_noun(
 ):
     word = await random_names_crud.get_noun(session, word_id)
     if not word:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Существительное не найдено"
+        )
     await random_names_crud.delete_noun(session, word)
     return {"message": "Существительное удалено"}
 
@@ -312,34 +294,36 @@ async def get_all_reports(
 ) -> list[ReportSchema]:
     from sqlalchemy import select
     from src.db.models import User
-    
+
     reports = await reports_crud.get_all_reports(session, status=status)
-    
     result = []
     for report in reports:
         reporter_stmt = select(User).where(User.id == report.reporter_id)
         reporter_result = await session.execute(reporter_stmt)
         reporter = reporter_result.scalar_one_or_none()
-        
         reported_user_stmt = select(User).where(User.id == report.reported_user_id)
         reported_user_result = await session.execute(reported_user_stmt)
         reported_user = reported_user_result.scalar_one_or_none()
-        
-        result.append(ReportSchema(
-            id=report.id,
-            reporter_id=report.reporter_id,
-            reported_user_id=report.reported_user_id,
-            chat_id=report.chat_id,
-            reason=report.reason,
-            description=report.description,
-            status=report.status,
-            created_at=report.created_at.isoformat(),
-            resolved_at=report.resolved_at.isoformat() if report.resolved_at else None,
-            resolved_by_admin_id=report.resolved_by_admin_id,
-            reporter_username=reporter.nickname if reporter else None,
-            reported_user_username=reported_user.nickname if reported_user else None,
-        ))
-    
+        result.append(
+            ReportSchema(
+                id=report.id,
+                reporter_id=report.reporter_id,
+                reported_user_id=report.reported_user_id,
+                chat_id=report.chat_id,
+                reason=report.reason,
+                description=report.description,
+                status=report.status,
+                created_at=report.created_at.isoformat(),
+                resolved_at=(
+                    report.resolved_at.isoformat() if report.resolved_at else None
+                ),
+                resolved_by_admin_id=report.resolved_by_admin_id,
+                reporter_username=reporter.nickname if reporter else None,
+                reported_user_username=(
+                    reported_user.nickname if reported_user else None
+                ),
+            )
+        )
     return result
 
 
@@ -353,14 +337,12 @@ async def get_report_chat_messages(
     from sqlalchemy import select
     from src.db.models import AnonymousChat, AnonymousMessage
     from sqlalchemy.orm import selectinload
-    
+
     report = await get_report_by_id(session, report_id)
     if not report:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Жалоба не найдена",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Жалоба не найдена"
         )
-    
     chat_stmt = (
         select(AnonymousChat)
         .where(AnonymousChat.id == report.chat_id)
@@ -368,13 +350,10 @@ async def get_report_chat_messages(
     )
     chat_result = await session.execute(chat_stmt)
     chat = chat_result.scalar_one_or_none()
-    
     if not chat:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Чат не найден",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
         )
-    
     return {
         "chat_id": report.chat_id,
         "messages": [
@@ -398,26 +377,18 @@ async def ban_user_from_report(
 ) -> AdminActionResponse:
     from src.core.config import settings
     from src.db.crud.auth import get_user_by_nickname
-    
+
     admin_user = await get_user_by_nickname(session, settings.admin_username)
     admin_id = admin_user.id if admin_user else None
-    
     success, error_message = await reports_crud.ban_user_from_report(
-        session,
-        report_id=report_id,
-        admin_id=admin_id,
+        session, report_id=report_id, admin_id=admin_id
     )
-    
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_message or "Ошибка бана пользователя",
         )
-    
-    return AdminActionResponse(
-        success=True,
-        message="Пользователь забанен",
-    )
+    return AdminActionResponse(success=True, message="Пользователь забанен")
 
 
 @router.post("/users/{user_id}/unban", response_model=AdminActionResponse)
@@ -429,38 +400,29 @@ async def unban_user_endpoint(
     from src.core.config import settings
     from src.db.crud.auth import get_user_by_nickname
     from src.db.crud import reports as reports_crud
-    
+
     admin_user = await get_user_by_nickname(session, settings.admin_username)
     admin_id = admin_user.id if admin_user else None
-    
     success, error_message = await reports_crud.unban_user(
-        session,
-        user_id=user_id,
-        admin_id=admin_id,
+        session, user_id=user_id, admin_id=admin_id
     )
-    
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_message or "Ошибка разблокировки пользователя",
         )
-    
-    return AdminActionResponse(
-        success=True,
-        message="Пользователь разблокирован",
-    )
+    return AdminActionResponse(success=True, message="Пользователь разблокирован")
 
 
 @router.get("/users/banned", response_model=list[dict])
 async def get_banned_users(
-    session: AsyncSession = Depends(get_db),
-    _token: str = Depends(get_admin_token),
+    session: AsyncSession = Depends(get_db), _token: str = Depends(get_admin_token)
 ):
     from src.db.models import User
+
     stmt = select(User).where(User.is_banned.is_(True)).order_by(User.id.desc())
     result = await session.execute(stmt)
     users = result.scalars().all()
-    
     return [
         {
             "id": user.id,
@@ -480,24 +442,15 @@ async def reject_report(
 ) -> AdminActionResponse:
     from src.core.config import settings
     from src.db.crud.auth import get_user_by_nickname
-    
+
     admin_user = await get_user_by_nickname(session, settings.admin_username)
     admin_id = admin_user.id if admin_user else None
-    
     success, error_message = await reports_crud.reject_report(
-        session,
-        report_id=report_id,
-        admin_id=admin_id,
+        session, report_id=report_id, admin_id=admin_id
     )
-    
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_message or "Ошибка отклонения жалобы",
         )
-    
-    return AdminActionResponse(
-        success=True,
-        message="Жалоба отклонена",
-    )
-
+    return AdminActionResponse(success=True, message="Жалоба отклонена")

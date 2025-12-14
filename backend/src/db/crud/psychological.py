@@ -1,9 +1,7 @@
 from typing import Optional
-
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from src.db.models import Category, Question, UserAnswer, User, PsychologicalProfile
 
 
@@ -13,16 +11,16 @@ async def get_all_categories(session: AsyncSession) -> list[Category]:
     return list(result.scalars().all())
 
 
-async def get_category_by_id(session: AsyncSession, category_id: int) -> Optional[Category]:
+async def get_category_by_id(
+    session: AsyncSession, category_id: int
+) -> Optional[Category]:
     stmt = select(Category).where(Category.id == category_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def get_questions_by_category(
-    session: AsyncSession,
-    category_id: int,
-    only_active: bool = True,
+    session: AsyncSession, category_id: int, only_active: bool = True
 ) -> list[Question]:
     stmt = select(Question).where(Question.category_id == category_id)
     if only_active:
@@ -32,34 +30,33 @@ async def get_questions_by_category(
     return list(result.scalars().all())
 
 
-async def get_question_by_id(session: AsyncSession, question_id: int) -> Optional[Question]:
+async def get_question_by_id(
+    session: AsyncSession, question_id: int
+) -> Optional[Question]:
     stmt = select(Question).where(Question.id == question_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def get_next_question_for_user(
-    session: AsyncSession,
-    user_id: int,
+    session: AsyncSession, user_id: int
 ) -> Optional[tuple[Question, int, int]]:
     categories = await get_all_categories(session)
     categories = sorted(categories, key=lambda c: c.order)
-    
     stmt = select(UserAnswer).where(UserAnswer.user_id == user_id)
     result = await session.execute(stmt)
     user_answers = list(result.scalars().all())
     answered_question_ids = {answer.question_id for answer in user_answers}
-    
     total_questions = 10
-    
     for category in categories:
-        questions = await get_questions_by_category(session, category.id, only_active=True)
+        questions = await get_questions_by_category(
+            session, category.id, only_active=True
+        )
         if questions:
             question = questions[0]
             if question.id not in answered_question_ids:
                 current_number = len(answered_question_ids) + 1
-                return question, current_number, total_questions
-    
+                return (question, current_number, total_questions)
     return None
 
 
@@ -100,14 +97,9 @@ async def get_user_answers(session: AsyncSession, user_id: int) -> list[UserAnsw
 
 
 async def create_psychological_profile(
-    session: AsyncSession,
-    user_id: int,
-    profile_vector: list[float],
+    session: AsyncSession, user_id: int, profile_vector: list[float]
 ) -> PsychologicalProfile:
-    profile = PsychologicalProfile(
-        user_id=user_id,
-        profile_vector=profile_vector,
-    )
+    profile = PsychologicalProfile(user_id=user_id, profile_vector=profile_vector)
     session.add(profile)
     await session.commit()
     await session.refresh(profile)
@@ -115,8 +107,7 @@ async def create_psychological_profile(
 
 
 async def get_psychological_profile(
-    session: AsyncSession,
-    user_id: int,
+    session: AsyncSession, user_id: int
 ) -> Optional[PsychologicalProfile]:
     stmt = select(PsychologicalProfile).where(PsychologicalProfile.user_id == user_id)
     result = await session.execute(stmt)
@@ -126,4 +117,3 @@ async def get_psychological_profile(
 async def has_completed_profile(session: AsyncSession, user_id: int) -> bool:
     profile = await get_psychological_profile(session, user_id)
     return profile is not None
-

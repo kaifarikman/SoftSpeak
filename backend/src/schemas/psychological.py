@@ -1,11 +1,9 @@
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel
 
 
 class CategorySchema(BaseModel):
-
     id: int
     name: str
     description: Optional[str] = None
@@ -16,7 +14,6 @@ class CategorySchema(BaseModel):
 
 
 class QuestionSchema(BaseModel):
-
     id: int
     category_id: int
     text: str
@@ -28,7 +25,6 @@ class QuestionSchema(BaseModel):
 
 
 class QuestionWithCategorySchema(QuestionSchema):
-
     category: CategorySchema
 
     class Config:
@@ -36,7 +32,6 @@ class QuestionWithCategorySchema(QuestionSchema):
 
 
 class UserAnswerSchema(BaseModel):
-
     id: int
     user_id: int
     question_id: int
@@ -48,13 +43,11 @@ class UserAnswerSchema(BaseModel):
 
 
 class AnswerRequest(BaseModel):
-
     question_id: int
     answer_text: str
 
 
 class NextQuestionResponse(BaseModel):
-
     question: Optional[QuestionWithCategorySchema] = None
     current_question_number: int
     total_questions: int
@@ -62,7 +55,6 @@ class NextQuestionResponse(BaseModel):
 
 
 class PsychologicalProfileSchema(BaseModel):
-
     id: int
     user_id: int
     profile_vector: list[float]
@@ -70,4 +62,3 @@ class PsychologicalProfileSchema(BaseModel):
 
     class Config:
         from_attributes = True
-

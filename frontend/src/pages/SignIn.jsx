@@ -69,7 +69,7 @@ function SignIn() {
       const data = await response.json();
       
       if (!response.ok) {
-        // Используем formatHttpError для правильного форматирования ошибок
+
         const errorMessage = formatHttpError(response, data);
         throw new Error(errorMessage);
       }

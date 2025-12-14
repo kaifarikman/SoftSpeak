@@ -22,7 +22,7 @@ function Admin() {
   const [bannedUsers, setBannedUsers] = useState([]);
   const [showBannedUsers, setShowBannedUsers] = useState(false);
 
-  // Отключаем overflow: hidden для админки
+
   useEffect(() => {
     document.documentElement.classList.add('admin-page');
     document.body.classList.add('admin-page');

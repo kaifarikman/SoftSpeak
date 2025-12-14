@@ -175,7 +175,7 @@ const ChatArea = memo(({
 
     ws.onclose = (event) => {
       anonChatWsRef.current = null;
-      // Если закрытие из-за бана (код 4003), отправляем событие
+
       if (event.code === 4003) {
         window.dispatchEvent(new Event('userBanned'));
       }
@@ -249,14 +249,14 @@ const ChatArea = memo(({
             try {
               const response = await fetch(`${API_URL}/chat/data/${email}`);
               if (await checkBanStatus(response)) {
-                return; // Пользователь забанен
+                return;
               }
               if (response.ok) {
                 const newChatData = await response.json();
                 if (onChatDataUpdate) {
                   onChatDataUpdate(newChatData);
                 }
-                // Если мы не в секции 'bot', автоматически переключаемся на неё
+
                 if (activeSection !== 'bot' && onSectionChange) {
                   onSectionChange('bot');
                 }
@@ -287,7 +287,7 @@ const ChatArea = memo(({
 
     ws.onclose = (event) => {
       isConnectingRef.current = false;
-      // Если закрытие из-за бана (код 4003), не переподключаемся
+
       if (event.code === 4003) {
         window.dispatchEvent(new Event('userBanned'));
         return;
@@ -356,7 +356,7 @@ const ChatArea = memo(({
     try {
       const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${email}`);
       if (await checkBanStatus(response)) {
-        return; // Пользователь забанен
+        return;
       }
       if (response.ok) {
         const data = await response.json();
@@ -416,7 +416,7 @@ const ChatArea = memo(({
             method: 'PUT',
           });
           if (await checkBanStatus(readResponse)) {
-            return; // Пользователь забанен
+            return;
           }
           if (window.notificationUpdateCallback) {
             window.notificationUpdateCallback();
@@ -511,14 +511,14 @@ const ChatArea = memo(({
     if (!selectedChat) return;
 
 
-    // Блокируем отправку если AI отключен или опрос завершен (есть история и messengers доступны)
+
     if (activeSection === 'bot' && chatData) {
       if (chatData.ai === false) {
-        return; // AI отключен
+        return;
       }
-      // Если есть история сообщений (массив) И messengers доступны (профиль завершен), блокируем отправку
+
       if (Array.isArray(chatData.ai) && chatData.ai.length > 0 && chatData.messengers === true) {
-        return; // Опрос завершен, отправка недоступна
+        return;
       }
     }
 
@@ -544,7 +544,7 @@ const ChatArea = memo(({
           
           if (await checkBanStatus(response)) {
             setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-            return; // Пользователь забанен
+            return;
           }
           
           if (response.ok) {
@@ -559,7 +559,7 @@ const ChatArea = memo(({
               try {
                 const chatResponse = await fetch(`${API_URL}/chat/data/${email}`);
                 if (await checkBanStatus(chatResponse)) {
-                  return; // Пользователь забанен
+                  return;
                 }
                 if (chatResponse.ok) {
                   const newChatData = await chatResponse.json();
@@ -584,7 +584,7 @@ const ChatArea = memo(({
           
           if (await checkBanStatus(response)) {
             setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-            return; // Пользователь забанен
+            return;
           }
           
           if (response.ok) {
@@ -631,14 +631,14 @@ const ChatArea = memo(({
       });
       
       if (await checkBanStatus(response)) {
-        return; // Пользователь забанен
+        return;
       }
       
       let data = null;
       try {
         data = await response.json();
       } catch (parseError) {
-        // Если не удалось распарсить JSON, это может быть ошибка 500
+
         if (response.status === 500) {
           throw new Error('Ошибка сервера при раскрытии профиля. Попробуйте позже.');
         }
@@ -646,7 +646,7 @@ const ChatArea = memo(({
       }
 
       if (!response.ok) {
-        // Обрабатываем различные статусы ошибок
+
         if (response.status === 500) {
           throw new Error('Ошибка сервера при раскрытии профиля. Попробуйте позже.');
         } else if (response.status === 404) {
@@ -663,7 +663,7 @@ const ChatArea = memo(({
       }
 
       if (data.status === 'revealed' && data.both_revealed) {
-        // Перезагружаем данные чата после успешного reveal
+
         try {
           const chatResponse = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/${email}`);
           if (chatResponse.ok) {
@@ -687,7 +687,7 @@ const ChatArea = memo(({
           onChatRevealed(formattedChat);
         }
         
-        // Обновляем список чатов после успешного reveal
+
         if (onChatsUpdate && activeSection === 'anon') {
           try {
             const chatsResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
@@ -800,18 +800,18 @@ const ChatArea = memo(({
   }
   const isSurveyCompleted = chatData && Array.isArray(chatData.ai) && chatData.ai.length > 0;
   
-  // Определяем, завершен ли опрос бота (есть история сообщений и messengers доступны)
+
   const isBotSurveyCompleted = activeSection === 'bot' && chatData && 
     Array.isArray(chatData.ai) && 
     chatData.ai.length > 0 && 
     chatData.messengers === true;
   
-  // Проверяем наличие ошибки "Нет доступных вопросов для опроса"
+
   const hasNoQuestionsError = messages.some(msg => 
     msg.isError && msg.text && msg.text.includes('Нет доступных вопросов для опроса')
   );
 
-  // Отладка для понимания состояния
+
   if (activeSection === 'bot' && chatData) {
     console.log('ChatArea bot state:', {
       ai: chatData.ai,

@@ -97,7 +97,7 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
           
           setTimeout(() => loadNotifications(), 200);
         } else if (data.type === 'ping') {
-          // Отвечаем на ping для поддержания соединения
+
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: 'pong' }));
           }
@@ -115,7 +115,7 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
 
     wsRef.current.onclose = (event) => {
       console.log('NotificationIcon: WebSocket для уведомлений отключен. Код:', event.code, 'Причина:', event.reason);
-      // Переподключение только если это не было намеренное закрытие
+
       if (event.code !== 1000 && email) {
       setTimeout(() => {
         if (wsRef.current?.readyState === WebSocket.CLOSED && email) {
@@ -165,7 +165,7 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
                 });
                 setTimeout(() => loadNotifications(), 200);
                 } else if (data.type === 'ping') {
-                  // Отвечаем на ping
+
                   if (wsRef.current?.readyState === WebSocket.OPEN) {
                     wsRef.current.send(JSON.stringify({ type: 'pong' }));
                   }
@@ -179,7 +179,7 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
               console.error('NotificationIcon: WebSocket ошибка при переподключении:', error);
           };
         }
-        }, 500); // Уменьшили задержку переподключения
+        }, 500);
       }
     };
 

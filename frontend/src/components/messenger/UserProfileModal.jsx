@@ -17,7 +17,7 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
     setError(null);
     
     try {
-      // Получаем публичный профиль пользователя по nickname
+
       const url = `${API_URL}/settings/profile/by-nickname/${encodeURIComponent(nickname)}`;
       console.log('UserProfileModal: Загрузка профиля для', nickname, 'URL:', url);
       
@@ -32,7 +32,7 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
         const errorText = await response.text();
         console.error('UserProfileModal: Ошибка загрузки профиля', response.status, errorText);
         setError(`Не удалось загрузить профиль: ${response.status}`);
-        // Если не удалось загрузить, показываем хотя бы nickname
+
         setProfileData({
           nickname: nickname,
           bio: null
@@ -41,7 +41,7 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
     } catch (err) {
       console.error('UserProfileModal: Ошибка загрузки профиля:', err);
       setError('Ошибка при загрузке профиля');
-      // Показываем хотя бы nickname при ошибке
+
       setProfileData({
         nickname: nickname,
         bio: null

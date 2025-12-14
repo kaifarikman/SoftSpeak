@@ -1,16 +1,11 @@
 from typing import Optional
-
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from src.db.models import Chat, Message, User
 
 
-async def get_or_create_active_chat(
-    session: AsyncSession,
-    user_id: int,
-) -> Chat:
+async def get_or_create_active_chat(session: AsyncSession, user_id: int) -> Chat:
     stmt = (
         select(Chat)
         .where(Chat.user_id == user_id, Chat.is_active.is_(True))
@@ -19,21 +14,16 @@ async def get_or_create_active_chat(
     )
     result = await session.execute(stmt)
     chat = result.scalar_one_or_none()
-
     if not chat:
         chat = Chat(user_id=user_id, is_active=True)
         session.add(chat)
         await session.commit()
         await session.refresh(chat)
         await session.refresh(chat, ["messages"])
-
     return chat
 
 
-async def get_chat_with_messages(
-    session: AsyncSession,
-    user_id: int,
-) -> Optional[Chat]:
+async def get_chat_with_messages(session: AsyncSession, user_id: int) -> Optional[Chat]:
     stmt = (
         select(Chat)
         .where(Chat.user_id == user_id, Chat.is_active.is_(True))
@@ -45,40 +35,26 @@ async def get_chat_with_messages(
 
 
 async def create_message(
-    session: AsyncSession,
-    chat_id: int,
-    content: str,
-    is_from_user: bool = True,
+    session: AsyncSession, chat_id: int, content: str, is_from_user: bool = True
 ) -> Message:
-    message = Message(
-        chat_id=chat_id,
-        content=content,
-        is_from_user=is_from_user,
-    )
+    message = Message(chat_id=chat_id, content=content, is_from_user=is_from_user)
     session.add(message)
-    
     if is_from_user:
         stmt = select(Chat).where(Chat.id == chat_id).with_for_update()
         result = await session.execute(stmt)
         chat = result.scalar_one_or_none()
-        
         if chat:
             user_stmt = select(User).where(User.id == chat.user_id).with_for_update()
             user_result = await session.execute(user_stmt)
             user = user_result.scalar_one_or_none()
-            
-            if user and not user.messengers_enabled:
+            if user and (not user.messengers_enabled):
                 messages_stmt = select(func.count(Message.id)).where(
-                    Message.chat_id == chat_id,
-                    Message.is_from_user.is_(True)
+                    Message.chat_id == chat_id, Message.is_from_user.is_(True)
                 )
                 messages_result = await session.execute(messages_stmt)
                 user_messages_count = messages_result.scalar() or 0
-                
                 if user_messages_count == 0:
                     user.messengers_enabled = True
-    
     await session.commit()
     await session.refresh(message)
     return message
-

@@ -6,7 +6,6 @@ import logging
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-
 from src.api.auth import router as auth_router
 from src.api.chat import router as chat_router
 from src.api.admin import router as admin_router
@@ -19,69 +18,46 @@ from src.api.notifications import router as notifications_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 limiter = Limiter(key_func=get_remote_address)
-
 app = FastAPI(
     title="SoftSpeak API",
     description="API для аутентификации SoftSpeak",
     version="0.1.0",
 )
-
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     logger.error(f"Validation error: {errors}")
-    
-    # Форматируем ошибки для клиента
     formatted_errors = []
     for error in errors:
-        # Извлекаем тип ошибки и локацию
         error_type = str(error.get("type", "validation_error")).strip()
         loc = list(error.get("loc", []))
-        # Берем последний элемент из loc (это имя поля)
         field_name = str(loc[-1]).strip() if loc and len(loc) > 0 else ""
-        
-        # Извлекаем сообщение об ошибке
         msg = error.get("msg", "")
-        # Если msg - это список или словарь, извлекаем строку
         if isinstance(msg, (list, tuple)) and len(msg) > 0:
             msg = str(msg[0])
         elif isinstance(msg, dict):
-            # Если это словарь, пытаемся извлечь сообщение
             msg = msg.get("msg", str(msg))
         else:
             msg = str(msg)
-        
-        # Извлекаем ctx (контекст ошибки), если есть
         ctx = error.get("ctx", {})
         if ctx and isinstance(ctx, dict):
-            # Если в ctx есть информация об ошибке, используем её
             if "error" in ctx:
                 error_obj = ctx["error"]
                 if isinstance(error_obj, Exception):
                     msg = str(error_obj)
-        
-        # Специальная обработка для ошибок длины никнейма (ПОСЛЕ обработки ctx)
-        # Проверяем и по типу ошибки, и по имени поля (без учета регистра для надежности)
         if error_type == "string_too_long" and field_name.lower() == "nickname":
             msg = "Слишком длинный nickname"
         elif error_type == "string_too_short" and field_name.lower() == "nickname":
             min_length = ctx.get("min_length", 3) if isinstance(ctx, dict) else 3
             msg = f"Никнейм должен быть не менее {min_length} символов"
-        
-        error_dict = {
-            "loc": loc,
-            "msg": msg,
-            "type": error_type
-        }
+        error_dict = {"loc": loc, "msg": msg, "type": error_type}
         formatted_errors.append(error_dict)
-    print(
-        formatted_errors
-    )
+    print(formatted_errors)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": formatted_errors},
@@ -92,24 +68,21 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def startup_event():
     logger.info("Запуск приложения...")
     from src.api.websocket_survey import start_retry_task
+
     start_retry_task()
     logger.info("Приложение запущено.")
+
 
 from src.core.config import settings
 
 cors_origins_list = [
-    origin.strip() 
-    for origin in settings.cors_origins.split(",") 
-    if origin.strip()
+    origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
 ]
-
 if settings.cors_origins.strip() == "*":
     cors_origins_list = ["*"]
-else:
-    if "*" in cors_origins_list and len(cors_origins_list) > 1:
-        logger.warning("CORS: '*' игнорируется при наличии других origins")
-        cors_origins_list = [o for o in cors_origins_list if o != "*"]
-
+elif "*" in cors_origins_list and len(cors_origins_list) > 1:
+    logger.warning("CORS: '*' игнорируется при наличии других origins")
+    cors_origins_list = [o for o in cors_origins_list if o != "*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins_list,
@@ -117,8 +90,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 from slowapi.middleware import SlowAPIMiddleware
+
 app.add_middleware(SlowAPIMiddleware)
 app.include_router(auth_router)
 app.include_router(chat_router)
@@ -134,9 +107,11 @@ app.include_router(notifications_router)
 async def root():
     return {"message": "Hello"}
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 @app.websocket("/ws/survey/{username}")
 async def websocket_survey(websocket: WebSocket, username: str):

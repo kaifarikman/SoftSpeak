@@ -1,13 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
 from src.core.config import settings
 
-engine = create_async_engine(
-    settings.database_url,
-    echo=False,
-    future=True,
-)
-
+engine = create_async_engine(settings.database_url, echo=False, future=True)
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -24,4 +18,3 @@ async def get_db() -> AsyncSession:
         except Exception:
             await session.rollback()
             raise
-

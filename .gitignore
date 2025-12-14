@@ -1,14 +1,7 @@
-# ===========================================
-# SoftSpeak .gitignore
-# ===========================================
-
-# ------------------- Environment -------------------
 .env
 .env.local
 .env.*.local
 .DS_Store
-
-# ------------------- Python -------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -31,23 +24,19 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual environments
 venv/
 env/
 ENV/
 .venv
 
-# PyCharm
 .idea/
 *.iml
 *.iws
 .idea_modules/
 
-# VS Code
 .vscode/
 *.code-workspace
 
-# ------------------- Node / Frontend -------------------
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -55,24 +44,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Build outputs
 dist/
 dist-ssr/
 *.local
 
-# ------------------- Database -------------------
 *.db
 *.sqlite
 *.sqlite3
 
-# PostgreSQL data
 postgres_data/
 
-# ------------------- Docker -------------------
 .dockerignore
 
-# ------------------- ML / AI -------------------
-# Model caches
 .cache/
 *.pt
 *.pth
@@ -80,27 +63,22 @@ postgres_data/
 models/
 checkpoints/
 
-# HuggingFace cache
 .cache/huggingface/
 huggingface/
 
-# ------------------- OS -------------------
 .DS_Store
 Thumbs.db
 
-# ------------------- Logs -------------------
 *.log
 logs/
 *.out
 
-# ------------------- Testing -------------------
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 .hypothesis/
 
-# ------------------- IDE -------------------
 *.swp
 *.swo
 *~
@@ -110,15 +88,11 @@ htmlcov/
 *.launch
 .settings/
 
-# ------------------- Alembic -------------------
-# Keep versions, but ignore temp files
 backend/src/app/migrations/versions/__pycache__/
 
-# ------------------- Temporary files -------------------
 *.tmp
 *.bak
 *.orig
 .mypy_cache/
 .dmypy.json
 dmypy.json
-

@@ -1,15 +1,21 @@
 from __future__ import annotations
-
 from datetime import datetime, timezone
-
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, ARRAY, Float
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    ARRAY,
+    Float,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from .base import Base
+
 
 class User(Base):
     __tablename__ = "users"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nickname: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
@@ -26,21 +32,16 @@ class User(Base):
     notification_open_chats: Mapped[bool] = mapped_column(Boolean, default=True)
     reports_count: Mapped[int] = mapped_column(Integer, default=0)
     verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
+        back_populates="user", cascade="all, delete-orphan"
     )
     ai_chats: Mapped[list["Chat"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
+        back_populates="user", cascade="all, delete-orphan"
     )
     answers: Mapped[list["UserAnswer"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
+        back_populates="user", cascade="all, delete-orphan"
     )
     psychological_profile: Mapped["PsychologicalProfile | None"] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        uselist=False,
+        back_populates="user", cascade="all, delete-orphan", uselist=False
     )
     anonymous_chats_as_user1: Mapped[list["AnonymousChat"]] = relationship(
         "AnonymousChat",
@@ -55,9 +56,7 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     matchmaking_queue: Mapped["MatchmakingQueue | None"] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        uselist=False,
+        back_populates="user", cascade="all, delete-orphan", uselist=False
     )
     reports_made: Mapped[list["Report"]] = relationship(
         "Report",
@@ -75,40 +74,41 @@ class User(Base):
 
 class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     code: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        nullable=False, 
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
-
     user: Mapped["User"] = relationship(back_populates="verification_codes")
 
 
 class Chat(Base):
     __tablename__ = "chats"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-
     user: Mapped["User"] = relationship(back_populates="ai_chats")
     messages: Mapped[list["Message"]] = relationship(
         back_populates="chat",
@@ -119,29 +119,26 @@ class Chat(Base):
 
 class Message(Base):
     __tablename__ = "messages"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     chat_id: Mapped[int] = mapped_column(
-        ForeignKey("chats.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("chats.id", ondelete="CASCADE"), index=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_from_user: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
-
     chat: Mapped["Chat"] = relationship(back_populates="messages")
 
 
 class Category(Base):
     __tablename__ = "categories"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
     questions: Mapped[list["Question"]] = relationship(
         back_populates="category",
         cascade="all, delete-orphan",
@@ -151,194 +148,213 @@ class Category(Base):
 
 class Question(Base):
     __tablename__ = "questions"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     category_id: Mapped[int] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-
     category: Mapped["Category"] = relationship(back_populates="questions")
     answers: Mapped[list["UserAnswer"]] = relationship(
-        back_populates="question",
-        cascade="all, delete-orphan",
+        back_populates="question", cascade="all, delete-orphan"
     )
 
 
 class UserAnswer(Base):
     __tablename__ = "user_answers"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     question_id: Mapped[int] = mapped_column(
-        ForeignKey("questions.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("questions.id", ondelete="CASCADE"), index=True
     )
     answer_text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
-
     user: Mapped["User"] = relationship(back_populates="answers")
     question: Mapped["Question"] = relationship(back_populates="answers")
 
 
 class PsychologicalProfile(Base):
     __tablename__ = "psychological_profiles"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-        unique=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, unique=True
     )
     profile_vector: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
     completed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
-
     user: Mapped["User"] = relationship(back_populates="psychological_profile")
 
 
 class AnonymousChat(Base):
     __tablename__ = "anonymous_chats"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user1_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     user2_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
-    revealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revealed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     user1_revealed: Mapped[bool] = mapped_column(Boolean, default=False)
     user2_revealed: Mapped[bool] = mapped_column(Boolean, default=False)
-    user1_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
-    user2_alias: Mapped[str] = mapped_column(String(128), nullable=False, default="Собеседник")
+    user1_alias: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="Собеседник"
+    )
+    user2_alias: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="Собеседник"
+    )
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     blocked_by_report_id: Mapped[int | None] = mapped_column(
-        ForeignKey("reports.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("reports.id", ondelete="SET NULL"), nullable=True
     )
-
-    user1: Mapped["User"] = relationship("User", foreign_keys=[user1_id], back_populates="anonymous_chats_as_user1")
-    user2: Mapped["User"] = relationship("User", foreign_keys=[user2_id], back_populates="anonymous_chats_as_user2")
+    user1: Mapped["User"] = relationship(
+        "User", foreign_keys=[user1_id], back_populates="anonymous_chats_as_user1"
+    )
+    user2: Mapped["User"] = relationship(
+        "User", foreign_keys=[user2_id], back_populates="anonymous_chats_as_user2"
+    )
     messages: Mapped[list["AnonymousMessage"]] = relationship(
         back_populates="chat",
         cascade="all, delete-orphan",
         order_by="AnonymousMessage.created_at",
     )
     blocking_report: Mapped["Report | None"] = relationship(
-        "Report",
-        foreign_keys=[blocked_by_report_id],
+        "Report", foreign_keys=[blocked_by_report_id]
     )
 
 
 class AnonymousMessage(Base):
     __tablename__ = "anonymous_messages"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     chat_id: Mapped[int] = mapped_column(
-        ForeignKey("anonymous_chats.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("anonymous_chats.id", ondelete="CASCADE"), index=True
     )
     sender_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-
     chat: Mapped["AnonymousChat"] = relationship(back_populates="messages")
     sender: Mapped["User"] = relationship("User")
 
 
 class MatchmakingQueue(Base):
     __tablename__ = "matchmaking_queue"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-        unique=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, unique=True
     )
     joined_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
     is_searching: Mapped[bool] = mapped_column(Boolean, default=True)
-
     user: Mapped["User"] = relationship(back_populates="matchmaking_queue")
 
 
 class Report(Base):
     __tablename__ = "reports"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reporter_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     reported_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     chat_id: Mapped[int] = mapped_column(
-        ForeignKey("anonymous_chats.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("anonymous_chats.id", ondelete="CASCADE"), index=True
     )
     reason: Mapped[str] = mapped_column(String(64), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     resolved_by_admin_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-
-    reporter: Mapped["User"] = relationship("User", foreign_keys=[reporter_id], back_populates="reports_made")
-    reported_user: Mapped["User"] = relationship("User", foreign_keys=[reported_user_id], back_populates="reports_received")
-    chat: Mapped["AnonymousChat"] = relationship("AnonymousChat", foreign_keys=[chat_id])
-    resolved_by: Mapped["User | None"] = relationship("User", foreign_keys=[resolved_by_admin_id])
+    reporter: Mapped["User"] = relationship(
+        "User", foreign_keys=[reporter_id], back_populates="reports_made"
+    )
+    reported_user: Mapped["User"] = relationship(
+        "User", foreign_keys=[reported_user_id], back_populates="reports_received"
+    )
+    chat: Mapped["AnonymousChat"] = relationship(
+        "AnonymousChat", foreign_keys=[chat_id]
+    )
+    resolved_by: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[resolved_by_admin_id]
+    )
 
 
 class RandomNameAdjective(Base):
     __tablename__ = "random_name_adjectives"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     text: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class RandomNameNoun(Base):
     __tablename__ = "random_name_nouns"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     text: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
