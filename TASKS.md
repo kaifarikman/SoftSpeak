@@ -47,7 +47,7 @@
 ### Тесты
 - [ ] Integration тесты auth flow — регистрация → верификация → логин (`pytest` + `httpx AsyncClient`)
 - [ ] Integration тесты matchmaking — join queue → match found → chat created
-- [ ] Unit тесты ML сервиса — embedding dimensions, cosine similarity edge cases
+- [x] Unit тесты ML сервиса — embedding dimensions, cosine similarity edge cases
 - [ ] Frontend smoke tests — `Vitest` или `Playwright` для критических страниц
 
 ### Инфраструктура
@@ -72,4 +72,4 @@
 - [ ] Аватары пользователей — загрузка и хранение (S3 или `/static/avatars/`)
 - [ ] Блэклист пользователей — упоминается в настройках, логика не реализована
 - [ ] Mobile-first — `HamburgerMenu` компонент есть, адаптивность не протестирована
-- [ ] Профиль пользователя — страница `/u/{nickname}` с публичным профилем
+- [x] Профиль пользователя — страница `/u/{nickname}` с публичным профилем
