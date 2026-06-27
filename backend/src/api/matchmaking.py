@@ -46,6 +46,7 @@ from src.db.crud.matchmaking import (
 )
 from src.db.crud.psychological import has_completed_profile
 from src.db.models import User
+from src.services.vector_utils import MLServiceUnavailable
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -278,6 +279,12 @@ async def start_matchmaking(
     chat_found = None
     try:
         chat_found = await find_match(session, user.id, threshold=0.95)
+    except MLServiceUnavailable as match_error:
+        logger.warning(f"ML сервис недоступен для matchmaking {email}: {match_error}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Матчмейкинг временно недоступен. Попробуйте позже.",
+        ) from match_error
     except Exception as match_error:
         logger.error(
             f"Ошибка мгновенного матчинга для {email}: {match_error}", exc_info=True
@@ -563,6 +570,20 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                                     await asyncio.sleep(0.1)
                                     matchmaking_manager.disconnect(email)
                                     break
+                        except MLServiceUnavailable as match_error:
+                            logger.warning(
+                                f"ML сервис недоступен при поиске матча для {email}: {match_error}"
+                            )
+                            try:
+                                await websocket.send_json(
+                                    {
+                                        "type": "error",
+                                        "message": "Матчмейкинг временно недоступен. Попробуйте позже.",
+                                    }
+                                )
+                            except Exception:
+                                pass
+                            break
                         except Exception as match_error:
                             logger.error(
                                 f"Ошибка при поиске матча для {email}: {match_error}",

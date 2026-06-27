@@ -1,8 +1,15 @@
 import '../css/components/BannedOverlay.css';
+import { API_URL } from '../config';
+import { apiFetch, clearAuthStorage } from '../utils/apiHelper';
 
 function BannedOverlay() {
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    try {
+      await apiFetch(`${API_URL}/auth/logout`, { method: 'POST' });
+    } catch (error) {
+      console.error('Ошибка выхода:', error);
+    }
+    clearAuthStorage();
     window.location.href = '/signin';
   };
 
@@ -23,4 +30,3 @@ function BannedOverlay() {
 }
 
 export default BannedOverlay;
-

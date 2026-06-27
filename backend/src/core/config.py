@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         description="Секретный ключ для JWT токенов. Должен быть минимум 32 символа. ОБЯЗАТЕЛЬНО измените в продакшене!",
     )
     jwt_access_ttl_min: int = 30
+    jwt_refresh_ttl_days: int = 30
 
     @field_validator("jwt_secret")
     @classmethod
@@ -63,9 +64,10 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = "admin"
     admin_token: str = "admin_token_secret_change_in_production"
+    allowed_email_domains: str = "yandex.ru,yandex.com,ya.ru,mail.ru,inbox.ru,list.ru,bk.ru,gmail.com"
     cors_origins: str = Field(
-        default="*",
-        description="Разрешенные CORS origins (через запятую). По умолчанию '*' для разработки. В продакшене укажите конкретные домены.",
+        default="http://localhost:3000,http://localhost:8000",
+        description="Разрешенные CORS origins через запятую.",
     )
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env", env_file_encoding="utf-8", case_sensitive=False

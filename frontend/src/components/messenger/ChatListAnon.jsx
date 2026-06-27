@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import ChatItem from './ChatItem';
 import MatchmakingButton from './MatchmakingButton';
 import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import { logError, handleApiError } from '../../utils/errorHandler';
 import '../../css/components/ChatListAnon.css';
 import '../../css/components/MatchmakingButton.css';
@@ -28,7 +29,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, email, onChat
     if (!email) return;
     
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+      const response = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
       if (response.ok) {
         const data = await response.json();
 
@@ -56,7 +57,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, email, onChat
     setSelectedChat(null);
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+      const response = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
       if (response.ok) {
         const data = await response.json();
         const formattedChats = data.map(chat => ({
@@ -83,7 +84,7 @@ const ChatListAnon = memo(({ chats, selectedChat, setSelectedChat, email, onChat
 
           console.log('Chat not found immediately, retrying in 500ms...');
           setTimeout(async () => {
-            const retryResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+            const retryResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
             if (retryResponse.ok) {
               const retryData = await retryResponse.json();
             const retryFormattedChats = retryData.map(chat => ({

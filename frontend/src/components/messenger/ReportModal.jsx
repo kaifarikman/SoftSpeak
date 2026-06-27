@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import '../../css/components/ReportModal.css';
 
 const REPORT_REASONS = [
@@ -50,7 +51,7 @@ function ReportModal({ chatId, isOpen, onClose, onReportSubmitted }) {
         return;
       }
 
-      const response = await fetch(`${API_URL}/reports?email=${email}`, {
+      const response = await apiFetch(`${API_URL}/reports?email=${email}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -156,4 +157,3 @@ function ReportModal({ chatId, isOpen, onClose, onReportSubmitted }) {
 }
 
 export default ReportModal;
-

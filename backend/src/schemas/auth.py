@@ -1,20 +1,19 @@
 from pydantic import BaseModel, EmailStr, SecretStr, Field, field_validator
+from src.core.config import settings
 
-ALLOWED_EMAIL_DOMAINS = {
-    "yandex.ru",
-    "yandex.com",
-    "ya.ru",
-    "mail.ru",
-    "inbox.ru",
-    "list.ru",
-    "bk.ru",
-    "gmail.com",
-}
+
+def get_allowed_email_domains() -> set[str]:
+    return {
+        domain.strip().lower()
+        for domain in settings.allowed_email_domains.split(",")
+        if domain.strip()
+    }
 
 
 def validate_email_domain(email: str) -> str:
     domain = email.lower().split("@")[-1]
-    if domain not in ALLOWED_EMAIL_DOMAINS:
+    allowed_domains = get_allowed_email_domains()
+    if domain not in allowed_domains:
         raise ValueError("Доступные ящики: mail.ru, yandex.ru, gmail.com")
     return email
 
@@ -32,6 +31,8 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     nickname: str
     email: EmailStr
+    access_token: str
+    token_type: str = "bearer"
     message: str = "Authenticated"
     chat_data: dict | None = None
 
@@ -59,3 +60,15 @@ class EmailVerificationConfirmRequest(BaseModel):
 class EmailVerificationConfirmResponse(BaseModel):
     message: str
     chat_data: dict | None = None
+
+
+class AuthMeResponse(BaseModel):
+    nickname: str
+    email: EmailStr
+    chat_data: dict
+    is_banned: bool
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

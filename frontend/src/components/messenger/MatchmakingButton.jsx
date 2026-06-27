@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 import '../../css/components/MatchmakingButton.css';
 
@@ -88,7 +89,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
     if (!email) return;
     
     try {
-      const response = await fetch(`${API_URL}/matchmaking/status/${email}`);
+      const response = await apiFetch(`${API_URL}/matchmaking/status/${email}`);
       if (response.ok) {
         const data = await response.json();
         setIsSearching(data.is_searching);
@@ -213,7 +214,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/start/${email}`, {
+      const response = await apiFetch(`${API_URL}/matchmaking/start/${email}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -251,12 +252,13 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
         }
       } else {
         const errorData = await response.json().catch(() => ({ detail: 'Неизвестная ошибка' }));
-        setError(errorData.detail || 'Ошибка начала поиска');
-        alert(errorData.detail || 'Ошибка начала поиска');
+        const message = response.status === 503
+          ? 'Матчмейкинг временно недоступен. Попробуйте позже.'
+          : (errorData.detail || 'Ошибка начала поиска');
+        setError(message);
       }
     } catch (error) {
-      setError('Ошибка подключения к серверу');
-      alert('Ошибка начала поиска. Проверьте подключение к интернету.');
+      setError('Матчмейкинг временно недоступен. Попробуйте позже.');
     }
   };
 
@@ -269,7 +271,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
         wsRef.current.send(JSON.stringify({ type: 'stop_search' }));
       }
 
-      const response = await fetch(`${API_URL}/matchmaking/stop/${email}`, {
+      const response = await apiFetch(`${API_URL}/matchmaking/stop/${email}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

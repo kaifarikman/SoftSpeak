@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import NotificationDropdown from './NotificationDropdown';
 import '../../css/components/NotificationIcon.css';
 
@@ -18,7 +19,7 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
 
     try {
       console.log('NotificationIcon: Загрузка уведомлений для', email);
-      const response = await fetch(`${API_URL}/notifications/${email}`);
+      const response = await apiFetch(`${API_URL}/notifications/${email}`);
       if (response.ok) {
         const data = await response.json();
         console.log('NotificationIcon: Получены уведомления', data);
@@ -279,4 +280,3 @@ function NotificationIcon({ email, onNotificationClick, onNotificationsUpdate })
 }
 
 export default NotificationIcon;
-

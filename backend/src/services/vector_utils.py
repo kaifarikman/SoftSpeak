@@ -13,6 +13,10 @@ INITIAL_RETRY_DELAY = 1.0
 MAX_RETRY_DELAY = 10.0
 
 
+class MLServiceUnavailable(RuntimeError):
+    pass
+
+
 def get_http_client() -> httpx.AsyncClient:
     global _http_client
     if _http_client is None:
@@ -46,7 +50,7 @@ async def _retry_with_backoff(
         except Exception as e:
             logger.error(f"{operation_name}: Неожиданная ошибка: {e}", exc_info=True)
             raise
-    raise RuntimeError(
+    raise MLServiceUnavailable(
         f"{operation_name}: Не удалось выполнить операцию после {MAX_RETRIES} попыток: {str(last_exception)}"
     )
 

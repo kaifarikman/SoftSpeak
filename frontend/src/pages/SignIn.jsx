@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { API_URL } from '../config';
 import { formatHttpError } from '../utils/errorFormatter';
+import { clearAuthStorage, setAccessToken } from '../utils/apiHelper';
 
 function SignIn() {
   const navigate = useNavigate();
@@ -53,10 +54,11 @@ function SignIn() {
 
     try {
 
-      localStorage.clear();
+      clearAuthStorage();
 
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -74,6 +76,8 @@ function SignIn() {
         throw new Error(errorMessage);
       }
 
+
+      setAccessToken(data.access_token);
 
       if (data.chat_data) {
         localStorage.setItem('chat_data', JSON.stringify(data.chat_data));

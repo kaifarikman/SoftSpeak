@@ -1,7 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Request,
+    Response,
+    Cookie,
+    Header,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi.util import get_remote_address
+from datetime import timedelta
+from src.core.config import settings
 from src.core.email import send_verification_code_email
+from src.core.security import create_access_token, create_refresh_token, decode_jwt_token
 from src.db.crud.auth import (
     authenticate_user,
     confirm_email_verification_code,
@@ -11,17 +23,68 @@ from src.db.crud.auth import (
 )
 from src.api.chat import get_chat_data_for_user
 from src.schemas.auth import (
+    AuthMeResponse,
     EmailVerificationConfirmRequest,
     EmailVerificationConfirmResponse,
     EmailVerificationRequest,
     EmailVerificationResponse,
     LoginRequest,
     LoginResponse,
+    TokenResponse,
 )
 from src.schemas.chat import ChatResponse
 from src.db.session import get_db
+from src.db.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+REFRESH_COOKIE_NAME = "softspeak_refresh"
+
+
+def set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=int(timedelta(days=settings.jwt_refresh_ttl_days).total_seconds()),
+        httponly=True,
+        secure=not settings.dev_mode,
+        samesite="lax",
+        path="/auth",
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/auth")
+
+
+async def get_current_user(
+    authorization: str | None = Header(None),
+    session: AsyncSession = Depends(get_db),
+) -> User:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется авторизация",
+        )
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        payload = decode_jwt_token(token, "access")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+    user = await get_user_by_email(session, payload["sub"])
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден",
+        )
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+    return user
 
 
 def get_limiter(request: Request):
@@ -45,6 +108,7 @@ def rate_limit_decorator(limit: str):
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 async def login(
     request: Request,
+    response: Response,
     request_data: LoginRequest,
     session: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
@@ -56,11 +120,72 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"
         )
     chat_data = await get_chat_data_for_user(session, user.email)
+    access_token = create_access_token(user.email)
+    refresh_token = create_refresh_token(user.email)
+    set_refresh_cookie(response, refresh_token)
     return LoginResponse(
         nickname=user.nickname,
         email=user.email,
+        access_token=access_token,
         message=f"Добро пожаловать, {user.full_name or user.nickname}!",
         chat_data=chat_data.model_dump(),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+async def refresh_access_token(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
+    session: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token отсутствует",
+        )
+    try:
+        payload = decode_jwt_token(refresh_token, "refresh")
+    except ValueError as exc:
+        clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+    user = await get_user_by_email(session, payload["sub"])
+    if not user or not user.is_active:
+        clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден",
+        )
+    if user.is_banned:
+        clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+    new_refresh_token = create_refresh_token(user.email)
+    set_refresh_cookie(response, new_refresh_token)
+    return TokenResponse(access_token=create_access_token(user.email))
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(response: Response) -> dict:
+    clear_refresh_cookie(response)
+    return {"message": "Вы вышли из системы"}
+
+
+@router.get("/me", response_model=AuthMeResponse, status_code=status.HTTP_200_OK)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> AuthMeResponse:
+    chat_data = await get_chat_data_for_user(session, current_user.email)
+    return AuthMeResponse(
+        nickname=current_user.nickname,
+        email=current_user.email,
+        chat_data=chat_data.model_dump(),
+        is_banned=current_user.is_banned,
     )
 
 

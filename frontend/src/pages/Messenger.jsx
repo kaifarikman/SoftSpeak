@@ -10,6 +10,7 @@ import BannedOverlay from '../components/BannedOverlay';
 import { useChatData } from '../context/ChatDataContext';
 import { API_URL } from '../config';
 import { logError, handleApiError } from '../utils/errorHandler';
+import { apiFetch } from '../utils/apiHelper';
 import '../css/Messenger.css';
 import '../css/components/ChatArea.css';
 import '../css/components/ChatHeader.css';
@@ -26,7 +27,7 @@ import '../css/components/WelcomeScreen.css';
 function Messenger() {
   const navigate = useNavigate();
 
-  const { chatData, updateChatData } = useChatData();
+  const { chatData, updateChatData, refreshChatData } = useChatData();
   const [activeSection, setActiveSection] = useState('bot');
   const [selectedChatBot, setSelectedChatBot] = useState("SoftSpeak");
   const [selectedChatAnon, setSelectedChatAnon] = useState(null);
@@ -36,17 +37,10 @@ function Messenger() {
   const [isCheckingBan, setIsCheckingBan] = useState(true);
 
   useEffect(() => {
-    const savedChatData = localStorage.getItem('chat_data');
-    if (savedChatData) {
-      try {
-        const parsed = JSON.parse(savedChatData);
-        updateChatData(parsed);
-      } catch (err) {
-        console.error('Ошибка парсинга chat_data:', err);
-      }
-    }
-
-  }, []);
+    refreshChatData().catch((err) => {
+      console.error('Ошибка загрузки данных пользователя:', err);
+    });
+  }, [refreshChatData]);
 
 
   const checkUserStatus = useCallback(async () => {
@@ -54,7 +48,7 @@ function Messenger() {
     if (!email) return;
 
     try {
-      const response = await fetch(`${API_URL}/settings/status/${email}`);
+      const response = await apiFetch(`${API_URL}/settings/status/${email}`);
       if (response.ok) {
         const data = await response.json();
         if (data.is_banned) {
@@ -94,16 +88,17 @@ function Messenger() {
   }, []);
 
   useEffect(() => {
-    const email = localStorage.getItem('email');
-    if (!email) {
-      navigate('/signin');
-      return;
-    }
-    
-
-    checkUserStatus().finally(() => {
-      setIsCheckingBan(false);
-    });
+    refreshChatData()
+      .then((data) => {
+        if (!data) {
+          navigate('/signin');
+          return;
+        }
+        return checkUserStatus();
+      })
+      .finally(() => {
+        setIsCheckingBan(false);
+      });
     
 
     const interval = setInterval(() => {
@@ -159,7 +154,7 @@ function Messenger() {
     if (!email) return;
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/public-chats/${email}`);
+      const response = await apiFetch(`${API_URL}/matchmaking/public-chats/${email}`);
       if (response.status === 403) {
 
         setIsBanned(true);
@@ -206,7 +201,7 @@ function Messenger() {
     if (!email) return;
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${notification.chat_id}/read/${email}`, {
+      const response = await apiFetch(`${API_URL}/matchmaking/chat/${notification.chat_id}/read/${email}`, {
         method: 'PUT',
       });
       
@@ -218,7 +213,7 @@ function Messenger() {
       
       if (response.ok) {
         if (notification.chat_type === 'anon') {
-          const chatsResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+          const chatsResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
           if (chatsResponse.ok) {
             const chatsData = await chatsResponse.json();
             const chat = chatsData.find(c => c.id === notification.chat_id);
@@ -232,7 +227,7 @@ function Messenger() {
             }
           }
         } else if (notification.chat_type === 'people') {
-          const chatsResponse = await fetch(`${API_URL}/matchmaking/public-chats/${email}`);
+          const chatsResponse = await apiFetch(`${API_URL}/matchmaking/public-chats/${email}`);
           if (chatsResponse.ok) {
             const chatsData = await chatsResponse.json();
             const chat = chatsData.find(c => c.id === notification.chat_id);
@@ -461,7 +456,7 @@ const getActiveChatData = () => {
 
                 try {
                   await fetchPublicChats();
-                  const anonResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+                  const anonResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
                   if (anonResponse.ok) {
                     const anonData = await anonResponse.json();
                     const formattedAnon = anonData.map(chat => ({
@@ -491,4 +486,3 @@ const getActiveChatData = () => {
 }
 
 export default Messenger;
-

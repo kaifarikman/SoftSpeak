@@ -22,12 +22,12 @@ services:
       - softspeak-network
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     container_name: softspeak_mailhog
     restart: always
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"
-      - "${MAILHOG_WEB_PORT:-8025}:8025"
+      - "${MAILHOG_WEB_PORT:-8025}:8080"
     networks:
       - softspeak-network
 
@@ -49,6 +49,9 @@ services:
       
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-use-secure-key}
       JWT_ACCESS_TTL_MIN: ${JWT_ACCESS_TTL_MIN:-30}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-yandex.ru,yandex.com,ya.ru,mail.ru,inbox.ru,list.ru,bk.ru,gmail.com}
       
       EMAIL_FROM: ${EMAIL_FROM:-noreply@softspeak.com}
       SMTP_HOST: ${SMTP_HOST:-mailhog}
@@ -67,8 +70,8 @@ services:
       MATCH_SIMILARITY_THRESHOLD: ${MATCH_SIMILARITY_THRESHOLD:-0.65}
       
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-      ADMIN_TOKEN: ${ADMIN_TOKEN:-admin_token_secret_change_in_production}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env}
     depends_on:
       db:
         condition: service_healthy
@@ -89,7 +92,7 @@ services:
       sh -c "cd src && 
              uv run alembic upgrade head && 
              cd .. && 
-             uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+             uv run uvicorn src.main:app --host 0.0.0.0 --port 8000"
 
   frontend:
     build:

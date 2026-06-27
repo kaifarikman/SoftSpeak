@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
 import { formatHttpError } from '../../utils/errorFormatter';
+import { apiFetch, clearAuthStorage } from '../../utils/apiHelper';
 import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
@@ -28,7 +29,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     try {
       const url = `${API_URL}/settings/${email}`;
       console.log('Fetching:', url);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       console.log('Response status:', response.status);
       
       if (response.ok) {
@@ -72,7 +73,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/profile/nickname/${email}`, {
+      const response = await apiFetch(`${API_URL}/settings/profile/nickname/${email}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
   const handleUpdateBio = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/profile/bio/${email}`, {
+      const response = await apiFetch(`${API_URL}/settings/profile/bio/${email}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bio: formData.bio || null }),
@@ -143,7 +144,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     try {
       const url = `${API_URL}/settings/notifications/${email}`;
       console.log('Updating notifications at:', url);
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,7 +187,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/settings/account/password/${email}`, {
+      const response = await apiFetch(`${API_URL}/settings/account/password/${email}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,10 +216,13 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('email');
-    localStorage.removeItem('nickname');
-    localStorage.removeItem('chat_data');
+  const handleLogout = async () => {
+    try {
+      await apiFetch(`${API_URL}/auth/logout`, { method: 'POST' });
+    } catch (error) {
+      console.error('Ошибка выхода:', error);
+    }
+    clearAuthStorage();
     window.location.href = '/signin';
   };
 
@@ -369,4 +373,3 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
 };
 
 export default SettingsContent;
-

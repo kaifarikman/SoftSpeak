@@ -8,7 +8,7 @@ import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
 import { API_URL, WS_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
-import { checkBanStatus } from '../../utils/apiHelper';
+import { apiFetch, checkBanStatus, clearAuthStorage } from '../../utils/apiHelper';
 
 const ChatArea = memo(({
   selectedChat,
@@ -247,7 +247,7 @@ const ChatArea = memo(({
           
           setTimeout(async () => {
             try {
-              const response = await fetch(`${API_URL}/chat/data/${email}`);
+              const response = await apiFetch(`${API_URL}/chat/data/${email}`);
               if (await checkBanStatus(response)) {
                 return;
               }
@@ -354,7 +354,7 @@ const ChatArea = memo(({
     if (!email) return;
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${chatId}/${email}`);
+      const response = await apiFetch(`${API_URL}/matchmaking/chat/${chatId}/${email}`);
       if (await checkBanStatus(response)) {
         return;
       }
@@ -412,7 +412,7 @@ const ChatArea = memo(({
         
 
         try {
-          const readResponse = await fetch(`${API_URL}/matchmaking/chat/${chatId}/read/${email}`, {
+          const readResponse = await apiFetch(`${API_URL}/matchmaking/chat/${chatId}/read/${email}`, {
             method: 'PUT',
           });
           if (await checkBanStatus(readResponse)) {
@@ -536,7 +536,7 @@ const ChatArea = memo(({
         
         if (activeSection === 'bot') {
 
-          response = await fetch(`${API_URL}/chat/message/${email}`, {
+          response = await apiFetch(`${API_URL}/chat/message/${email}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
@@ -557,7 +557,7 @@ const ChatArea = memo(({
 
             setTimeout(async () => {
               try {
-                const chatResponse = await fetch(`${API_URL}/chat/data/${email}`);
+                const chatResponse = await apiFetch(`${API_URL}/chat/data/${email}`);
                 if (await checkBanStatus(chatResponse)) {
                   return;
                 }
@@ -576,7 +576,7 @@ const ChatArea = memo(({
           }
         } else if ((activeSection === 'anon' || activeSection === 'people') && selectedChat && selectedChat.id) {
 
-          response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/message/${email}`, {
+          response = await apiFetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/message/${email}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
@@ -606,9 +606,7 @@ const ChatArea = memo(({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('email');
-    localStorage.removeItem('nickname');
-    localStorage.removeItem('chat_data');
+    clearAuthStorage();
     navigate('/signin');
   };
 
@@ -626,7 +624,7 @@ const ChatArea = memo(({
     setRevealError('');
 
     try {
-      const response = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${email}`, {
+      const response = await apiFetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${email}`, {
         method: 'POST',
       });
       
@@ -665,7 +663,7 @@ const ChatArea = memo(({
       if (data.status === 'revealed' && data.both_revealed) {
 
         try {
-          const chatResponse = await fetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/${email}`);
+          const chatResponse = await apiFetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/${email}`);
           if (chatResponse.ok) {
             const chatData = await chatResponse.json();
             setChatInfo(chatData);
@@ -690,7 +688,7 @@ const ChatArea = memo(({
 
         if (onChatsUpdate && activeSection === 'anon') {
           try {
-            const chatsResponse = await fetch(`${API_URL}/matchmaking/chats/${email}`);
+            const chatsResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
             if (chatsResponse.ok) {
               const chatsData = await chatsResponse.json();
               const formattedChats = chatsData.map(chat => ({

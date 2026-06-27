@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import '../../css/components/UserProfileModal.css';
 
 function UserProfileModal({ nickname, isOpen, onClose }) {
@@ -21,7 +22,7 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
       const url = `${API_URL}/settings/profile/by-nickname/${encodeURIComponent(nickname)}`;
       console.log('UserProfileModal: Загрузка профиля для', nickname, 'URL:', url);
       
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       console.log('UserProfileModal: Ответ сервера', response.status, response.statusText);
       
       if (response.ok) {
@@ -113,4 +114,3 @@ function UserProfileModal({ nickname, isOpen, onClose }) {
 }
 
 export default UserProfileModal;
-

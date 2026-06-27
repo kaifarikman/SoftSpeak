@@ -18,7 +18,11 @@ from src.schemas.psychological import (
     UserAnswerSchema,
     PsychologicalProfileSchema,
 )
-from src.services.vector_utils import create_profile_vector, create_embedding
+from src.services.vector_utils import (
+    MLServiceUnavailable,
+    create_profile_vector,
+    create_embedding,
+)
 
 router = APIRouter(prefix="/psychological", tags=["psychological"])
 
@@ -45,7 +49,13 @@ async def get_next_question(
         if len(answers) >= 10:
             embeddings = [answer.embedding for answer in answers if answer.embedding]
             if embeddings:
-                profile_vector = await create_profile_vector(embeddings)
+                try:
+                    profile_vector = await create_profile_vector(embeddings)
+                except MLServiceUnavailable as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="ML сервис временно недоступен. Попробуйте позже.",
+                    ) from exc
                 await create_psychological_profile(session, user.id, profile_vector)
                 user.messengers_enabled = True
                 await session.commit()
@@ -78,7 +88,13 @@ async def submit_answer(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Профиль уже завершен"
         )
-    embedding_list = await create_embedding(request.answer_text)
+    try:
+        embedding_list = await create_embedding(request.answer_text)
+    except MLServiceUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ML сервис временно недоступен. Попробуйте позже.",
+        ) from exc
     answer = await save_user_answer(
         session, user.id, request.question_id, request.answer_text, embedding_list
     )
@@ -87,7 +103,13 @@ async def submit_answer(
         answers = await get_user_answers(session, user.id)
         embeddings = [answer.embedding for answer in answers if answer.embedding]
         if embeddings:
-            profile_vector = await create_profile_vector(embeddings)
+            try:
+                profile_vector = await create_profile_vector(embeddings)
+            except MLServiceUnavailable as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="ML сервис временно недоступен. Попробуйте позже.",
+                ) from exc
             await create_psychological_profile(session, user.id, profile_vector)
             user.messengers_enabled = True
             user.ai_enabled = False

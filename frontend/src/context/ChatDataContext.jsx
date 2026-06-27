@@ -1,4 +1,6 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { API_URL } from '../config';
+import { apiFetch, clearAuthStorage } from '../utils/apiHelper';
 
 const ChatDataContext = createContext();
 
@@ -8,12 +10,32 @@ export const ChatDataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const updateChatData = (newData) => {
+  const updateChatData = useCallback((newData) => {
     setChatData(newData);
     localStorage.setItem('chat_data', JSON.stringify(newData));
 
     window.dispatchEvent(new Event('chatDataUpdated'));
-  };
+  }, []);
+
+  const refreshChatData = useCallback(async () => {
+    const response = await apiFetch(`${API_URL}/auth/me`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearAuthStorage();
+        setChatData(null);
+      }
+      return null;
+    }
+
+    const data = await response.json();
+    localStorage.setItem('email', data.email);
+    localStorage.setItem('nickname', data.nickname);
+    updateChatData(data.chat_data);
+    if (data.is_banned) {
+      window.dispatchEvent(new Event('userBanned'));
+    }
+    return data;
+  }, [updateChatData]);
 
 
   useEffect(() => {
@@ -43,15 +65,16 @@ export const ChatDataProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('chatDataUpdated', handleChatDataUpdate);
+    refreshChatData().catch(() => {});
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chatDataUpdated', handleChatDataUpdate);
     };
-  }, []);
+  }, [refreshChatData]);
 
   return (
-    <ChatDataContext.Provider value={{ chatData, updateChatData }}>
+    <ChatDataContext.Provider value={{ chatData, updateChatData, refreshChatData }}>
       {children}
     </ChatDataContext.Provider>
   );
@@ -64,4 +87,3 @@ export const useChatData = () => {
   }
   return context;
 };
-
