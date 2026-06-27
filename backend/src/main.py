@@ -2,6 +2,7 @@ from fastapi import FastAPI, WebSocket, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import logging
 import json
 from datetime import datetime, timezone
@@ -111,6 +112,7 @@ app.add_middleware(
 from slowapi.middleware import SlowAPIMiddleware
 
 app.add_middleware(SlowAPIMiddleware)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(admin_router)

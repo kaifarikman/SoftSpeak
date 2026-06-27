@@ -10,6 +10,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
   const [formData, setFormData] = useState({
     username: '',
     bio: '',
+    avatar_url: '',
     notification_anon_chats: true,
     notification_open_chats: true,
     old_password: '',
@@ -39,6 +40,7 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
           ...prev,
           username: data.nickname || data.username || localStorage.getItem('nickname') || '',
           bio: data.bio || '',
+          avatar_url: data.avatar_url || '',
           notification_anon_chats: data.notification_anon_chats ?? true,
           notification_open_chats: data.notification_open_chats ?? true,
         }));
@@ -131,6 +133,30 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
       }
     } catch (error) {
       showMessage('Ошибка обновления информации', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file) => {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const formDataPayload = new FormData();
+      formDataPayload.append('avatar', file);
+      const response = await apiFetch(`${API_URL}/settings/profile/avatar/${email}`, {
+        method: 'POST',
+        body: formDataPayload,
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        showMessage('Аватар обновлен', 'success');
+        await loadUserData();
+      } else {
+        showMessage(data.detail || data.message || 'Не удалось обновить аватар', 'error');
+      }
+    } catch (error) {
+      showMessage('Ошибка обновления аватара', 'error');
     } finally {
       setLoading(false);
     }
@@ -246,6 +272,25 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
             {renderAlert()}
             <h2>Профиль</h2>
             
+            {}
+            <div className="settings-field">
+              <label>Аватар</label>
+              <div className="settings-field-row">
+                {formData.avatar_url && (
+                  <img
+                    src={formData.avatar_url}
+                    alt="Аватар"
+                    style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => handleAvatarUpload(e.target.files?.[0])}
+                />
+              </div>
+            </div>
+
             {}
             <div className="settings-field">
               <label>Отображаемый никнейм</label>

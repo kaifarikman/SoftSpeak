@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from typing import Optional
+from pathlib import Path
+from secrets import token_hex
 from src.db.session import get_db
 from src.db.crud.auth import get_user_by_email, get_user_by_nickname
 from src.db.crud import settings as settings_crud
@@ -52,6 +54,7 @@ class SettingsResponse(BaseModel):
 class UserSettingsResponse(BaseModel):
     username: str
     bio: Optional[str] = None
+    avatar_url: Optional[str] = None
     notification_anon_chats: bool
     notification_open_chats: bool
 
@@ -62,6 +65,7 @@ class UserSettingsResponse(BaseModel):
 class PublicProfileResponse(BaseModel):
     nickname: str
     bio: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 @router.get("/profile/by-nickname/{nickname}", response_model=PublicProfileResponse)
@@ -75,7 +79,9 @@ async def get_public_profile_by_nickname(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
-    return PublicProfileResponse(nickname=user.nickname, bio=user.bio)
+    return PublicProfileResponse(
+        nickname=user.nickname, bio=user.bio, avatar_url=user.avatar_url
+    )
 
 
 @router.put("/profile/nickname/{email}", response_model=SettingsResponse)
@@ -111,6 +117,44 @@ async def update_bio_endpoint(
             success=False, message=error_message or "Ошибка обновления информации"
         )
     return SettingsResponse(success=True, message="Информация изменена")
+
+
+@router.post("/profile/avatar/{email}", response_model=SettingsResponse)
+async def upload_avatar_endpoint(
+    email: str,
+    avatar: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db),
+) -> SettingsResponse:
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
+    allowed_types = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+    }
+    extension = allowed_types.get(avatar.content_type or "")
+    if not extension:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Поддерживаются только JPEG, PNG и WEBP",
+        )
+
+    data = await avatar.read()
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Аватар должен быть не больше 2 МБ",
+        )
+
+    avatars_dir = Path("static") / "avatars"
+    avatars_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{user.id}_{token_hex(8)}{extension}"
+    file_path = avatars_dir / filename
+    file_path.write_bytes(data)
+    user.avatar_url = f"/static/avatars/{filename}"
+    await session.commit()
+
+    return SettingsResponse(success=True, message="Аватар обновлен")
 
 
 @router.put("/notifications/{email}", response_model=SettingsResponse)
@@ -179,6 +223,7 @@ async def get_user_settings(
     return UserSettingsResponse(
         username=user.nickname,
         bio=user.bio,
+        avatar_url=user.avatar_url,
         notification_anon_chats=user.notification_anon_chats,
         notification_open_chats=user.notification_open_chats,
     )

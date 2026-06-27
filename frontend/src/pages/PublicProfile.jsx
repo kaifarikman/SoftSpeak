@@ -48,6 +48,15 @@ function PublicProfile() {
           </>
         ) : (
           <>
+            {profile.avatar_url && (
+              <div className="user-profile-avatar" style={{ margin: '0 auto 20px' }}>
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.nickname}
+                  style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
             <h1>{profile.nickname}</h1>
             <p className="subtitle">{profile.bio || 'Пользователь пока ничего не рассказал о себе.'}</p>
           </>
