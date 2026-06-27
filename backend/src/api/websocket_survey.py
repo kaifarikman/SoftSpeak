@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Dict
 from fastapi import WebSocket, WebSocketDisconnect
+from src.core.ws_rate_limit import enforce_ws_rate_limit
 from src.db.session import AsyncSessionLocal
 from src.db.crud.auth import get_user_by_email
 from src.db.crud.psychological import (
@@ -47,6 +48,8 @@ manager = ConnectionManager()
 
 
 async def websocket_survey_endpoint(websocket: WebSocket, email: str):
+    if not await enforce_ws_rate_limit(websocket):
+        return
     await manager.connect(websocket, email)
     async with AsyncSessionLocal() as session:
         try:

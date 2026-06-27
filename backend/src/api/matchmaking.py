@@ -6,7 +6,9 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     Request,
+    Query,
 )
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
@@ -14,6 +16,7 @@ import logging
 import asyncio
 from src.db.session import get_db, AsyncSessionLocal
 from src.db.crud.auth import get_user_by_email
+from src.core.ws_rate_limit import enforce_ws_rate_limit
 
 
 async def verify_user_active_for_matchmaking(email: str, session: AsyncSession) -> None:
@@ -171,6 +174,8 @@ async def get_matchmaking_status(
 
 @router.websocket("/ws/{email}")
 async def matchmaking_websocket(websocket: WebSocket, email: str):
+    if not await enforce_ws_rate_limit(websocket):
+        return
     logger.info(f"WebSocket подключение для пользователя {email}")
     try:
         await matchmaking_manager.connect(websocket, email)
@@ -514,6 +519,8 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
 
 @router.websocket("/chat/{chat_id}/ws/{username}")
 async def anonymous_chat_websocket(websocket: WebSocket, chat_id: int, username: str):
+    if not await enforce_ws_rate_limit(websocket):
+        return
     email = username
     logger.info(f"WebSocket подключение к чату {chat_id} от пользователя {email}")
     user = None
@@ -603,7 +610,12 @@ async def anonymous_chat_websocket(websocket: WebSocket, chat_id: int, username:
 
 
 @router.get("/chats/{email}")
-async def get_anonymous_chats(email: str, session: AsyncSession = Depends(get_db)):
+async def get_anonymous_chats(
+    email: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    session: AsyncSession = Depends(get_db),
+):
     await verify_user_active_for_matchmaking(email, session)
     user = await get_user_by_email(session, email)
     if not user:
@@ -612,7 +624,8 @@ async def get_anonymous_chats(email: str, session: AsyncSession = Depends(get_db
         )
     chats = await get_user_anonymous_chats(session, user.id)
     result = []
-    for chat in chats:
+    start = (page - 1) * limit
+    for chat in chats[start : start + limit]:
         other_user = chat.user2 if chat.user1_id == user.id else chat.user1
         other_alias = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
         other_alias = other_alias or "Собеседник"
@@ -653,12 +666,18 @@ async def get_anonymous_chats(email: str, session: AsyncSession = Depends(get_db
 
 
 @router.get("/public-chats/{email}")
-async def get_public_chats(email: str, session: AsyncSession = Depends(get_db)):
+async def get_public_chats(
+    email: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    session: AsyncSession = Depends(get_db),
+):
     await verify_user_active_for_matchmaking(email, session)
     user = await get_user_by_email(session, email)
     chats = await get_user_public_chats(session, user.id)
     result = []
-    for chat in chats:
+    start = (page - 1) * limit
+    for chat in chats[start : start + limit]:
         other_user = chat.user2 if chat.user1_id == user.id else chat.user1
         last_message = None
         last_message_time = None
@@ -690,7 +709,11 @@ async def get_public_chats(email: str, session: AsyncSession = Depends(get_db)):
 
 @router.get("/chat/{chat_id}/{email}")
 async def get_anonymous_chat_messages(
-    chat_id: int, email: str, session: AsyncSession = Depends(get_db)
+    chat_id: int,
+    email: str,
+    before: str | None = None,
+    limit: int = Query(50, ge=1, le=100),
+    session: AsyncSession = Depends(get_db),
 ):
     await verify_user_active_for_matchmaking(email, session)
     user = await get_user_by_email(session, email)
@@ -699,9 +722,18 @@ async def get_anonymous_chat_messages(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
         )
-    messages = [
-        build_message_payload(msg, current_user_id=user.id) for msg in chat.messages
-    ]
+    chat_messages = list(chat.messages)
+    if before:
+        try:
+            before_dt = datetime.fromisoformat(before.replace("Z", "+00:00"))
+            chat_messages = [msg for msg in chat_messages if msg.created_at < before_dt]
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Некорректный параметр before",
+            ) from exc
+    chat_messages = chat_messages[-limit:]
+    messages = [build_message_payload(msg, current_user_id=user.id) for msg in chat_messages]
     other_user = chat.user2 if chat.user1_id == user.id else chat.user1
     other_alias = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
     other_alias = other_alias or "Собеседник"

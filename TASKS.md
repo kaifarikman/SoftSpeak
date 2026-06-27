@@ -55,14 +55,14 @@
   ```dockerfile
   RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-base')"
   ```
-- [ ] Пагинация chat lists — `GET /chat/data/{email}` отдаёт все чаты сразу; добавить `?page=&limit=`
-- [ ] Rate limiting на WebSocket endpoints — сейчас slowapi только на HTTP
+- [x] Пагинация chat lists — `GET /chat/data/{email}` отдаёт все чаты сразу; добавить `?page=&limit=`
+- [x] Rate limiting на WebSocket endpoints — сейчас slowapi только на HTTP
 
 ### Бэкенд
-- [ ] Pagination для сообщений — `GET /chat/{id}/messages?before=&limit=50` для бесконечной прокрутки
-- [ ] Поиск по чатам — `GET /chat/search?q=` для ChatList
-- [ ] Structured logging — JSON формат с уровнями для продакшена
-- [ ] Alembic autogenerate — настроить `alembic revision --autogenerate` чтобы будущие миграции генерировались автоматически
+- [x] Pagination для сообщений — `GET /chat/{id}/messages?before=&limit=50` для бесконечной прокрутки
+- [x] Поиск по чатам — `GET /chat/search?q=` для ChatList
+- [x] Structured logging — JSON формат с уровнями для продакшена
+- [x] Alembic autogenerate — настроить `alembic revision --autogenerate` чтобы будущие миграции генерировались автоматически
 
 ---
 

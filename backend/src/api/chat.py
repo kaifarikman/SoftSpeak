@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.crud.chat import (
     get_chat_with_messages,
@@ -6,6 +6,11 @@ from src.db.crud.chat import (
     create_message,
 )
 from src.db.crud.auth import get_user_by_email
+from src.db.crud.matchmaking import (
+    get_user_anonymous_chats,
+    get_user_public_chats,
+    summarize_message_text,
+)
 from src.db.crud.psychological import has_completed_profile, get_user_answers_count
 from src.db.session import get_db
 from src.schemas.chat import ChatResponse, MessageSchema
@@ -90,6 +95,58 @@ async def get_chat_data(
 
 class SendMessageRequest(BaseModel):
     text: str
+
+
+@router.get("/search", status_code=status.HTTP_200_OK)
+async def search_chats(
+    email: str,
+    q: str = Query("", max_length=128),
+    limit: int = Query(20, ge=1, le=50),
+    session: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    user = await get_user_by_email(session, email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован администратором. Доступ запрещен.",
+        )
+
+    query = q.strip().lower()
+    results = []
+    if not query or "softspeak".lower().startswith(query):
+        results.append({"id": "bot", "type": "bot", "name": "SoftSpeak"})
+
+    for chat_type, chats in (
+        ("anon", await get_user_anonymous_chats(session, user.id)),
+        ("people", await get_user_public_chats(session, user.id)),
+    ):
+        for chat in chats:
+            other_user = chat.user2 if chat.user1_id == user.id else chat.user1
+            if chat_type == "people":
+                name = other_user.nickname
+            else:
+                name = chat.user2_alias if chat.user1_id == user.id else chat.user1_alias
+                name = name or "Собеседник"
+            last_message = summarize_message_text(chat.messages[-1]) if chat.messages else ""
+            haystack = f"{name} {last_message}".lower()
+            if query and query not in haystack:
+                continue
+            results.append(
+                {
+                    "id": chat.id,
+                    "type": chat_type,
+                    "name": name,
+                    "last_message": last_message,
+                    "updated_at": chat.updated_at.isoformat(),
+                }
+            )
+            if len(results) >= limit:
+                return results
+    return results[:limit]
 
 
 @router.post(
