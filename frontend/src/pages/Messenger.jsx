@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/messenger/Navigation';
-import ChatArea from '../components/messenger/ChatArea';
-import WelcomeScreen from '../components/messenger/WelcomeScreen';
 import ChatList from '../components/messenger/ChatList';
 import ChatListAnon from '../components/messenger/ChatListAnon';
 import SettingsList from '../components/messenger/SettingsList';
 import BannedOverlay from '../components/BannedOverlay';
+import {
+  AnonSection,
+  BotSection,
+  PeopleSection,
+  SettingsSection,
+} from '../components/messenger/MessengerSections';
 import { useChatData } from '../context/ChatDataContext';
 import { API_URL } from '../config';
 import { logError, handleApiError } from '../utils/errorHandler';
@@ -374,6 +378,65 @@ const getActiveChatData = () => {
     activeSection === 'bot' ||
     (activeSection === 'anon' && Boolean(selectedChatAnon));
 
+  const handleAnonChatRevealed = async (publicChat) => {
+    setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
+
+    setChatsPeople(prev => {
+      const filtered = prev.filter(chat => chat.id !== publicChat.id);
+      return [publicChat, ...filtered];
+    });
+    setSelectedChatAnon(null);
+    setSelectedChatPeople(publicChat);
+    setActiveSection('people');
+
+    try {
+      await fetchPublicChats();
+      const anonResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
+      if (anonResponse.ok) {
+        const anonData = await anonResponse.json();
+        const formattedAnon = anonData.map(chat => ({
+          id: chat.id,
+          name: chat.name,
+          lastMessage: chat.last_message || '',
+          lastMessageTime: chat.last_message_time
+            ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+            : '',
+          unreadCount: chat.unread_count || 0,
+        }));
+        setChatsAnon(formattedAnon);
+      }
+    } catch (err) {
+      logError(err, 'Messenger onChatRevealed refresh');
+    }
+  };
+
+  const renderSection = () => {
+    const commonProps = {
+      showWelcomeScreen,
+      shouldHideList,
+      selectedChatAnon,
+      email,
+      onSelectSection: handleSectionChange,
+      activeChatData,
+      chatData,
+      onChatDataUpdate: updateChatData,
+      onAnonChatExit: () => setSelectedChatAnon(null),
+      onChatRevealed: handleAnonChatRevealed,
+      onChatsUpdate: setChatsAnon,
+    };
+
+    if (activeSection === 'bot') {
+      return <BotSection {...commonProps} />;
+    }
+    if (activeSection === 'anon') {
+      return <AnonSection {...commonProps} />;
+    }
+    if (activeSection === 'people') {
+      return <PeopleSection {...commonProps} />;
+    }
+    return <SettingsSection {...commonProps} />;
+  };
+
 
   if (isBanned) {
     return <BannedOverlay />;
@@ -410,76 +473,7 @@ const getActiveChatData = () => {
             {renderListPanel()}
           </div>
         )}
-        {activeSection === 'bot' ? (
-
-          showWelcomeScreen ? (
-            <WelcomeScreen email={email} onSelectSection={handleSectionChange} />
-          ) : (
-            <ChatArea
-              selectedChat={activeChatData.selectedChat}
-              activeSection={activeSection}
-              chatData={chatData}
-              email={email}
-              onChatDataUpdate={updateChatData}
-              isStandalone={true}
-              onAnonChatExit={() => {}}
-              onChatRevealed={() => {}}
-              onSectionChange={handleSectionChange}
-            />
-          )
-        ) : (
-          <div className={`messenger-chat ${shouldHideList ? 'messenger-chat-fullwidth' : ''}`}>
-          {showWelcomeScreen ? (
-            <WelcomeScreen email={email} onSelectSection={handleSectionChange} />
-          ) : (
-            <ChatArea
-              selectedChat={activeChatData.selectedChat}
-              activeSection={activeSection}
-              chatData={chatData}
-              email={email}
-              onChatDataUpdate={updateChatData}
-              isStandalone={activeSection === 'anon' && Boolean(selectedChatAnon)}
-              onAnonChatExit={() => {
-                setSelectedChatAnon(null);
-              }}
-              onChatRevealed={async (publicChat) => {
-
-                setChatsAnon(prev => prev.filter(chat => chat.id !== publicChat.id));
-
-                setChatsPeople(prev => {
-                  const filtered = prev.filter(chat => chat.id !== publicChat.id);
-                  return [publicChat, ...filtered];
-                });
-                setSelectedChatAnon(null);
-                setSelectedChatPeople(publicChat);
-                setActiveSection('people');
-
-                try {
-                  await fetchPublicChats();
-                  const anonResponse = await apiFetch(`${API_URL}/matchmaking/chats/${email}`);
-                  if (anonResponse.ok) {
-                    const anonData = await anonResponse.json();
-                    const formattedAnon = anonData.map(chat => ({
-                      id: chat.id,
-                      name: chat.name,
-                      lastMessage: chat.last_message || '',
-                      lastMessageTime: chat.last_message_time
-                        ? new Date(chat.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                        : '',
-                      unreadCount: chat.unread_count || 0,
-                    }));
-                    setChatsAnon(formattedAnon);
-                  }
-                } catch (err) {
-                  logError(err, 'Messenger onChatRevealed refresh');
-                }
-              }}
-              onChatsUpdate={setChatsAnon}
-              onSectionChange={handleSectionChange}
-            />
-          )}
-        </div>
-        )}
+        {renderSection()}
       </div>
     </div>
   );
