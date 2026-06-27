@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_URL } from '../config';
 import { formatHttpError } from '../utils/errorFormatter';
 import { clearAuthStorage, setAccessToken } from '../utils/apiHelper';
@@ -10,6 +10,18 @@ function SignIn() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [allowedDomains, setAllowedDomains] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/email/domains`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((domains) => {
+        if (Array.isArray(domains)) {
+          setAllowedDomains(domains);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,13 +29,18 @@ function SignIn() {
   };
 
   const validateEmailDomain = (email) => {
-    const allowedDomains = [
-      'yandex.ru', 'yandex.com', 'ya.ru',
-      'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
-      'gmail.com'
-    ];
+    if (!allowedDomains) {
+      return true;
+    }
     const domain = email.toLowerCase().split('@')[1];
     return allowedDomains.includes(domain);
+  };
+
+  const getDomainError = () => {
+    if (!allowedDomains || allowedDomains.length === 0) {
+      return 'Доступные ящики: mail.ru, yandex.ru, gmail.com';
+    }
+    return `Доступные ящики: ${allowedDomains.join(', ')}`;
   };
 
   const handleSubmit = async (e) => {
@@ -41,7 +58,7 @@ function SignIn() {
     }
 
     if (!validateEmailDomain(email)) {
-      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+      setError(getDomainError());
       return;
     }
 

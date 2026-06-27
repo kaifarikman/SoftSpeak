@@ -31,6 +31,7 @@ from src.schemas.auth import (
     LoginRequest,
     LoginResponse,
     TokenResponse,
+    get_allowed_email_domains,
 )
 from src.schemas.chat import ChatResponse
 from src.db.session import get_db
@@ -115,6 +116,11 @@ async def login(
     user = await authenticate_user(
         session, request_data.email, request_data.password.get_secret_value()
     )
+
+
+@router.get("/email/domains", response_model=list[str], status_code=status.HTTP_200_OK)
+async def get_email_domains() -> list[str]:
+    return sorted(get_allowed_email_domains())
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"

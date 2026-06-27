@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_URL } from '../config';
 import { formatHttpError } from '../utils/errorFormatter';
 
@@ -10,6 +10,18 @@ function SignUp() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [allowedDomains, setAllowedDomains] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/email/domains`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((domains) => {
+        if (Array.isArray(domains)) {
+          setAllowedDomains(domains);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
 
   const validateEmail = (email) => {
@@ -21,17 +33,22 @@ function SignUp() {
     if (!email || !email.includes('@')) {
       return true;
     }
-    const allowedDomains = [
-      'yandex.ru', 'yandex.com', 'ya.ru',
-      'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
-      'gmail.com'
-    ];
+    if (!allowedDomains) {
+      return true;
+    }
     const parts = email.toLowerCase().split('@');
     if (parts.length !== 2 || !parts[1]) {
       return true;
     }
     const domain = parts[1];
     return allowedDomains.includes(domain);
+  };
+
+  const getDomainError = () => {
+    if (!allowedDomains || allowedDomains.length === 0) {
+      return 'Доступные ящики: mail.ru, yandex.ru, gmail.com';
+    }
+    return `Доступные ящики: ${allowedDomains.join(', ')}`;
   };
 
   const handleEmailChange = (e) => {
@@ -46,7 +63,7 @@ function SignUp() {
 
     if (newEmail && newEmail.includes('@')) {
       if (validateEmail(newEmail) && !validateEmailDomain(newEmail)) {
-        setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+        setError(getDomainError());
       } else if (error && error.includes('Доступные ящики')) {
         setError('');
       }
@@ -56,7 +73,7 @@ function SignUp() {
   const handleEmailBlur = (e) => {
     const emailValue = e.target.value.trim();
     if (emailValue && validateEmail(emailValue) && !validateEmailDomain(emailValue)) {
-      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+      setError(getDomainError());
     }
   };
 
@@ -81,7 +98,7 @@ function SignUp() {
     }
 
     if (!validateEmailDomain(email)) {
-      setError('Доступные ящики: mail.ru, yandex.ru, gmail.com');
+      setError(getDomainError());
       return;
     }
     

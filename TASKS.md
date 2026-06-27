@@ -29,12 +29,12 @@
 ### Архитектура бэкенда
 - [ ] **Разбить `matchmaking.py`** (1102 строки) — выделить: `queue.py` (логика очереди), `match.py` (поиск матча), `ws_handler.py` (WebSocket обработчик)
 - [ ] **Разбить `websocket_survey.py`** (537 строк) — выделить логику вопросов в `survey_service.py`
-- [ ] **Email domain whitelist** — захардкожен в `SignUp.jsx` И в `backend/src/api/auth.py`; вынести в env переменную `ALLOWED_EMAIL_DOMAINS`
+- [x] **Email domain whitelist** — захардкожен в `SignUp.jsx` И в `backend/src/api/auth.py`; вынести в env переменную `ALLOWED_EMAIL_DOMAINS`
 
 ### Архитектура фронтенда
 - [ ] **Разбить `Admin.jsx`** (736 строк) — компоненты: `QuestionsPanel`, `ReportsPanel`, `NamesPanel`, `BannedPanel`, `StatsPanel`
 - [ ] **Разбить `Messenger.jsx`** (494 строки) — по разделам: `BotSection`, `AnonSection`, `PeopleSection`, `SettingsSection`
-- [ ] **`FirstStart.jsx`** — страница существует но не подключена к роутингу; либо интегрировать в флоу регистрации, либо удалить
+- [x] **`FirstStart.jsx`** — страница существует но не подключена к роутингу; либо интегрировать в флоу регистрации, либо удалить
 
 ### UX
 - [ ] **Индикатор загрузки ML** — при старте системы матчмейкинг недоступен 10–30 мин; показывать пользователю статус вместо ошибки
@@ -51,7 +51,7 @@
 - [ ] Frontend smoke tests — `Vitest` или `Playwright` для критических страниц
 
 ### Инфраструктура
-- [ ] **Pre-download ML модели** в Docker образ — убрать 30-мин ожидание при деплое; добавить в `ml/Dockerfile`:
+- [x] **Pre-download ML модели** в Docker образ — убрать 30-мин ожидание при деплое; добавить в `ml/Dockerfile`:
   ```dockerfile
   RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-base')"
   ```
