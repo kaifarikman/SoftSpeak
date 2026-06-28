@@ -71,6 +71,9 @@ class User(Base):
         back_populates="reported_user",
         cascade="all, delete-orphan",
     )
+    push_subscriptions: Mapped[list["PushSubscription"]] = relationship(
+        "PushSubscription", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class BlacklistEntry(Base):
@@ -89,6 +92,33 @@ class BlacklistEntry(Base):
     )
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
     blocked_user: Mapped["User"] = relationship("User", foreign_keys=[blocked_user_id])
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
+    p256dh: Mapped[str] = mapped_column(String(512), nullable=False)
+    auth: Mapped[str] = mapped_column(String(512), nullable=False)
+    expiration_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    user: Mapped["User"] = relationship("User", back_populates="push_subscriptions")
 
 
 class EmailVerificationCode(Base):

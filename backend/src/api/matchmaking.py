@@ -54,6 +54,10 @@ from src.services.matchmaking.ws_handler import (
     chat_manager,
     matchmaking_manager,
 )
+from src.services.push_notifications import (
+    build_push_payload,
+    send_push_notifications_for_user,
+)
 from src.services.vector_utils import MLServiceUnavailable
 from pydantic import BaseModel
 
@@ -141,6 +145,20 @@ async def start_matchmaking(
         await matchmaking_manager.send_personal_message(payload, email)
         if other_user:
             await matchmaking_manager.send_personal_message(payload, other_user.email)
+            active_connections = getattr(matchmaking_manager, "active_connections", {})
+            if other_user.email not in active_connections:
+                push_payload = build_push_payload(
+                    title="SoftSpeak",
+                    body="Найден новый анонимный чат",
+                    url="/home",
+                    chat_id=chat_found.id,
+                    chat_type="anon",
+                )
+                await send_push_notifications_for_user(
+                    session,
+                    other_user.id,
+                    push_payload,
+                )
         return MatchmakingStatusResponse(
             is_searching=False, queue_count=queue_count, chat_id=chat_found.id
         )
@@ -867,6 +885,28 @@ async def send_anonymous_message(
                                 await matchmaking_manager.send_notification(
                                     other_user.email, notification_data
                                 )
+                                active_connections = getattr(
+                                    matchmaking_manager, "active_connections", {}
+                                )
+                                if other_user.email not in active_connections:
+                                    push_payload = build_push_payload(
+                                        title="SoftSpeak",
+                                        body=f"{chat_name}: {notification_data['last_message']}",
+                                        url="/home",
+                                        chat_id=chat.id,
+                                        chat_type=chat_type,
+                                        unread_count=unread_count,
+                                    )
+                                    delivered = await send_push_notifications_for_user(
+                                        notify_session,
+                                        other_user.id,
+                                        push_payload,
+                                    )
+                                    logger.info(
+                                        "Push notification sent to %s (%s subscriptions)",
+                                        other_user.email,
+                                        delivered,
+                                    )
                                 logger.info(
                                     f"Уведомление отправлено пользователю {other_user.email} для чата {chat.id} (тип: {chat_type}, непрочитанных: {unread_count})"
                                 )

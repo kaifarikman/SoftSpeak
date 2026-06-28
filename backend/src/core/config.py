@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     verification_code_length: int = 6
     rate_limit_email_per_hour: int = 5
     match_similarity_threshold: float = 0.65
+    push_vapid_subject: str = "mailto:noreply@example.com"
     admin_username: str = "admin"
     admin_password: str = "admin"
     admin_token: str = "admin_token_secret_change_in_production"

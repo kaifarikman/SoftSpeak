@@ -2,11 +2,23 @@ import { useState, useEffect } from 'react';
 import { API_URL } from '../../config';
 import { formatHttpError } from '../../utils/errorFormatter';
 import { apiFetch, clearAuthStorage } from '../../utils/apiHelper';
+import {
+  getCurrentPushSubscription,
+  isPushSupported,
+  subscribeForPushNotifications,
+  unsubscribeFromPushNotifications,
+} from '../../utils/pushNotifications';
 import '../../css/components/SettingsContent.css';
 
 const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [pushState, setPushState] = useState({
+    supported: false,
+    permission: 'default',
+    subscribed: false,
+    loading: false,
+  });
   const [formData, setFormData] = useState({
     username: '',
     bio: '',
@@ -24,6 +36,29 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
       loadUserData();
     }
   }, [email, selectedSetting]);
+
+  useEffect(() => {
+    const syncPushState = async () => {
+      if (selectedSetting?.name !== 'Уведомления') {
+        return;
+      }
+
+      const supported = isPushSupported();
+      const permission = supported ? Notification.permission : 'denied';
+      const subscription = supported ? await getCurrentPushSubscription() : null;
+
+      setPushState({
+        supported,
+        permission,
+        subscribed: Boolean(subscription),
+        loading: false,
+      });
+    };
+
+    syncPushState().catch((error) => {
+      console.error('Ошибка синхронизации push-уведомлений:', error);
+    });
+  }, [selectedSetting]);
 
   const loadUserData = async () => {
     console.log('Loading user data for email:', email);
@@ -193,6 +228,52 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
     }
   };
 
+  const handleTogglePushNotifications = async () => {
+    if (!email) {
+      showMessage('Пользователь не найден', 'error');
+      return;
+    }
+
+    if (!pushState.supported) {
+      showMessage('Push-уведомления не поддерживаются браузером', 'error');
+      return;
+    }
+
+    setPushState((prev) => ({ ...prev, loading: true }));
+    try {
+      if (pushState.subscribed) {
+        const result = await unsubscribeFromPushNotifications(email);
+        if (!result.success) {
+          showMessage(result.message, 'error');
+          return;
+        }
+        showMessage('Push-уведомления отключены', 'success');
+        setPushState((prev) => ({
+          ...prev,
+          subscribed: false,
+          permission: Notification.permission,
+        }));
+        return;
+      }
+
+      const result = await subscribeForPushNotifications(email);
+      if (!result.success) {
+        showMessage(result.message, 'error');
+        return;
+      }
+      showMessage('Push-уведомления подключены', 'success');
+      setPushState((prev) => ({
+        ...prev,
+        subscribed: true,
+        permission: Notification.permission,
+      }));
+    } catch (error) {
+      showMessage('Ошибка настройки push-уведомлений', 'error');
+    } finally {
+      setPushState((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
 
 
   const handleChangePassword = async () => {
@@ -352,6 +433,26 @@ const SettingsContent = ({ selectedSetting, email, onChatDataUpdate }) => {
                 >
                   <div className="toggle-slider"></div>
                 </div>
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <label>Push-уведомления</label>
+              <div className="settings-field-column">
+                <p style={{ margin: 0, color: '#94a3b8' }}>
+                  {pushState.supported
+                    ? pushState.permission === 'granted'
+                      ? (pushState.subscribed ? 'Подключены к этому браузеру' : 'Разрешение выдано, но подписка неактивна')
+                      : 'Нужно разрешение браузера для уведомлений'
+                    : 'Браузер не поддерживает push-уведомления'}
+                </p>
+                <button
+                  className="primary-button"
+                  onClick={handleTogglePushNotifications}
+                  disabled={loading || pushState.loading}
+                >
+                  {pushState.subscribed ? 'Отключить push' : 'Подключить push'}
+                </button>
               </div>
             </div>
           </div>

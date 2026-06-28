@@ -45,6 +45,10 @@ async def test_matchmaking_start_finds_chat_and_notifies_both_users(
         "src.api.matchmaking.matchmaking_manager",
         SimpleNamespace(send_personal_message=send_personal_message),
     )
+    monkeypatch.setattr(
+        "src.api.matchmaking.send_push_notifications_for_user",
+        AsyncMock(return_value=1),
+    )
 
     first_response = await client.post("/matchmaking/start/alice@example.com")
     assert first_response.status_code == 200

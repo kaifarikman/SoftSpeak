@@ -103,6 +103,12 @@
   cursor: not-allowed;
 }
 
+.settings-field-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .field-hint {
   margin-top: 6px;
   font-size: 13px;
