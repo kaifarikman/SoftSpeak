@@ -27,7 +27,7 @@ services:
     restart: always
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"
-      - "${MAILHOG_WEB_PORT:-8025}:8080"
+      - "${MAILHOG_WEB_PORT:-8025}:8025"
     networks:
       - softspeak-network
 
