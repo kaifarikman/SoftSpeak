@@ -28,6 +28,8 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
   const [error, setError] = useState(null);
+  const [searchStartedAt, setSearchStartedAt] = useState(null);
+  const [searchElapsed, setSearchElapsed] = useState(0);
   const wsRef = useRef(null);
   const isConnectingRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
@@ -39,6 +41,38 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
       setQueueCount(count);
     }, 3000)
   ).current;
+
+  useEffect(() => {
+    if (!email) return;
+    const stored = localStorage.getItem(`matchmaking_started_at_${email}`);
+    if (stored) {
+      const parsed = Number(stored);
+      if (!Number.isNaN(parsed)) {
+        setSearchStartedAt(parsed);
+      }
+    }
+  }, [email]);
+
+  useEffect(() => {
+    if (!isSearching || !searchStartedAt) {
+      setSearchElapsed(0);
+      return undefined;
+    }
+
+    const tick = () => {
+      setSearchElapsed(Math.max(0, Date.now() - searchStartedAt));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [isSearching, searchStartedAt]);
+
+  const formatElapsed = (ms) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     if (email) {
@@ -94,6 +128,16 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
         const data = await response.json();
         setIsSearching(data.is_searching);
         setQueueCount(data.queue_count || 0);
+        if (data.is_searching && data.started_at) {
+          const parsed = Date.parse(data.started_at);
+          if (!Number.isNaN(parsed)) {
+            setSearchStartedAt(parsed);
+            localStorage.setItem(`matchmaking_started_at_${email}`, String(parsed));
+          }
+        } else if (!data.is_searching) {
+          setSearchStartedAt(null);
+          localStorage.removeItem(`matchmaking_started_at_${email}`);
+        }
       } else {
         await handleApiError(response, 'MatchmakingButton loadStatus');
       }
@@ -144,6 +188,17 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
           setIsSearching(true);
           setQueueCount(data.queue_count || 0);
           setError(null);
+          if (data.started_at) {
+            const parsed = Date.parse(data.started_at);
+            if (!Number.isNaN(parsed)) {
+              setSearchStartedAt(parsed);
+              localStorage.setItem(`matchmaking_started_at_${email}`, String(parsed));
+            }
+          } else if (!searchStartedAt) {
+            const startedAt = Date.now();
+            setSearchStartedAt(startedAt);
+            localStorage.setItem(`matchmaking_started_at_${email}`, String(startedAt));
+          }
         } else if (data.type === 'queue_update') {
 
           throttledSetQueueCount(data.queue_count || 0);
@@ -154,6 +209,8 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
 
           setIsSearching(false);
           setQueueCount(0);
+          setSearchStartedAt(null);
+          localStorage.removeItem(`matchmaking_started_at_${email}`);
           
 
           if (wsRef.current) {
@@ -170,6 +227,8 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
           }
         } else if (data.type === 'search_stopped') {
           setIsSearching(false);
+          setSearchStartedAt(null);
+          localStorage.removeItem(`matchmaking_started_at_${email}`);
           if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -230,6 +289,8 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
           console.log('REST: мгновенный матч найден, чат', data.chat_id);
           setIsSearching(false);
           setQueueCount(data.queue_count || 0);
+          setSearchStartedAt(null);
+          localStorage.removeItem(`matchmaking_started_at_${email}`);
 
 
           if (wsRef.current) {
@@ -246,6 +307,13 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
 
         setIsSearching(data.is_searching ?? false);
         setQueueCount(data.queue_count || 0);
+        if (data.is_searching) {
+          const startedAt = data.started_at ? Date.parse(data.started_at) : Date.now();
+          if (!Number.isNaN(startedAt)) {
+            setSearchStartedAt(startedAt);
+            localStorage.setItem(`matchmaking_started_at_${email}`, String(startedAt));
+          }
+        }
 
         if (data.is_searching) {
           connectWebSocket();
@@ -281,6 +349,8 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
       if (response.ok) {
         setIsSearching(false);
         setError(null);
+        setSearchStartedAt(null);
+        localStorage.removeItem(`matchmaking_started_at_${email}`);
         if (wsRef.current) {
           wsRef.current.close();
           wsRef.current = null;
@@ -301,8 +371,15 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
       <div className="matchmaking-container">
         <div className="matchmaking-status">
           <div className="matchmaking-status-line">
-            <div className="matchmaking-spinner"></div>
-            <p>Ищем собеседника...</p>
+            <div className="matchmaking-spinner matchmaking-spinner--active"></div>
+            <div>
+              <p>Ищем собеседника...</p>
+              {searchStartedAt && (
+                <span className="matchmaking-elapsed">
+                  Ищем уже {formatElapsed(searchElapsed)}
+                </span>
+              )}
+            </div>
           </div>
           <p className="queue-count">
             {queueCount > 0 

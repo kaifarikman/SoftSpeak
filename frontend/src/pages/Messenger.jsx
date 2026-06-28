@@ -5,6 +5,7 @@ import ChatList from '../components/messenger/ChatList';
 import ChatListAnon from '../components/messenger/ChatListAnon';
 import SettingsList from '../components/messenger/SettingsList';
 import BannedOverlay from '../components/BannedOverlay';
+import OnboardingOverlay from '../components/messenger/OnboardingOverlay';
 import {
   AnonSection,
   BotSection,
@@ -39,6 +40,7 @@ function Messenger() {
   const [selectedChatSettings, setSelectedChatSettings] = useState(null);
   const [isBanned, setIsBanned] = useState(false);
   const [isCheckingBan, setIsCheckingBan] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     refreshChatData().catch((err) => {
@@ -120,7 +122,7 @@ function Messenger() {
         checkUserStatus();
       }
     };
-    
+
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
@@ -130,6 +132,10 @@ function Messenger() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [navigate, checkUserStatus]);
+
+  useEffect(() => {
+    setShowOnboarding(localStorage.getItem('onboarding_done') !== 'true');
+  }, []);
 
 
   const chatBot = {
@@ -460,6 +466,9 @@ const getActiveChatData = () => {
 
   return (
     <div className="messenger-container">
+      {showOnboarding && (
+        <OnboardingOverlay onFinish={() => setShowOnboarding(false)} />
+      )}
       <Navigation
         activeSection={activeSection}
         setActiveSection={handleSectionChange}

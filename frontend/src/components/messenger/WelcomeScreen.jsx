@@ -1,12 +1,16 @@
 import '../../css/components/WelcomeScreen.css';
 
-function WelcomeScreen({ email, onSelectSection }) {
+function WelcomeScreen({ email, chatData, onSelectSection }) {
   const features = [
     { id: 'bot', emoji: '🤖', title: 'AI Чат-бот', description: 'Умный ассистент для психологической поддержки' },
     { id: 'anon', emoji: '🎭', title: 'Анонимные чаты', description: 'Найдите собеседника и общайтесь инкогнито' },
     { id: 'people', emoji: '👥', title: 'Публичные чаты', description: 'Раскройте личность и продолжите общение' },
     { id: 'settings', emoji: '⚙️', title: 'Настройки', description: 'Персонализируйте профиль и предпочтения' },
   ];
+
+  const isSurveyPending = chatData?.ai === 'start_survey';
+  const primaryAction = isSurveyPending ? 'Пройти анкету' : 'Найти собеседника';
+  const primarySection = isSurveyPending ? 'bot' : 'anon';
 
   const handleFeatureClick = (sectionId) => {
     if (typeof onSelectSection === 'function') {
@@ -56,10 +60,19 @@ function WelcomeScreen({ email, onSelectSection }) {
             Нажмите на любой из разделов, чтобы перейти к нужной функции
           </p>
         </div>
+
+        <div className="welcome-cta">
+          <button
+            type="button"
+            className="welcome-primary-action"
+            onClick={() => handleFeatureClick(primarySection)}
+          >
+            {primaryAction}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 export default WelcomeScreen;
-

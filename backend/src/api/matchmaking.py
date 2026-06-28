@@ -69,6 +69,7 @@ class MatchmakingStatusResponse(BaseModel):
     is_searching: bool
     queue_count: int
     chat_id: int | None = None
+    started_at: str | None = None
 
 
 class AnonymousChatSchema(BaseModel):
@@ -116,7 +117,7 @@ async def start_matchmaking(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Психологический профиль не завершен. Пройдите опрос.",
         )
-    await join_matchmaking_queue(session, user.id)
+    queue_entry = await join_matchmaking_queue(session, user.id)
     chat_found = None
     try:
         chat_found = await find_match(session, user.id, threshold=0.95)
@@ -162,7 +163,11 @@ async def start_matchmaking(
         return MatchmakingStatusResponse(
             is_searching=False, queue_count=queue_count, chat_id=chat_found.id
         )
-    return MatchmakingStatusResponse(is_searching=True, queue_count=queue_count)
+    return MatchmakingStatusResponse(
+        is_searching=True,
+        queue_count=queue_count,
+        started_at=queue_entry.joined_at.isoformat() if queue_entry.joined_at else None,
+    )
 
 
 @router.post("/stop/{email}")
@@ -187,7 +192,11 @@ async def get_matchmaking_status(
     queue_entry = result.scalar_one_or_none()
     is_searching = queue_entry is not None and queue_entry.is_searching
     queue_count = await get_matchmaking_queue_count(session, exclude_user_id=user.id)
-    return MatchmakingStatusResponse(is_searching=is_searching, queue_count=queue_count)
+    return MatchmakingStatusResponse(
+        is_searching=is_searching,
+        queue_count=queue_count,
+        started_at=queue_entry.joined_at.isoformat() if queue_entry and queue_entry.joined_at else None,
+    )
 
 
 @router.websocket("/ws/{email}")
@@ -760,6 +769,7 @@ async def get_anonymous_chat_messages(
         "other_user_id": other_user.id,
         "messages": messages,
         "name": other_user.nickname if chat.is_public else other_alias,
+        "created_at": chat.created_at.isoformat(),
         "is_blocked": chat.is_blocked,
         "is_other_user_banned": other_user.is_banned,
     }

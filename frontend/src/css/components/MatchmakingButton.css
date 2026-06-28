@@ -75,9 +75,27 @@
   gap: 12px;
 }
 
+.matchmaking-spinner--active {
+  box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.25);
+  animation: spin 1s linear infinite, matchmaking-pulse 1.6s ease-in-out infinite;
+}
+
+.matchmaking-elapsed {
+  display: inline-block;
+  margin-top: 4px;
+  color: #d1fae5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes matchmaking-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.18); }
+  50% { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
 }
 
 @media (max-width: 768px) {

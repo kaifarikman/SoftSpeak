@@ -9,8 +9,8 @@ from fastapi import (
     Header,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from slowapi.util import get_remote_address
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict, deque
 from src.core.config import settings
 from src.core.email import send_verification_code_email
 from src.core.security import create_access_token, create_refresh_token, decode_jwt_token
@@ -39,6 +39,9 @@ from src.db.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE_NAME = "softspeak_refresh"
+EMAIL_REQUEST_LIMIT = 5
+EMAIL_REQUEST_WINDOW_SECONDS = 60 * 60
+_email_request_attempts: dict[str, deque[datetime]] = defaultdict(deque)
 
 
 def set_refresh_cookie(response: Response, token: str) -> None:
@@ -104,6 +107,20 @@ def rate_limit_decorator(limit: str):
         return wrapper
 
     return decorator
+
+
+def _enforce_email_request_limit(request: Request) -> None:
+    client_host = request.client.host if request.client else "unknown"
+    now = datetime.now(timezone.utc)
+    attempts = _email_request_attempts[client_host]
+    while attempts and (now - attempts[0]).total_seconds() >= EMAIL_REQUEST_WINDOW_SECONDS:
+        attempts.popleft()
+    if len(attempts) >= EMAIL_REQUEST_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Слишком много запросов. Попробуйте позже.",
+        )
+    attempts.append(now)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -205,6 +222,7 @@ async def request_email_verification(
     request_data: EmailVerificationRequest,
     session: AsyncSession = Depends(get_db),
 ) -> EmailVerificationResponse:
+    _enforce_email_request_limit(request)
     user_check = await get_user_by_nickname(session, request_data.nickname)
     if user_check and user_check.is_banned:
         raise HTTPException(

@@ -1,0 +1,86 @@
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(7, 7, 15, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.onboarding-panel {
+  width: min(560px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: #0c0c18;
+  padding: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.onboarding-progress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.onboarding-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.onboarding-progress span.active {
+  background: #8b5cf6;
+}
+
+.onboarding-step-index {
+  margin: 0 0 8px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.onboarding-step h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  color: #f8fafc;
+}
+
+.onboarding-step p {
+  margin: 0;
+  color: #d4d4f7;
+  line-height: 1.55;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.onboarding-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.onboarding-button.primary {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+.onboarding-button.secondary {
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.onboarding-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

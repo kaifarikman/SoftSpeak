@@ -124,6 +124,29 @@
   border-radius: 12px;
 }
 
+.welcome-cta {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.welcome-primary-action {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(124,58,237,.38);
+  background: linear-gradient(180deg, rgba(124,58,237,.96), rgba(91,33,182,.96));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(124,58,237,.22);
+}
+
+.welcome-primary-action:hover {
+  transform: translateY(-1px);
+}
+
 .instruction-text {
   font-size: 15px;
   color: #94A3B8;

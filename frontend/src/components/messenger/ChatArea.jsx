@@ -35,11 +35,13 @@ const ChatArea = memo(({
   const [showReportModal, setShowReportModal] = useState(false);
   const [chatBlocked, setChatBlocked] = useState(false);
   const [otherUserBanned, setOtherUserBanned] = useState(false);
+  const [revealCountdownMs, setRevealCountdownMs] = useState(null);
   const wsRef = useRef(null);
   const anonChatWsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
   const anonChatIdRef = useRef(null);
+  const REVEAL_DELAY_MS = 5 * 60 * 1000;
 
 
 
@@ -82,6 +84,27 @@ const ChatArea = memo(({
       setIsRevealing(false);
     }
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'anon' || !chatInfo?.created_at) {
+      setRevealCountdownMs(null);
+      return undefined;
+    }
+
+    const updateCountdown = () => {
+      const createdAt = new Date(chatInfo.created_at).getTime();
+      if (Number.isNaN(createdAt)) {
+        setRevealCountdownMs(0);
+        return;
+      }
+      const targetAt = createdAt + REVEAL_DELAY_MS;
+      setRevealCountdownMs(Math.max(0, targetAt - Date.now()));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [activeSection, chatInfo?.created_at]);
 
 
   useEffect(() => {
@@ -363,11 +386,10 @@ const ChatArea = memo(({
         const formattedMessages = data.messages.map(mapIncomingMessage);
         
 
-        if (data.name !== undefined) {
-          setChatInfo({
-            name: data.name || 'Собеседник',
-          });
-        }
+        setChatInfo({
+          name: data.name || 'Собеседник',
+          created_at: data.created_at,
+        });
         
 
         if (data.is_blocked !== undefined) {
@@ -623,9 +645,9 @@ const ChatArea = memo(({
     setIsRevealing(true);
     setRevealError('');
 
-    try {
-      const response = await apiFetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${email}`, {
-        method: 'POST',
+        try {
+          const response = await apiFetch(`${API_URL}/matchmaking/chat/${selectedChat.id}/reveal/${email}`, {
+            method: 'POST',
       });
       
       if (await checkBanStatus(response)) {
@@ -723,6 +745,13 @@ const ChatArea = memo(({
       setIsRevealing(false);
     }
   };
+
+  const formatCountdown = useCallback((ms) => {
+    const totalSeconds = Math.ceil(Math.max(0, ms) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }, []);
 
   const handleOpenProfile = useCallback(() => {
     if (activeSection === 'people' && selectedChat?.name) {
@@ -829,14 +858,30 @@ const ChatArea = memo(({
     ? { name: anonDisplayName }
     : selectedChat;
 
+  const canRevealChat = activeSection === 'anon' && chatInfo?.created_at && revealCountdownMs === 0;
+  const revealHint = activeSection === 'anon'
+    ? (!chatInfo?.created_at
+        ? 'Раскрытие станет доступно через 5 минут разговора'
+        : !canRevealChat
+          ? `Раскрытие доступно через ${formatCountdown(revealCountdownMs ?? REVEAL_DELAY_MS)}`
+          : '')
+    : '';
+
   const headerActions = activeSection === 'anon' ? (
-    <button
-      className="reveal-button"
-      onClick={handleRevealChat}
-      disabled={isRevealing}
-    >
-      {isRevealing ? 'Раскрываем...' : 'Раскрыться'}
-    </button>
+    <div className="reveal-action-stack">
+      {!canRevealChat && (
+        <span className="reveal-hint">{revealHint}</span>
+      )}
+      {canRevealChat && (
+        <button
+          className={`reveal-button ${!isRevealing ? 'reveal-button--attention' : ''}`}
+          onClick={handleRevealChat}
+          disabled={isRevealing}
+        >
+          {isRevealing ? 'Раскрываем...' : 'Раскрыться'}
+        </button>
+      )}
+    </div>
   ) : null;
 
   const showAnonBackButton = activeSection === 'anon' && typeof onAnonChatExit === 'function' && isStandalone;

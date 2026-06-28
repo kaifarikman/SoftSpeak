@@ -10,7 +10,13 @@ export function BotSection({
   onChatDataUpdate,
 }) {
   if (showWelcomeScreen) {
-    return <WelcomeScreen email={email} onSelectSection={onSelectSection} />;
+    return (
+      <WelcomeScreen
+        email={email}
+        chatData={chatData}
+        onSelectSection={onSelectSection}
+      />
+    );
   }
 
   return (
@@ -45,7 +51,11 @@ function ChatSection({
   return (
     <div className={`messenger-chat ${shouldHideList ? 'messenger-chat-fullwidth' : ''}`}>
       {showWelcomeScreen ? (
-        <WelcomeScreen email={email} onSelectSection={onSelectSection} />
+        <WelcomeScreen
+          email={email}
+          chatData={chatData}
+          onSelectSection={onSelectSection}
+        />
       ) : (
         <ChatArea
           selectedChat={activeChatData.selectedChat}

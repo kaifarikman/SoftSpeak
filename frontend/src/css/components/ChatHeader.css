@@ -121,6 +121,11 @@
   font-family: 'Manrope', sans-serif;
 }
 
+.reveal-button--attention {
+  animation: reveal-pulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.18);
+}
+
 .reveal-button:hover:not(:disabled) {
   background: rgba(124,58,237,.25);
   transform: translateY(-1px);
@@ -132,6 +137,30 @@
 .reveal-button:disabled {
   opacity: .4;
   cursor: not-allowed;
+}
+
+.reveal-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.reveal-hint {
+  max-width: 220px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-align: right;
+  line-height: 1.35;
+}
+
+@keyframes reveal-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);
+  }
 }
 
 .chat-back-button {
@@ -165,6 +194,8 @@
   .chat-header-text h2 { font-size: 17px; }
   .chat-header-status { font-size: 11px; }
   .chat-header-actions { width: 100%; justify-content: flex-start; }
+  .reveal-action-stack { align-items: flex-start; }
+  .reveal-hint { text-align: left; }
 }
 
 @media (max-width: 480px) {
