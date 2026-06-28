@@ -1,8 +1,8 @@
 .sidebar {
   display: flex;
   min-width: 430px;
-  background: #141522;
-  border-right: 1px solid #393636;
+  background: #0c0c18;
+  border-right: 1px solid rgba(255,255,255,.05);
 }
 
 @media (max-width: 1024px) {
@@ -11,6 +11,6 @@
     min-width: 100%;
     flex-direction: column;
     border-right: none;
-    border-bottom: 1px solid #2a2d3f;
+    border-bottom: 1px solid rgba(255,255,255,.05);
   }
 }

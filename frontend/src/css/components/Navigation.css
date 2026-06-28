@@ -1,11 +1,12 @@
+/* ── Sidebar navigation bar ──────────────────────────── */
 .navigation {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
-  border-bottom: 1px solid #2a2d3a;
-  background: #1a1d29;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  background: #0c0c18;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -13,126 +14,106 @@
 
 .nav-items {
   display: flex;
-  gap: 12px;
+  gap: 6px;
   flex: 1;
   flex-wrap: wrap;
   min-width: 0;
-  margin-right: 16px;
+  margin-right: 12px;
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-left: auto;
   flex-shrink: 0;
 }
 
-.user-avatar {
-  flex-shrink: 0;
-}
+/* ── User avatar ─────────────────────────────────────── */
+.user-avatar { flex-shrink: 0; }
 
 .avatar-circle {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 2px solid #2a2d3a;
-  background: #1f2230;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(124,58,237,.1);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: border-color 0.2s ease;
+  transition: border-color .2s, box-shadow .2s;
+  cursor: pointer;
 }
 
 .avatar-circle:hover {
-  border-color: #3a3d4a;
+  border-color: rgba(124,58,237,.4);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.1);
 }
 
-
 .avatar-placeholder {
-  font-size: 18px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.05em;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #A855F7;
+  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
+/* ── Nav tab items ───────────────────────────────────── */
 .nav-item {
-  width: 88px;
-  height: 72px;
-  border: none;
-  background: #1f2230;
-  border: 1px solid #2a2d3a;
+  width: 82px;
+  height: 66px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  transition: all 0.2s ease;
-  color: #94a3b8;
-  font-size: 11px;
+  transition: background .2s, border-color .2s, box-shadow .2s, transform .15s;
+  color: #6B7A99;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  gap: 6px;
+  letter-spacing: .07em;
+  gap: 5px;
 }
 
 .nav-item:hover {
-  background: #252835;
-  border-color: #3a3d4a;
-  color: #cbd5e1;
+  background: rgba(124,58,237,.08);
+  border-color: rgba(124,58,237,.22);
+  color: #C4B5FD;
   transform: translateY(-1px);
 }
 
-.nav-item:active {
-  transform: translateY(0);
+.nav-item:active { transform: translateY(0); }
+
+/* ── Active state ────────────────────────────────────── */
+.nav-item.active {
+  background: rgba(124,58,237,.14);
+  border-color: rgba(124,58,237,.4);
+  color: #E9D5FF;
+  box-shadow:
+    0 0 0 1px rgba(124,58,237,.15),
+    0 4px 16px rgba(124,58,237,.18),
+    inset 0 1px 0 rgba(255,255,255,.05);
 }
 
+/* ── Icons ───────────────────────────────────────────── */
 .nav-icon-img {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 4px;
-}
-
-.nav-item.active {
-  background: #252835;
-  border-color: #3a3d4a;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.nav-icon-img.bot {
-    background-image: url("../../assets/icons/chatbot.png");
-}
-.active .nav-icon-img.bot {
-    background-image: url("../../assets/icons/chatbot_selected.png");
-}
-.nav-icon-img.anon {
-    background-image: url("../../assets/icons/masks.png");
-}
-.active .nav-icon-img.anon {
-    background-image: url("../../assets/icons/masks_selected.png");
-}
-.nav-icon-img.people {
-    background-image: url("../../assets/icons/people.png");
-}
-.active .nav-icon-img.people {
-    background-image: url("../../assets/icons/people_selected.png");
-}
-.nav-icon-img.settings {
-    background-image: url("../../assets/icons/settings.png");
-}
-.active .nav-icon-img.settings {
-    background-image: url("../../assets/icons/settings_selected.png");
+  padding: 3px;
 }
 
 .nav-item:not(.active) .nav-icon-img {
-  opacity: 0.65;
-  filter: grayscale(15%) brightness(0.9);
+  opacity: .5;
+  filter: grayscale(30%) brightness(.85);
 }
 
 .nav-item.active .nav-icon-img {
@@ -140,60 +121,36 @@
   filter: none;
 }
 
+.nav-icon-img.bot          { background-image: url("../../assets/icons/chatbot.png"); }
+.active .nav-icon-img.bot  { background-image: url("../../assets/icons/chatbot_selected.png"); }
+.nav-icon-img.anon         { background-image: url("../../assets/icons/masks.png"); }
+.active .nav-icon-img.anon { background-image: url("../../assets/icons/masks_selected.png"); }
+.nav-icon-img.people          { background-image: url("../../assets/icons/people.png"); }
+.active .nav-icon-img.people  { background-image: url("../../assets/icons/people_selected.png"); }
+.nav-icon-img.settings          { background-image: url("../../assets/icons/settings.png"); }
+.active .nav-icon-img.settings  { background-image: url("../../assets/icons/settings_selected.png"); }
 
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
   .navigation {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
+    gap: 10px;
+    padding: 14px;
   }
-
   .nav-items {
     width: 100%;
     justify-content: space-between;
     margin-right: 0;
   }
-
-  .nav-item {
-    flex: 1;
-    height: 64px;
-    font-size: 10px;
-    min-width: 0;
-  }
-
-  .nav-right {
-    align-self: flex-end;
-    margin-left: 0;
-  }
-
-  .user-avatar {
-    margin-left: 0;
-  }
-
-  .avatar-circle {
-    width: 44px;
-    height: 44px;
-  }
+  .nav-item { flex: 1; height: 60px; font-size: 9px; min-width: 0; }
+  .nav-right { align-self: flex-end; margin-left: 0; }
+  .avatar-circle { width: 40px; height: 40px; }
 }
 
 @media (max-width: 480px) {
-  .navigation {
-    padding: 12px;
-  }
-
-  .nav-item {
-    height: 60px;
-    width: 80px;
-  }
-
-  .nav-icon-img {
-    width: 36px;
-    height: 36px;
-  }
-
-  .avatar-circle {
-    width: 40px;
-    height: 40px;
-  }
+  .navigation { padding: 10px; }
+  .nav-item { height: 56px; }
+  .nav-icon-img { width: 32px; height: 32px; }
+  .avatar-circle { width: 38px; height: 38px; }
 }

@@ -1,84 +1,90 @@
 .message-input-container {
-  padding: 20px 32px;
-  background: #0f1019;
+  padding: 18px 28px;
+  background: #07070f;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid #1f2130;
+  border-top: 1px solid rgba(255,255,255,.05);
   width: 100%;
   flex-shrink: 0;
 }
 
+/* ── Textarea ────────────────────────────────────────── */
 .message-input {
   flex: 1;
-  min-height: 68px;
+  min-height: 64px;
   max-height: 200px;
   max-width: 100%;
   outline: none;
-  background-color: #161828;
+  background: rgba(255,255,255,.04);
   word-wrap: break-word;
   overflow-wrap: break-word;
   word-break: break-word;
   box-sizing: border-box;
-  font-size: 16px;
-  color: #f4f5f7;
-  border: 1px solid #2b2e41;
-  border-radius: 18px;
-  padding: 18px 20px;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
+  font-size: 15px;
+  color: #F1F0FF;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 16px;
+  padding: 16px 20px;
+  transition: border-color .2s, box-shadow .2s, background .2s;
   resize: none;
   overflow-y: auto;
-  font-family: inherit;
-  line-height: 1.5;
+  font-family: 'Manrope', sans-serif;
+  line-height: 1.55;
 }
 
 .message-input:focus {
-  background-color: #15162a;
-  border-color: #6b6fff;
-  box-shadow: 0 0 0 2px rgba(107, 111, 255, 0.25);
+  background: rgba(124,58,237,.05);
+  border-color: rgba(124,58,237,.45);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.1);
 }
 
 .message-input::placeholder {
-  color: #8e95b8;
-  font-size: 16px;
+  color: rgba(255,255,255,.2);
+  font-size: 15px;
 }
 
-
+/* ── Send button ─────────────────────────────────────── */
 .send-button {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 14px;
-  background: #22c55e;
+  background: #7C3AED;
   border: none;
-  color: #ffffff;
-  font-size: 20px;
+  color: #fff;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  box-shadow: none;
+  transition: all .2s;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.send-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .send-button:hover:not(:disabled) {
-  background: #16a34a;
+  background: #6D28D9;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 6px 20px rgba(124,58,237,.45);
 }
 
-.send-button:active:not(:disabled) {
-  transform: translateY(0);
-}
+.send-button:active:not(:disabled) { transform: translateY(0); }
 
-.send-button:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: 2px;
-}
+.send-button:disabled { opacity: .4; cursor: not-allowed; }
 
 .send-button-icon {
   display: inline-block;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   background-image: url('../../assets/icons/send_button.png');
   background-size: contain;
   background-repeat: no-repeat;
@@ -86,56 +92,18 @@
   filter: invert(1);
 }
 
-
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .message-input-container {
-    padding: 15px 20px;
-    flex-wrap: wrap;
-  }
-
-  .message-input {
-    height: 60px;
-    font-size: 15px;
-    padding: 14px 16px;
-  }
-
-  .message-input::placeholder {
-    font-size: 15px;
-  }
-
-  .send-button {
-    width: 48px;
-    height: 48px;
-  }
-
-  .send-button-icon {
-    width: 26px;
-    height: 26px;
-  }
+  .message-input-container { padding: 14px 18px; }
+  .message-input { min-height: 56px; font-size: 14px; padding: 14px 16px; }
+  .message-input::placeholder { font-size: 14px; }
+  .send-button { width: 46px; height: 46px; }
+  .send-button-icon { width: 22px; height: 22px; }
 }
 
 @media (max-width: 480px) {
-  .message-input-container {
-    padding: 12px 15px;
-  }
-
-  .message-input {
-    height: 50px;
-    font-size: 14px;
-    padding: 12px 14px;
-  }
-
-  .message-input::placeholder {
-    font-size: 14px;
-  }
-
-  .send-button {
-    width: 44px;
-    height: 44px;
-  }
-
-  .send-button-icon {
-    width: 22px;
-    height: 22px;
-  }
+  .message-input-container { padding: 12px 14px; }
+  .message-input { min-height: 48px; font-size: 14px; padding: 12px 14px; }
+  .send-button { width: 42px; height: 42px; }
+  .send-button-icon { width: 20px; height: 20px; }
 }

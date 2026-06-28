@@ -1,81 +1,67 @@
 .message {
   display: flex;
-  margin: 4px 0;
+  margin: 3px 0;
 }
 
-.message.mine {
-  justify-content: flex-end;
-}
+.message.mine   { justify-content: flex-end; }
+.message.theirs { justify-content: flex-start; }
 
-.message.theirs {
-  justify-content: flex-start;
-}
-
+/* ── Bubble base ─────────────────────────────────────── */
 .message-content {
   max-width: 65%;
-  padding: 12px 16px;
+  padding: 11px 16px;
   border-radius: 16px;
   position: relative;
-  background: #1a1d29;
-  color: #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid #2a2d3a;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 
-.message.mine .message-content {
-  background: #1f2230;
-  color: #ffffff;
-  border-color: #3a3d4a;
-  border-top-right-radius: 4px;
-}
-
+/* ── Theirs ──────────────────────────────────────────── */
 .message.theirs .message-content {
-  background: #1a1d29;
-  color: #e2e8f0;
+  background: rgba(255,255,255,.05);
+  color: #CBD5E1;
+  border: 1px solid rgba(255,255,255,.07);
   border-top-left-radius: 4px;
 }
 
+/* ── Mine ────────────────────────────────────────────── */
+.message.mine .message-content {
+  background: rgba(124,58,237,.18);
+  color: #EDE9FE;
+  border: 1px solid rgba(124,58,237,.3);
+  border-top-right-radius: 4px;
+  box-shadow: 0 2px 12px rgba(124,58,237,.12);
+}
+
 .message-content p {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  line-height: 1.5;
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
-.message-content p:last-child {
-  margin-bottom: 0;
-}
+.message-content p:last-child { margin-bottom: 0; }
 
+/* ── Footer ──────────────────────────────────────────── */
 .message-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-end;
 }
 
 .message-time {
-  font-size: 12px;
-  color: #64748b;
-  opacity: 0.8;
+  font-size: 11px;
+  color: rgba(255,255,255,.25);
 }
 
+.message.mine .message-time { color: rgba(196,181,253,.35); }
 
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .message-content {
-    max-width: 80%;
-    padding: 12px 14px;
-  }
+  .message-content { max-width: 78%; padding: 10px 14px; }
 }
 
 @media (max-width: 480px) {
-  .message-content {
-    max-width: 85%;
-  }
-
-  .message-content p {
-    font-size: 15px;
-  }
-
-  .message-time {
-    font-size: 11px;
-  }
+  .message-content { max-width: 84%; }
+  .message-content p { font-size: 14px; }
+  .message-time { font-size: 10px; }
 }
