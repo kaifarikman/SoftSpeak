@@ -46,5 +46,8 @@ jobs:
       - frontend-test
     steps:
       - uses: actions/checkout@v4
+      - name: Create .env for build
+        run: |
+          printf 'ADMIN_USERNAME=admin\nADMIN_PASSWORD=ci-placeholder\nADMIN_TOKEN=ci-placeholder\n' > .env
       - name: Build Docker images
         run: docker compose build backend frontend ml-service
