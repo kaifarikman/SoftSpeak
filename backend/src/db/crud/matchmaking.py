@@ -10,6 +10,7 @@ from src.db.models import (
     AnonymousMessage,
     User,
     PsychologicalProfile,
+    BlacklistEntry,
 )
 from src.db.crud import random_names
 from src.services.vector_utils import find_best_match
@@ -120,6 +121,24 @@ async def find_match(
             and entry.user.psychological_profile
             and entry.user.messengers_enabled
         ):
+            blacklist_stmt = select(BlacklistEntry).where(
+                or_(
+                    and_(
+                        BlacklistEntry.user_id == user_id,
+                        BlacklistEntry.blocked_user_id == entry.user.id,
+                    ),
+                    and_(
+                        BlacklistEntry.user_id == entry.user.id,
+                        BlacklistEntry.blocked_user_id == user_id,
+                    ),
+                )
+            )
+            blacklist_result = await session.execute(blacklist_stmt)
+            if blacklist_result.scalar_one_or_none():
+                logger.info(
+                    f"find_match: Пропускаем пару {user_id}/{entry.user.id} из-за blacklist"
+                )
+                continue
             other_users.append(
                 {
                     "id": entry.user.id,

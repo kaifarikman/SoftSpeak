@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -7,6 +8,7 @@ from secrets import token_hex
 from src.db.session import get_db
 from src.db.crud.auth import get_user_by_email, get_user_by_nickname
 from src.db.crud import settings as settings_crud
+from src.db.models import BlacklistEntry, User
 from src.schemas.chat import ChatResponse
 from src.api.chat import get_chat_data_for_user
 
@@ -66,6 +68,12 @@ class PublicProfileResponse(BaseModel):
     nickname: str
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+
+
+class BlacklistUserResponse(BaseModel):
+    id: int
+    nickname: str
+    email: str
 
 
 @router.get("/profile/by-nickname/{nickname}", response_model=PublicProfileResponse)
@@ -204,6 +212,73 @@ async def get_user_status(email: str, session: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
     return {"is_banned": user.is_banned, "email": user.email, "nickname": user.nickname}
+
+
+@router.get("/blacklist/{email}", response_model=list[BlacklistUserResponse])
+async def get_blacklist(
+    email: str, session: AsyncSession = Depends(get_db)
+) -> list[BlacklistUserResponse]:
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
+    stmt = (
+        select(User)
+        .join(BlacklistEntry, BlacklistEntry.blocked_user_id == User.id)
+        .where(BlacklistEntry.user_id == user.id)
+        .order_by(User.nickname)
+    )
+    result = await session.execute(stmt)
+    return [
+        BlacklistUserResponse(id=item.id, nickname=item.nickname, email=item.email)
+        for item in result.scalars().all()
+    ]
+
+
+@router.post("/blacklist/{email}/{blocked_user_id}", response_model=SettingsResponse)
+async def add_to_blacklist(
+    email: str, blocked_user_id: int, session: AsyncSession = Depends(get_db)
+) -> SettingsResponse:
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
+    if user.id == blocked_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя добавить себя в черный список",
+        )
+    blocked_user = await session.get(User, blocked_user_id)
+    if not blocked_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    stmt = select(BlacklistEntry).where(
+        and_(
+            BlacklistEntry.user_id == user.id,
+            BlacklistEntry.blocked_user_id == blocked_user_id,
+        )
+    )
+    existing = (await session.execute(stmt)).scalar_one_or_none()
+    if not existing:
+        session.add(BlacklistEntry(user_id=user.id, blocked_user_id=blocked_user_id))
+        await session.commit()
+    return SettingsResponse(success=True, message="Пользователь добавлен в черный список")
+
+
+@router.delete("/blacklist/{email}/{blocked_user_id}", response_model=SettingsResponse)
+async def remove_from_blacklist(
+    email: str, blocked_user_id: int, session: AsyncSession = Depends(get_db)
+) -> SettingsResponse:
+    await verify_user_active(email, session)
+    user = await get_user_by_email(session, email)
+    stmt = select(BlacklistEntry).where(
+        and_(
+            BlacklistEntry.user_id == user.id,
+            BlacklistEntry.blocked_user_id == blocked_user_id,
+        )
+    )
+    entry = (await session.execute(stmt)).scalar_one_or_none()
+    if entry:
+        await session.delete(entry)
+        await session.commit()
+    return SettingsResponse(success=True, message="Пользователь удален из черного списка")
 
 
 @router.get("/{email}", response_model=UserSettingsResponse)

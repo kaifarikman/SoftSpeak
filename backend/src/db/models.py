@@ -73,6 +73,24 @@ class User(Base):
     )
 
 
+class BlacklistEntry(Base):
+    __tablename__ = "blacklist_entries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    blocked_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    blocked_user: Mapped["User"] = relationship("User", foreign_keys=[blocked_user_id])
+
+
 class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
