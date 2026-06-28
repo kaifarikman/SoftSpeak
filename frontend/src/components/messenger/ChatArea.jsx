@@ -6,6 +6,8 @@ import MessageInput from './MessageInput';
 import SettingsContent from './SettingsContent';
 import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
+import CompatibilityModal from './CompatibilityModal';
+import CloseReasonModal from './CloseReasonModal';
 import { API_URL, WS_URL } from '../../config';
 import { logError, handleApiError, handleWebSocketError } from '../../utils/errorHandler';
 import { apiFetch, checkBanStatus, clearAuthStorage } from '../../utils/apiHelper';
@@ -33,6 +35,11 @@ const ChatArea = memo(({
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [profileUsername, setProfileUsername] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
+  const [compatibilityChat, setCompatibilityChat] = useState(null);
+  const [showCloseReasonModal, setShowCloseReasonModal] = useState(false);
+  const [closeReasonLoading, setCloseReasonLoading] = useState(false);
+  const [closeReasonError, setCloseReasonError] = useState('');
   const [chatBlocked, setChatBlocked] = useState(false);
   const [otherUserBanned, setOtherUserBanned] = useState(false);
   const [revealCountdownMs, setRevealCountdownMs] = useState(null);
@@ -41,6 +48,7 @@ const ChatArea = memo(({
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
   const anonChatIdRef = useRef(null);
+  const pendingPublicChatRef = useRef(null);
   const REVEAL_DELAY_MS = 5 * 60 * 1000;
 
 
@@ -82,6 +90,17 @@ const ChatArea = memo(({
     if (activeSection !== 'anon') {
       setRevealError('');
       setIsRevealing(false);
+      setShowCloseReasonModal(false);
+      setCloseReasonError('');
+      setCloseReasonLoading(false);
+    }
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'anon') {
+      setShowCompatibilityModal(false);
+      setCompatibilityChat(null);
+      pendingPublicChatRef.current = null;
     }
   }, [activeSection]);
 
@@ -175,7 +194,7 @@ const ChatArea = memo(({
           setMessages(prev => [...prev, systemMessage]);
         } else if (data.type === 'chat_revealed') {
 
-          if (data.both_revealed && onChatRevealed) {
+          if (data.both_revealed) {
             const formattedChat = {
               id: data.chat_id,
               name: data.other_user.nickname || data.other_user.username,
@@ -184,7 +203,7 @@ const ChatArea = memo(({
                 ? new Date(data.last_message_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                 : '',
             };
-            onChatRevealed(formattedChat);
+            handleOpenCompatibility(formattedChat);
           }
         }
       } catch (err) {
@@ -703,9 +722,7 @@ const ChatArea = memo(({
             : '',
         };
 
-        if (onChatRevealed) {
-          onChatRevealed(formattedChat);
-        }
+        handleOpenCompatibility(formattedChat);
         
 
         if (onChatsUpdate && activeSection === 'anon') {
@@ -780,6 +797,74 @@ const ChatArea = memo(({
     setChatBlocked(true);
     setShowReportModal(false);
   }, []);
+
+  const handleOpenCompatibility = useCallback((publicChat) => {
+    pendingPublicChatRef.current = publicChat;
+    setCompatibilityChat(publicChat);
+    setShowCompatibilityModal(true);
+  }, []);
+
+  const handleCloseCompatibility = useCallback(() => {
+    setShowCompatibilityModal(false);
+    const publicChat = pendingPublicChatRef.current || compatibilityChat;
+    pendingPublicChatRef.current = null;
+    if (publicChat && onChatRevealed) {
+      onChatRevealed(publicChat);
+    }
+    setCompatibilityChat(null);
+  }, [compatibilityChat, onChatRevealed]);
+
+  const handleCloseChatFromAnon = useCallback(() => {
+    setCloseReasonError('');
+    setShowCloseReasonModal(true);
+  }, []);
+
+  const handleCloseReasonCancel = useCallback(() => {
+    setShowCloseReasonModal(false);
+    setCloseReasonError('');
+  }, []);
+
+  const handleCloseReasonConfirm = useCallback(async (reason) => {
+    if (!selectedChat?.id || !email || closeReasonLoading) {
+      return;
+    }
+
+    setCloseReasonLoading(true);
+    setCloseReasonError('');
+    try {
+      const response = await apiFetch(
+        `${API_URL}/matchmaking/chat/${selectedChat.id}/close?email=${encodeURIComponent(email)}&reason=${encodeURIComponent(reason)}`,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (await checkBanStatus(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        let message = 'Не удалось завершить чат';
+        try {
+          const data = await response.json();
+          message = data.detail || data.message || message;
+        } catch (parseError) {
+          message = response.status === 410 ? 'Чат уже завершен' : message;
+        }
+        throw new Error(message);
+      }
+
+      setShowCloseReasonModal(false);
+      setCloseReasonError('');
+      if (typeof onAnonChatExit === 'function') {
+        onAnonChatExit();
+      }
+    } catch (error) {
+      setCloseReasonError(error.message || 'Не удалось завершить чат');
+    } finally {
+      setCloseReasonLoading(false);
+    }
+  }, [closeReasonLoading, email, onAnonChatExit, selectedChat?.id]);
 
 
   if (activeSection === 'settings') {
@@ -893,7 +978,7 @@ const ChatArea = memo(({
       <ChatHeader
         chat={chatHeader}
         actions={headerActions}
-        onBack={showAnonBackButton ? onAnonChatExit : undefined}
+        onBack={showAnonBackButton ? handleCloseChatFromAnon : undefined}
         onNameClick={isPublicChat ? handleOpenProfile : undefined}
         onReportClick={
           activeSection !== 'bot' && (selectedChat?.id || (activeSection === 'anon' && anonChatIdRef.current)) 
@@ -951,6 +1036,21 @@ const ChatArea = memo(({
         onClose={handleCloseReport}
         onReportSubmitted={handleReportSubmitted}
       />
+      {showCompatibilityModal && (
+        <CompatibilityModal
+          chatId={selectedChat?.id}
+          email={email}
+          onClose={handleCloseCompatibility}
+        />
+      )}
+      {showCloseReasonModal && (
+        <CloseReasonModal
+          onConfirm={handleCloseReasonConfirm}
+          onCancel={handleCloseReasonCancel}
+          loading={closeReasonLoading}
+          error={closeReasonError}
+        />
+      )}
     </div>
   );
 });

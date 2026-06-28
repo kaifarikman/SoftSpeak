@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.cosine_distance_func import cosine_distance
-from services.matching import find_best_match
+from services.matching import find_best_match, find_best_match_with_score
 from services.vector_utils import create_profile_vector_from_embeddings
 
 
@@ -51,6 +51,23 @@ class VectorMathTests(unittest.TestCase):
             user_tags=[11, 99],
         )
         self.assertEqual(match_id, 2)
+
+    def test_find_best_match_with_score_returns_similarity(self):
+        result = find_best_match_with_score(
+            user_vector=[1.0, 0.0],
+            user_id=1,
+            other_users=[
+                {
+                    "id": 2,
+                    "profile_vector": [1.0, 0.0],
+                    "tag_ids": [10],
+                }
+            ],
+            threshold=0.5,
+            user_tags=[10],
+        )
+        self.assertEqual(result["match_id"], 2)
+        self.assertAlmostEqual(result["score"], 1.0, places=6)
 
 
 if __name__ == "__main__":

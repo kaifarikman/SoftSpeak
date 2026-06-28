@@ -290,6 +290,7 @@ class AnonymousChat(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     revealed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -302,6 +303,7 @@ class AnonymousChat(Base):
         String(128), nullable=False, default="Собеседник"
     )
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    close_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
     blocked_by_report_id: Mapped[int | None] = mapped_column(
         ForeignKey("reports.id", ondelete="SET NULL"), nullable=True
     )

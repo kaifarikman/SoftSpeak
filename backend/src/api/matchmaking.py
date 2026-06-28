@@ -101,6 +101,11 @@ class SendAnonymousMessageRequest(BaseModel):
     text: str
 
 
+class CompatibilityResponse(BaseModel):
+    score: int
+    common_tags: list[dict[str, str]]
+
+
 @router.post("/start/{email}", response_model=MatchmakingStatusResponse)
 async def start_matchmaking(
     request: Request, email: str, session: AsyncSession = Depends(get_db)
@@ -1045,3 +1050,66 @@ async def reveal_chat(
             "user1_revealed": chat.user1_revealed,
             "user2_revealed": chat.user2_revealed,
         }
+
+
+@router.get("/chat/{chat_id}/compatibility", response_model=CompatibilityResponse)
+async def get_chat_compatibility(
+    chat_id: int, email: str, session: AsyncSession = Depends(get_db)
+):
+    await verify_user_active_for_matchmaking(email, session)
+    user = await get_user_by_email(session, email)
+    chat = await get_anonymous_chat(session, chat_id, user.id)
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
+        )
+
+    score = round((chat.similarity_score or 0.0) * 100)
+
+    from src.db.models import InterestTag, UserInterestTag
+
+    tags1_stmt = select(UserInterestTag.tag_id).where(
+        UserInterestTag.user_id == chat.user1_id
+    )
+    tags2_stmt = select(UserInterestTag.tag_id).where(
+        UserInterestTag.user_id == chat.user2_id
+    )
+    tags1_result = await session.execute(tags1_stmt)
+    tags2_result = await session.execute(tags2_stmt)
+    common_tag_ids = set(tags1_result.scalars().all()) & set(tags2_result.scalars().all())
+
+    common_tags: list[dict[str, str]] = []
+    if common_tag_ids:
+        tags_stmt = select(InterestTag).where(InterestTag.id.in_(common_tag_ids))
+        tags_result = await session.execute(tags_stmt)
+        common_tags = [
+            {"name": tag.name, "emoji": tag.emoji}
+            for tag in tags_result.scalars().all()
+        ]
+
+    return CompatibilityResponse(score=score, common_tags=common_tags)
+
+
+@router.post("/chat/{chat_id}/close")
+async def close_chat(
+    chat_id: int,
+    email: str,
+    reason: str,
+    session: AsyncSession = Depends(get_db),
+):
+    await verify_user_active_for_matchmaking(email, session)
+    user = await get_user_by_email(session, email)
+    chat = await get_anonymous_chat(session, chat_id, user.id)
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
+        )
+    if not chat.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE, detail="Чат уже завершен"
+        )
+
+    chat.close_reason = reason[:64]
+    chat.is_active = False
+    await session.commit()
+    return {"ok": True, "chat_id": chat.id}

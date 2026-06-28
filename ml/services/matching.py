@@ -16,13 +16,21 @@ def _apply_tag_bonus(
     return similarity
 
 
-def find_best_match(
+def find_best_match_with_score(
     user_vector: Union[np.ndarray, List[float]],
     user_id: int,
     other_users: List[dict],
     threshold: float = 0.65,
     user_tags: Optional[List[int]] = None,
-) -> Optional[int]:
+) -> dict:
+    if not other_users:
+        logger.info("Нет других пользователей для сравнения")
+        return {"match_id": None, "score": None}
+    if threshold is None:
+        from src.core.config import settings
+
+        threshold = settings.match_similarity_threshold
+
     best_id: Optional[int] = None
     best_similarity: float = -1.0
     user_tags_set = set(user_tags or [])
@@ -46,4 +54,20 @@ def find_best_match(
     else:
         logger.info(f"Матч не найден (threshold={threshold}, кандидатов={len(other_users)})")
 
-    return best_id
+    return {"match_id": best_id, "score": best_similarity if best_id is not None else None}
+
+
+def find_best_match(
+    user_vector: Union[np.ndarray, List[float]],
+    user_id: int,
+    other_users: List[dict],
+    threshold: float = 0.65,
+    user_tags: Optional[List[int]] = None,
+) -> Optional[int]:
+    return find_best_match_with_score(
+        user_vector=user_vector,
+        user_id=user_id,
+        other_users=other_users,
+        threshold=threshold,
+        user_tags=user_tags,
+    )["match_id"]

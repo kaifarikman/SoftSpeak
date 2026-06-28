@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from services.embedding import make_embedding_from_answer, load_model, is_model_loaded
 from services.vector_utils import create_profile_vector_from_embeddings
-from services.matching import find_best_match
+from services.matching import find_best_match_with_score
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ class BestMatchRequest(BaseModel):
 
 class BestMatchResponse(BaseModel):
     match_id: Optional[int]
+    score: Optional[float] = None
 
 
 @app.get("/health")
@@ -190,9 +191,9 @@ async def find_best_match_endpoint(request: BestMatchRequest):
 
     try:
         loop = asyncio.get_event_loop()
-        match_id = await loop.run_in_executor(
+        result = await loop.run_in_executor(
             None,
-            find_best_match,
+            find_best_match_with_score,
             request.user_vector,
             request.user_id,
             request.other_users,
@@ -200,7 +201,10 @@ async def find_best_match_endpoint(request: BestMatchRequest):
             request.user_tags or [],
         )
 
-        return BestMatchResponse(match_id=match_id)
+        return BestMatchResponse(
+            match_id=result.get("match_id"),
+            score=result.get("score"),
+        )
 
     except Exception as e:
         logger.error(f"Ошибка при поиске совпадения: {e}", exc_info=True)

@@ -114,7 +114,7 @@ async def find_best_match(
     other_users: List[dict],
     threshold: Optional[float] = None,
     user_tags: Optional[List[int]] = None,
-) -> Optional[int]:
+) -> Optional[dict]:
     if not other_users:
         logger.info("Нет других пользователей для сравнения")
         return None
@@ -141,10 +141,14 @@ async def find_best_match(
         response.raise_for_status()
         data = response.json()
         match_id = data.get("match_id")
+        score = data.get("score")
         if match_id:
-            logger.info(f"Найден лучший матч: пользователь {match_id}")
+            score_suffix = (
+                f" (score: {score:.4f})" if isinstance(score, (int, float)) else ""
+            )
+            logger.info(f"Найден лучший матч: пользователь {match_id}{score_suffix}")
         else:
             logger.info("Не найдено подходящих совпадений")
-        return match_id
+        return {"match_id": match_id, "score": score}
 
     return await _retry_with_backoff(_make_request, "find_best_match")

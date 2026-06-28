@@ -167,13 +167,15 @@ async def find_match(
     logger.info(
         f"find_match: Ищем лучший матч среди {len(other_users)} пользователей (threshold: {threshold})"
     )
-    best_match_id = await find_best_match(
+    best_match = await find_best_match(
         user_vector=user_vector,
         user_id=user_id,
         other_users=other_users,
         threshold=threshold,
         user_tags=list(user_tag_ids),
     )
+    best_match_id = best_match.get("match_id") if best_match else None
+    similarity_score = best_match.get("score") if best_match else None
     if not best_match_id:
         logger.warning(f"find_match: Не удалось найти лучший матч для {user_id}")
         return None
@@ -199,6 +201,8 @@ async def find_match(
         logger.info(
             f"find_match: Уже существует чат {existing_chat.id} между {user_id} и {best_match_id}"
         )
+        if similarity_score is not None and existing_chat.similarity_score is None:
+            existing_chat.similarity_score = similarity_score
         stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
         result1 = await session.execute(stmt1)
         entry1 = result1.scalar_one_or_none()
@@ -235,6 +239,8 @@ async def find_match(
         logger.info(
             f"find_match: Чат {final_check_chat.id} уже был создан (race condition), возвращаем существующий"
         )
+        if similarity_score is not None and final_check_chat.similarity_score is None:
+            final_check_chat.similarity_score = similarity_score
         stmt1 = select(MatchmakingQueue).where(MatchmakingQueue.user_id == user_id)
         result1 = await session.execute(stmt1)
         entry1 = result1.scalar_one_or_none()
@@ -250,7 +256,10 @@ async def find_match(
         await session.commit()
         return final_check_chat
     chat = AnonymousChat(
-        user1_id=user1_id_sorted, user2_id=user2_id_sorted, is_active=True
+        user1_id=user1_id_sorted,
+        user2_id=user2_id_sorted,
+        is_active=True,
+        similarity_score=similarity_score,
     )
     max_attempts = 10
     user1_alias = await random_names.generate_random_alias(session)
