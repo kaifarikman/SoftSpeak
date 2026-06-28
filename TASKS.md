@@ -48,7 +48,7 @@
 - [ ] Integration тесты auth flow — регистрация → верификация → логин (`pytest` + `httpx AsyncClient`)
 - [ ] Integration тесты matchmaking — join queue → match found → chat created
 - [x] Unit тесты ML сервиса — embedding dimensions, cosine similarity edge cases
-- [ ] Frontend smoke tests — `Vitest` или `Playwright` для критических страниц
+- [x] Frontend smoke tests — `Vitest` или `Playwright` для критических страниц
 
 ### Инфраструктура
 - [x] **Pre-download ML модели** в Docker образ — убрать 30-мин ожидание при деплое; добавить в `ml/Dockerfile`:
