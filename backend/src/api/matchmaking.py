@@ -747,6 +747,44 @@ async def get_public_chats(
     return result
 
 
+@router.get("/chat/{chat_id}/compatibility", response_model=CompatibilityResponse)
+async def get_chat_compatibility(
+    chat_id: int, email: str, session: AsyncSession = Depends(get_db)
+):
+    await verify_user_active_for_matchmaking(email, session)
+    user = await get_user_by_email(session, email)
+    chat = await get_anonymous_chat(session, chat_id, user.id)
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
+        )
+
+    score = round((chat.similarity_score or 0.0) * 100)
+
+    from src.db.models import InterestTag, UserInterestTag
+
+    tags1_stmt = select(UserInterestTag.tag_id).where(
+        UserInterestTag.user_id == chat.user1_id
+    )
+    tags2_stmt = select(UserInterestTag.tag_id).where(
+        UserInterestTag.user_id == chat.user2_id
+    )
+    tags1_result = await session.execute(tags1_stmt)
+    tags2_result = await session.execute(tags2_stmt)
+    common_tag_ids = set(tags1_result.scalars().all()) & set(tags2_result.scalars().all())
+
+    common_tags: list[dict[str, str]] = []
+    if common_tag_ids:
+        tags_stmt = select(InterestTag).where(InterestTag.id.in_(common_tag_ids))
+        tags_result = await session.execute(tags_stmt)
+        common_tags = [
+            {"name": tag.name, "emoji": tag.emoji}
+            for tag in tags_result.scalars().all()
+        ]
+
+    return CompatibilityResponse(score=score, common_tags=common_tags)
+
+
 @router.get("/chat/{chat_id}/{email}")
 async def get_anonymous_chat_messages(
     chat_id: int,
@@ -1050,44 +1088,6 @@ async def reveal_chat(
             "user1_revealed": chat.user1_revealed,
             "user2_revealed": chat.user2_revealed,
         }
-
-
-@router.get("/chat/{chat_id}/compatibility", response_model=CompatibilityResponse)
-async def get_chat_compatibility(
-    chat_id: int, email: str, session: AsyncSession = Depends(get_db)
-):
-    await verify_user_active_for_matchmaking(email, session)
-    user = await get_user_by_email(session, email)
-    chat = await get_anonymous_chat(session, chat_id, user.id)
-    if not chat:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден"
-        )
-
-    score = round((chat.similarity_score or 0.0) * 100)
-
-    from src.db.models import InterestTag, UserInterestTag
-
-    tags1_stmt = select(UserInterestTag.tag_id).where(
-        UserInterestTag.user_id == chat.user1_id
-    )
-    tags2_stmt = select(UserInterestTag.tag_id).where(
-        UserInterestTag.user_id == chat.user2_id
-    )
-    tags1_result = await session.execute(tags1_stmt)
-    tags2_result = await session.execute(tags2_stmt)
-    common_tag_ids = set(tags1_result.scalars().all()) & set(tags2_result.scalars().all())
-
-    common_tags: list[dict[str, str]] = []
-    if common_tag_ids:
-        tags_stmt = select(InterestTag).where(InterestTag.id.in_(common_tag_ids))
-        tags_result = await session.execute(tags_stmt)
-        common_tags = [
-            {"name": tag.name, "emoji": tag.emoji}
-            for tag in tags_result.scalars().all()
-        ]
-
-    return CompatibilityResponse(score=score, common_tags=common_tags)
 
 
 @router.post("/chat/{chat_id}/close")

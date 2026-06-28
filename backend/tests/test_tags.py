@@ -30,10 +30,10 @@ async def test_tags_endpoints_return_and_store_user_tags(client, fake_session, m
     ]
 
     async def fake_execute(statement):
-        statement_text = str(statement)
+        statement_text = str(statement).replace("\n", " ")
         if "FROM users" in statement_text:
             return TagResult(user)
-        if "SELECT interest_tags.id FROM interest_tags" in statement_text:
+        if "interest_tags.id IN" in statement_text or "interest_tags.id in" in statement_text:
             return TagResult([1, 2, 3])
         if "FROM interest_tags" in statement_text:
             return TagResult(tags)
