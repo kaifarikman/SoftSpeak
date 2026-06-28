@@ -4,6 +4,7 @@ import anonIcon from '../../assets/icons/masks.png';
 import peopleIcon from '../../assets/icons/people.png';
 import settingsIcon from '../../assets/icons/settings.png';
 import NotificationIcon from './NotificationIcon';
+import HamburgerMenu from './HamburgerMenu';
 
 const NAV_SECTIONS = [
   { id: 'bot', icon: botIcon, title: 'Бот' },
@@ -48,6 +49,11 @@ function Navigation({ activeSection, setActiveSection, chatData, email, onNotifi
           </button>
         ))}
       </div>
+      <HamburgerMenu
+        sections={availableSections}
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
+      />
       <div className="nav-right">
         <NotificationIcon
           email={email}

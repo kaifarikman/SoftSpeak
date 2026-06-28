@@ -6,6 +6,12 @@ import { ChatDataProvider } from './context/ChatDataContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import './css/App.css';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => null);
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>

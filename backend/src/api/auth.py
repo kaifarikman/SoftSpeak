@@ -116,11 +116,6 @@ async def login(
     user = await authenticate_user(
         session, request_data.email, request_data.password.get_secret_value()
     )
-
-
-@router.get("/email/domains", response_model=list[str], status_code=status.HTTP_200_OK)
-async def get_email_domains() -> list[str]:
-    return sorted(get_allowed_email_domains())
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"
@@ -136,6 +131,11 @@ async def get_email_domains() -> list[str]:
         message=f"Добро пожаловать, {user.full_name or user.nickname}!",
         chat_data=chat_data.model_dump(),
     )
+
+
+@router.get("/email/domains", response_model=list[str], status_code=status.HTTP_200_OK)
+async def get_email_domains() -> list[str]:
+    return sorted(get_allowed_email_domains())
 
 
 @router.post("/refresh", response_model=TokenResponse, status_code=status.HTTP_200_OK)

@@ -45,8 +45,8 @@
 ## 🟡 P2 — Улучшения (polish)
 
 ### Тесты
-- [ ] Integration тесты auth flow — регистрация → верификация → логин (`pytest` + `httpx AsyncClient`)
-- [ ] Integration тесты matchmaking — join queue → match found → chat created
+- [x] Integration тесты auth flow — регистрация → верификация → логин (`pytest` + `httpx AsyncClient`)
+- [x] Integration тесты matchmaking — join queue → match found → chat created
 - [x] Unit тесты ML сервиса — embedding dimensions, cosine similarity edge cases
 - [x] Frontend smoke tests — `Vitest` или `Playwright` для критических страниц
 
@@ -68,8 +68,8 @@
 
 ## 🔵 P3 — Фичи (будущее)
 
-- [ ] Push уведомления — Web Push / PWA для уведомлений об анонимных чатах
+- [x] Push уведомления — Web Push / PWA для уведомлений об анонимных чатах
 - [x] Аватары пользователей — загрузка и хранение (S3 или `/static/avatars/`)
 - [x] Блэклист пользователей — упоминается в настройках, логика не реализована
-- [ ] Mobile-first — `HamburgerMenu` компонент есть, адаптивность не протестирована
+- [x] Mobile-first — `HamburgerMenu` компонент есть, адаптивность не протестирована
 - [x] Профиль пользователя — страница `/u/{nickname}` с публичным профилем

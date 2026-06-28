@@ -1,0 +1,17 @@
+{
+  "name": "SoftSpeak",
+  "short_name": "SoftSpeak",
+  "description": "SoftSpeak messenger and matchmaking",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07070f",
+  "theme_color": "#07070f",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

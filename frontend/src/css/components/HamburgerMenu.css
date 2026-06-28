@@ -1,0 +1,92 @@
+.hamburger-menu {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.hamburger-trigger {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.hamburger-trigger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hamburger-trigger.open span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.hamburger-trigger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-trigger.open span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.hamburger-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #0c0c18;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+}
+
+.hamburger-panel.open {
+  display: flex;
+}
+
+.hamburger-item {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #f1f0ff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hamburger-item span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hamburger-item.active {
+  border-color: rgba(124, 58, 237, 0.35);
+  background: rgba(124, 58, 237, 0.14);
+}
+
+@media (max-width: 768px) {
+  .hamburger-menu {
+    display: block;
+  }
+}
