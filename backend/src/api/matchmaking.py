@@ -166,7 +166,11 @@ async def start_matchmaking(
     return MatchmakingStatusResponse(
         is_searching=True,
         queue_count=queue_count,
-        started_at=queue_entry.joined_at.isoformat() if queue_entry.joined_at else None,
+        started_at=(
+            getattr(queue_entry, "joined_at", None).isoformat()
+            if getattr(queue_entry, "joined_at", None)
+            else None
+        ),
     )
 
 
@@ -195,7 +199,11 @@ async def get_matchmaking_status(
     return MatchmakingStatusResponse(
         is_searching=is_searching,
         queue_count=queue_count,
-        started_at=queue_entry.joined_at.isoformat() if queue_entry and queue_entry.joined_at else None,
+        started_at=(
+            getattr(queue_entry, "joined_at", None).isoformat()
+            if queue_entry and getattr(queue_entry, "joined_at", None)
+            else None
+        ),
     )
 
 

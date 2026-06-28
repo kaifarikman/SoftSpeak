@@ -74,6 +74,9 @@ class User(Base):
     push_subscriptions: Mapped[list["PushSubscription"]] = relationship(
         "PushSubscription", back_populates="user", cascade="all, delete-orphan"
     )
+    interest_tags: Mapped[list["UserInterestTag"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class BlacklistEntry(Base):
@@ -243,6 +246,26 @@ class PsychologicalProfile(Base):
         default=lambda: datetime.now(timezone.utc),
     )
     user: Mapped["User"] = relationship(back_populates="psychological_profile")
+
+
+class InterestTag(Base):
+    __tablename__ = "interest_tags"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    emoji: Mapped[str] = mapped_column(String(8), nullable=False, default="")
+    users: Mapped[list["UserInterestTag"]] = relationship(back_populates="tag")
+
+
+class UserInterestTag(Base):
+    __tablename__ = "user_interest_tags"
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_id: Mapped[int] = mapped_column(
+        ForeignKey("interest_tags.id", ondelete="CASCADE"), primary_key=True
+    )
+    user: Mapped["User"] = relationship(back_populates="interest_tags")
+    tag: Mapped["InterestTag"] = relationship(back_populates="users")
 
 
 class AnonymousChat(Base):

@@ -113,6 +113,7 @@ async def find_best_match(
     user_id: int,
     other_users: List[dict],
     threshold: Optional[float] = None,
+    user_tags: Optional[List[int]] = None,
 ) -> Optional[int]:
     if not other_users:
         logger.info("Нет других пользователей для сравнения")
@@ -134,6 +135,7 @@ async def find_best_match(
                 "user_id": user_id,
                 "other_users": other_users,
                 "threshold": threshold,
+                "user_tags": user_tags or [],
             },
         )
         response.raise_for_status()

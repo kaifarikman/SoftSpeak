@@ -90,6 +90,7 @@ class ProfileVectorResponse(BaseModel):
 class BestMatchRequest(BaseModel):
     user_vector: List[float]
     user_id: int
+    user_tags: Optional[List[int]] = None
     other_users: List[dict]
     threshold: Optional[float] = 0.65
 
@@ -196,6 +197,7 @@ async def find_best_match_endpoint(request: BestMatchRequest):
             request.user_id,
             request.other_users,
             request.threshold,
+            request.user_tags or [],
         )
 
         return BestMatchResponse(match_id=match_id)

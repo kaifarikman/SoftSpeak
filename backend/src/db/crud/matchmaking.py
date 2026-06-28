@@ -11,6 +11,7 @@ from src.db.models import (
     User,
     PsychologicalProfile,
     BlacklistEntry,
+    UserInterestTag,
 )
 from src.db.crud import random_names
 from src.services.vector_utils import find_best_match
@@ -23,6 +24,15 @@ def summarize_message_text(message: AnonymousMessage) -> str:
     if not content:
         return "Сообщение"
     return content[:50]
+
+
+def _get_user_tag_ids(user: User) -> set[int]:
+    return {
+        user_interest_tag.tag_id
+        for user_interest_tag in getattr(user, "interest_tags", [])
+        if isinstance(user_interest_tag, UserInterestTag)
+        and user_interest_tag.tag_id is not None
+    }
 
 
 async def join_matchmaking_queue(
@@ -78,6 +88,7 @@ async def find_match(
     user_stmt = (
         select(User)
         .options(selectinload(User.psychological_profile))
+        .options(selectinload(User.interest_tags))
         .where(User.id == user_id)
     )
     user_result = await session.execute(user_stmt)
@@ -94,6 +105,7 @@ async def find_match(
         )
         return None
     user_vector = user.psychological_profile.profile_vector
+    user_tag_ids = _get_user_tag_ids(user)
     logger.info(f"find_match: Начинаем поиск матча для пользователя {user_id}")
     queue_stmt = (
         select(MatchmakingQueue)
@@ -104,7 +116,8 @@ async def find_match(
             )
         )
         .options(
-            selectinload(MatchmakingQueue.user).selectinload(User.psychological_profile)
+            selectinload(MatchmakingQueue.user).selectinload(User.psychological_profile),
+            selectinload(MatchmakingQueue.user).selectinload(User.interest_tags),
         )
         .with_for_update(skip_locked=True)
     )
@@ -143,6 +156,7 @@ async def find_match(
                 {
                     "id": entry.user.id,
                     "profile_vector": entry.user.psychological_profile.profile_vector,
+                    "tag_ids": list(_get_user_tag_ids(entry.user)),
                 }
             )
     if not other_users:
@@ -158,6 +172,7 @@ async def find_match(
         user_id=user_id,
         other_users=other_users,
         threshold=threshold,
+        user_tags=list(user_tag_ids),
     )
     if not best_match_id:
         logger.warning(f"find_match: Не удалось найти лучший матч для {user_id}")

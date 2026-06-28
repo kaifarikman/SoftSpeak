@@ -1,0 +1,143 @@
+.tag-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #07070f;
+  padding: 32px 20px;
+}
+
+.tag-step-content {
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tag-step-eyebrow {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tag-step h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #f1f0ff;
+}
+
+.tag-step-description {
+  margin: 0;
+  max-width: 520px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.tag-step-loading {
+  width: 100%;
+  padding: 20px 16px;
+  color: #cbd5e1;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+.tag-grid {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-item:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: #e9d5ff;
+}
+
+.tag-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tag-item--selected {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.45);
+  color: #f5f3ff;
+}
+
+.tag-item-emoji {
+  font-size: 15px;
+}
+
+.tag-step-counter {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.tag-step-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 14px;
+}
+
+.tag-step-submit {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 58, 237, 0.38);
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.96), rgba(91, 33, 182, 0.96));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.22);
+}
+
+.tag-step-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.tag-step-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .tag-step {
+    padding: 24px 16px;
+  }
+
+  .tag-step-content {
+    padding: 24px 18px;
+  }
+
+  .tag-step h2 {
+    font-size: 24px;
+  }
+}

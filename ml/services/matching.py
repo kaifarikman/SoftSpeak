@@ -5,6 +5,15 @@ import logging
 from .cosine_distance_func import cosine_distance
 
 logger = logging.getLogger(__name__)
+TAG_BONUS = 0.15
+
+
+def _apply_tag_bonus(
+    similarity: float, user_tags: set[int], candidate_tags: set[int]
+) -> float:
+    if user_tags and candidate_tags and user_tags.intersection(candidate_tags):
+        return min(1.0, similarity + TAG_BONUS)
+    return similarity
 
 
 def find_best_match(
@@ -12,9 +21,11 @@ def find_best_match(
     user_id: int,
     other_users: List[dict],
     threshold: float = 0.65,
+    user_tags: Optional[List[int]] = None,
 ) -> Optional[int]:
     best_id: Optional[int] = None
     best_similarity: float = -1.0
+    user_tags_set = set(user_tags or [])
 
     for candidate in other_users:
         cid = candidate.get("id")
@@ -23,6 +34,8 @@ def find_best_match(
             continue
         distance = cosine_distance(user_vector, cvector)
         similarity = 1.0 - distance
+        candidate_tags = set(candidate.get("tag_ids") or [])
+        similarity = _apply_tag_bonus(similarity, user_tags_set, candidate_tags)
         logger.debug(f"Кандидат {cid}: similarity={similarity:.4f}")
         if similarity >= threshold and similarity > best_similarity:
             best_similarity = similarity
@@ -34,4 +47,3 @@ def find_best_match(
         logger.info(f"Матч не найден (threshold={threshold}, кандидатов={len(other_users)})")
 
     return best_id
-

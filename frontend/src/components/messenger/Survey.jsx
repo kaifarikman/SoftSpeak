@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
+import { API_URL } from '../../config';
+import { apiFetch } from '../../utils/apiHelper';
 import { logError, handleWebSocketError } from '../../utils/errorHandler';
+import '../../css/components/TagStep.css';
 
 function Survey({ email, onComplete }) {
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -9,9 +12,17 @@ function Survey({ email, onComplete }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showTagStep, setShowTagStep] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [isSavingTags, setIsSavingTags] = useState(false);
+  const [tagError, setTagError] = useState('');
+  const [hasLoadedTags, setHasLoadedTags] = useState(false);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
+  const hasSurveyStartedRef = useRef(false);
 
   useEffect(() => {
     if (!email) return;
@@ -34,6 +45,7 @@ function Survey({ email, onComplete }) {
         reconnectTimeoutRef.current = null;
       }
       isConnectingRef.current = false;
+      hasSurveyStartedRef.current = false;
     };
   }, [email]);
 
@@ -66,22 +78,17 @@ function Survey({ email, onComplete }) {
         const data = JSON.parse(event.data);
         
         if (data.type === 'question') {
+          hasSurveyStartedRef.current = true;
           setCurrentQuestion(data.question);
           setCurrentNumber(data.current_question_number);
           setTotalQuestions(data.total_questions);
           setIsLoading(false);
           setError('');
         } else if (data.type === 'survey_completed') {
-
-
-          if (currentQuestion || currentNumber > 0) {
+          if (hasSurveyStartedRef.current) {
             setIsCompleted(true);
             setIsLoading(false);
-            if (onComplete) {
-              setTimeout(() => {
-                onComplete();
-              }, 2000);
-            }
+            setShowTagStep(true);
             ws.close();
           } else {
 
@@ -145,6 +152,137 @@ function Survey({ email, onComplete }) {
     }
   };
 
+  useEffect(() => {
+    if (!showTagStep || hasLoadedTags || isLoadingTags) {
+      return undefined;
+    }
+
+    const loadTags = async () => {
+      setIsLoadingTags(true);
+      setTagError('');
+      try {
+        const response = await apiFetch(`${API_URL}/tags`);
+        if (!response.ok) {
+          throw new Error('Не удалось загрузить интересы');
+        }
+        const data = await response.json();
+        setTags(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setTagError(err.message || 'Не удалось загрузить интересы');
+      } finally {
+        setIsLoadingTags(false);
+        setHasLoadedTags(true);
+      }
+    };
+
+    loadTags();
+  }, [showTagStep, hasLoadedTags, isLoadingTags]);
+
+  const toggleTag = (tagId) => {
+    setSelectedTagIds((prev) => {
+      if (prev.includes(tagId)) {
+        return prev.filter((id) => id !== tagId);
+      }
+      if (prev.length >= 5) {
+        return prev;
+      }
+      return [...prev, tagId];
+    });
+  };
+
+  const handleSubmitTags = async () => {
+    if (!email || isSavingTags) {
+      return;
+    }
+
+    setIsSavingTags(true);
+    setTagError('');
+
+    try {
+      const response = await apiFetch(`${API_URL}/tags/user/${email}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag_ids: selectedTagIds }),
+      });
+
+      if (!response.ok) {
+        let detail = 'Не удалось сохранить интересы';
+        try {
+          const data = await response.json();
+          detail = data.detail || data.message || detail;
+        } catch (parseError) {
+          // noop
+        }
+        throw new Error(detail);
+      }
+
+      if (onComplete) {
+        onComplete();
+      }
+      setShowTagStep(false);
+    } catch (err) {
+      setTagError(err.message || 'Не удалось сохранить интересы');
+    } finally {
+      setIsSavingTags(false);
+    }
+  };
+
+  if (showTagStep) {
+    return (
+      <div className="chat-area">
+        <div className="tag-step">
+          <div className="tag-step-content">
+            <p className="tag-step-eyebrow">Анкета завершена</p>
+            <h2>Выберите интересы</h2>
+            <p className="tag-step-description">
+              Отметьте до 5 тем, чтобы поиск собеседника учитывал ваши интересы.
+            </p>
+
+            {isLoadingTags ? (
+              <div className="tag-step-loading">Загружаем интересы...</div>
+            ) : (
+              <>
+                <div className="tag-grid">
+                  {tags.map((tag) => {
+                    const isSelected = selectedTagIds.includes(tag.id);
+                    const isLocked = !isSelected && selectedTagIds.length >= 5;
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        className={`tag-item ${isSelected ? 'tag-item--selected' : ''}`}
+                        onClick={() => toggleTag(tag.id)}
+                        disabled={isLocked}
+                      >
+                        <span className="tag-item-emoji">{tag.emoji}</span>
+                        <span>{tag.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="tag-step-counter">
+                  Выбрано {selectedTagIds.length} из 5
+                </p>
+              </>
+            )}
+
+            {tagError && <p className="tag-step-error">{tagError}</p>}
+
+            <button
+              type="button"
+              className="tag-step-submit"
+              onClick={handleSubmitTags}
+              disabled={isLoadingTags || isSavingTags}
+            >
+              {isSavingTags ? 'Сохраняем...' : 'Продолжить'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="chat-area">
@@ -196,4 +334,3 @@ function Survey({ email, onComplete }) {
 }
 
 export default Survey;
-

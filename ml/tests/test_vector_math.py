@@ -31,6 +31,27 @@ class VectorMathTests(unittest.TestCase):
         )
         self.assertEqual(match_id, 3)
 
+    def test_find_best_match_applies_tag_bonus(self):
+        match_id = find_best_match(
+            user_vector=[1.0, 0.0],
+            user_id=1,
+            other_users=[
+                {
+                    "id": 2,
+                    "profile_vector": [0.8, 0.6],
+                    "tag_ids": [10, 11],
+                },
+                {
+                    "id": 3,
+                    "profile_vector": [0.7, 0.7],
+                    "tag_ids": [12],
+                },
+            ],
+            threshold=0.9,
+            user_tags=[11, 99],
+        )
+        self.assertEqual(match_id, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

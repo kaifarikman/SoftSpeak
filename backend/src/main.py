@@ -19,6 +19,7 @@ from src.api.settings import router as settings_router
 from src.api.reports import router as reports_router
 from src.api.notifications import router as notifications_router
 from src.api.metrics import router as metrics_router
+from src.api.tags import router as tags_router
 
 
 class JsonFormatter(logging.Formatter):
@@ -123,6 +124,7 @@ app.include_router(settings_router)
 app.include_router(reports_router)
 app.include_router(notifications_router)
 app.include_router(metrics_router)
+app.include_router(tags_router)
 
 
 @app.get("/")

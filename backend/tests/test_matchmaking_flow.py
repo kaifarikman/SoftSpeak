@@ -56,6 +56,7 @@ async def test_matchmaking_start_finds_chat_and_notifies_both_users(
         "is_searching": True,
         "queue_count": 1,
         "chat_id": None,
+        "started_at": None,
     }
 
     second_response = await client.post("/matchmaking/start/bob@example.com")
@@ -64,6 +65,7 @@ async def test_matchmaking_start_finds_chat_and_notifies_both_users(
         "is_searching": False,
         "queue_count": 0,
         "chat_id": 77,
+        "started_at": None,
     }
 
     assert send_personal_message.await_count == 2
