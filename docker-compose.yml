@@ -114,8 +114,8 @@ services:
       dockerfile: Dockerfile
     container_name: softspeak_ml
     restart: always
-    ports:
-      - "${ML_SERVICE_PORT:-8001}:8001"
+    expose:
+      - "8001"
     environment:
       MODEL_NAME: ${ML_MODEL_NAME:-intfloat/multilingual-e5-base}
       PYTHONUNBUFFERED: 1
