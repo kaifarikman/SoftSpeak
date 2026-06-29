@@ -480,7 +480,8 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                         )
                     except:
                         pass
-                search_task = asyncio.create_task(search_loop())
+
+            search_task = asyncio.create_task(search_loop())
 
             matchmaking_manager.searching_users[email] = search_task
             while True:
@@ -507,7 +508,7 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                         {"type": "error", "message": "Неверный формат сообщения"}
                     )
     except WebSocketDisconnect:
-        logger.info(f"WebSocket отключен для пользователя {username}")
+        logger.info(f"WebSocket отключен для пользователя {email}")
     except Exception as e:
         logger.error(f"Ошибка в WebSocket для {email}: {e}", exc_info=True)
         try:
@@ -549,7 +550,7 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                     await leave_matchmaking_queue(cleanup_session, user.id)
                     logger.info(f"Пользователь {email} удален из очереди матчинга")
             except Exception as e:
-                logger.error(f"Ошибка при очистке очереди для {username}: {e}")
+                logger.error(f"Ошибка при очистке очереди для {email}: {e}")
         try:
             if websocket.client_state.name != "DISCONNECTED":
                 await websocket.close(code=1000)
