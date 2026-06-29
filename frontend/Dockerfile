@@ -1,10 +1,12 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
+RUN npm install -g npm@11.6.2
 
-RUN npm ci
+COPY package.json package-lock.json ./
+
+RUN npm ci --include=dev --no-audit --no-fund
 
 COPY . .
 

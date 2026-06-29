@@ -55,6 +55,7 @@ dist-ssr/
 postgres_data/
 
 .dockerignore
+!frontend/.dockerignore
 
 .cache/
 *.pt
