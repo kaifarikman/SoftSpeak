@@ -98,3 +98,4 @@ backend/src/app/migrations/versions/__pycache__/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+TASKS.md
