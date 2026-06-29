@@ -184,7 +184,7 @@ const MatchmakingButton = memo(({ email, onMatchFound }) => {
 
         if (data.type === 'status') {
           setQueueCount(data.queue_count || 0);
-        } else if (data.type === 'searching_started') {
+        } else if (data.type === 'searching_started' || data.type === 'searching') {
           setIsSearching(true);
           setQueueCount(data.queue_count || 0);
           setError(null);

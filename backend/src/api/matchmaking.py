@@ -373,6 +373,9 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                     current_threshold = 0.9
                     first_attempt = True
                     min_threshold = 0.6
+                    min_threshold_attempts = 0
+                    expanded_search_threshold = -1.0
+                    expanded_search_after_attempts = 5
                     search_interval = 3
                     while True:
                         if not first_attempt:
@@ -385,6 +388,7 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                                 current_threshold -= 0.01
                             if current_threshold < min_threshold:
                                 current_threshold = min_threshold
+                                min_threshold_attempts += 1
                                 logger.info(
                                     f"[{email}] Порог достиг минимума {min_threshold}"
                                 )
@@ -397,13 +401,19 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                         logger.info(
                             f"[{email}] Пользователей в очереди: {current_count}, порог: {current_threshold:.3f}"
                         )
+                        effective_threshold = current_threshold
+                        if min_threshold_attempts >= expanded_search_after_attempts:
+                            effective_threshold = expanded_search_threshold
+                            logger.info(
+                                f"[{email}] Расширяем поиск после {min_threshold_attempts} попыток на минимальном пороге"
+                            )
                         try:
                             await websocket.send_json(
                                 {
                                     "type": "queue_update",
                                     "queue_count": current_count,
                                     "status": "searching",
-                                    "threshold": current_threshold,
+                                    "threshold": effective_threshold,
                                 }
                             )
                         except Exception as send_error:
@@ -413,15 +423,15 @@ async def matchmaking_websocket(websocket: WebSocket, email: str):
                             break
                         try:
                             logger.info(
-                                f"[{email}] Попытка найти матч с порогом {current_threshold:.3f}..."
+                                f"[{email}] Попытка найти матч с порогом {effective_threshold:.3f}..."
                             )
                             async with AsyncSessionLocal() as search_session:
                                 chat = await find_match(
-                                    search_session, user.id, threshold=current_threshold
+                                    search_session, user.id, threshold=effective_threshold
                                 )
                                 if chat:
                                     logger.info(
-                                        f"✓ Матч найден для {email}: чат {chat.id} (порог: {current_threshold:.3f})"
+                                        f"✓ Матч найден для {email}: чат {chat.id} (порог: {effective_threshold:.3f})"
                                     )
                                     other_user_id = (
                                         chat.user2_id
